@@ -1,0 +1,53 @@
+{
+  "version": "v0.1",
+  "created": "2025-12-21T20:42:15.147240Z",
+  "seed": 20251221,
+  "total_timelines": 500,
+  "tracks": [
+    "supersession",
+    "commitment_durability",
+    "interruption_resumption",
+    "scope_permission",
+    "environmental_freshness"
+  ],
+  "count_per_track": 100,
+  "adversarial_ratio": 0.3,
+  "splits": {
+    "train": {
+      "file": "train.jsonl",
+      "count": 300,
+      "sha256": "f520fe79c828caf363e750daaddcff367a0e52061fd37f781f015a5dacf53a76",
+      "tracks": {
+        "interruption_resumption": 64,
+        "commitment_durability": 60,
+        "scope_permission": 57,
+        "environmental_freshness": 60,
+        "supersession": 59
+      }
+    },
+    "dev": {
+      "file": "dev.jsonl",
+      "count": 100,
+      "sha256": "35f78dd458ad45513964419e3b580b53e07644601289c98ba72b124cf20847db",
+      "tracks": {
+        "interruption_resumption": 19,
+        "supersession": 20,
+        "scope_permission": 18,
+        "commitment_durability": 25,
+        "environmental_freshness": 18
+      }
+    },
+    "test": {
+      "file": "test.jsonl",
+      "count": 100,
+      "sha256": "99468e469f08212a44ecda6c286956a5bc8c1a23586d4c472177fddaa8e05e70",
+      "tracks": {
+        "interruption_resumption": 17,
+        "supersession": 21,
+        "scope_permission": 25,
+        "environmental_freshness": 22,
+        "commitment_durability": 15
+      }
+    }
+  }
+}
