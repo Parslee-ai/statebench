@@ -34,7 +34,25 @@ RELEASE_CONFIG = {
         },
         "adversarial_ratio": 0.3,
         "include_adversarial_slice": True,  # Add dedicated adversarial cases
-    }
+    },
+    "v0.2": {
+        "seed": 20251221,  # Fixed seed for reproducibility
+        "tracks": [
+            "causality",
+            "hallucination_resistance",
+            "repair_propagation",
+            "scope_leak",
+            "brutal_realistic",
+        ],
+        "count_per_track": 100,  # 500 total
+        "splits": {
+            "train": 0.6,  # 60% = 300 timelines
+            "dev": 0.2,    # 20% = 100 timelines
+            "test": 0.2,   # 20% = 100 timelines
+        },
+        "adversarial_ratio": 0.3,
+        "include_adversarial_slice": True,
+    },
 }
 
 

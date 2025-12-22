@@ -1,0 +1,53 @@
+{
+  "version": "v0.2",
+  "created": "2025-12-22T02:23:36.698692Z",
+  "seed": 20251221,
+  "total_timelines": 500,
+  "tracks": [
+    "causality",
+    "hallucination_resistance",
+    "repair_propagation",
+    "scope_leak",
+    "brutal_realistic"
+  ],
+  "count_per_track": 100,
+  "adversarial_ratio": 0.3,
+  "splits": {
+    "train": {
+      "file": "train.jsonl",
+      "count": 300,
+      "sha256": "dbb82cd9710ebb354c24ff53ce2feefd0dd5f5ef93b93205d5d47aaeaafcbb64",
+      "tracks": {
+        "repair_propagation": 64,
+        "hallucination_resistance": 60,
+        "scope_leak": 57,
+        "brutal_realistic": 60,
+        "causality": 59
+      }
+    },
+    "dev": {
+      "file": "dev.jsonl",
+      "count": 100,
+      "sha256": "97378fdea05f2f4c1196375f763778200c66f292f006d893ee7f266ba2f03f0f",
+      "tracks": {
+        "repair_propagation": 19,
+        "causality": 20,
+        "scope_leak": 18,
+        "hallucination_resistance": 25,
+        "brutal_realistic": 18
+      }
+    },
+    "test": {
+      "file": "test.jsonl",
+      "count": 100,
+      "sha256": "7d67bef785c39a9f210e84506e12ba130cd84dd3b490ac2d775f9096e4d7e681",
+      "tracks": {
+        "repair_propagation": 17,
+        "causality": 21,
+        "scope_leak": 25,
+        "brutal_realistic": 22,
+        "hallucination_resistance": 15
+      }
+    }
+  }
+}
