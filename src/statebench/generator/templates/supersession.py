@@ -5,8 +5,7 @@ Each template defines a scenario where a decision/fact becomes invalid
 and the system must not resurrect it.
 """
 
-from dataclasses import dataclass, field
-from typing import Callable
+from dataclasses import dataclass
 
 
 @dataclass

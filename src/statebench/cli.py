@@ -8,16 +8,15 @@ from dotenv import load_dotenv
 from rich.console import Console
 from rich.table import Table
 
-# Load environment variables from .env file
-load_dotenv()
-
-from statebench.generator.engine import generate_dataset, TimelineGenerator
-from statebench.runner.harness import EvaluationHarness, load_timelines
-from statebench.evaluation import format_metrics_table
 from statebench.baselines import BASELINE_REGISTRY
-from statebench.release import generate_release, verify_release, RELEASE_CONFIG
-from statebench.calibration import run_calibration, create_audit_template
+from statebench.calibration import create_audit_template, run_calibration
+from statebench.evaluation import format_metrics_table
+from statebench.generator.engine import generate_dataset
+from statebench.release import RELEASE_CONFIG, generate_release, verify_release
+from statebench.runner.harness import EvaluationHarness, load_timelines
 
+# Load environment variables from .env file (after imports to satisfy E402)
+load_dotenv()
 
 console = Console()
 
@@ -45,7 +44,7 @@ AVAILABLE_TRACKS = [
 
 @click.group()
 @click.version_option()
-def main():
+def main() -> None:
     """StateBench: A benchmark for LLM state correctness."""
     pass
 
@@ -78,7 +77,7 @@ def main():
     default=None,
     help="Random seed for reproducibility",
 )
-def generate(tracks: tuple[str, ...], count: int, output: str, seed: int | None):
+def generate(tracks: tuple[str, ...], count: int, output: str, seed: int | None) -> None:
     """Generate synthetic benchmark dataset."""
     output_path = Path(output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -150,7 +149,7 @@ def evaluate(
     provider: str,
     limit: int | None,
     output: str | None,
-):
+) -> None:
     """Evaluate a baseline on a dataset."""
     console.print(f"[bold]Evaluating {baseline} with {model}...[/bold]")
 
@@ -237,7 +236,7 @@ def compare(
     provider: str,
     limit: int | None,
     output: str,
-):
+) -> None:
     """Compare multiple baselines on a dataset."""
     if not baselines:
         baselines = tuple(BASELINE_REGISTRY.keys())
@@ -304,7 +303,7 @@ def compare(
     default=5,
     help="Number of timelines to show",
 )
-def inspect(dataset: str, limit: int):
+def inspect(dataset: str, limit: int) -> None:
     """Inspect timelines in a dataset."""
     timelines = list(load_timelines(Path(dataset)))
 
@@ -341,7 +340,7 @@ def inspect(dataset: str, limit: int):
 
 
 @main.command()
-def baselines():
+def baselines() -> None:
     """List available baselines."""
     table = Table(title="Available Baselines")
     table.add_column("Name")
@@ -382,7 +381,7 @@ def baselines():
     default="data/releases",
     help="Output directory for release",
 )
-def release(version: str, output: str):
+def release(version: str, output: str) -> None:
     """Generate a canonical benchmark release with train/dev/test splits."""
     output_dir = Path(output) / version
     console.print(f"[bold]Generating release {version}...[/bold]")
@@ -410,7 +409,7 @@ def release(version: str, output: str):
 
 @main.command()
 @click.argument("release_dir", type=click.Path(exists=True))
-def verify(release_dir: str):
+def verify(release_dir: str) -> None:
     """Verify a benchmark release against its manifest."""
     release_path = Path(release_dir)
     console.print(f"[bold]Verifying release in {release_path}...[/bold]")
@@ -452,7 +451,7 @@ def verify(release_dir: str):
     default=None,
     help="Output path for detailed results JSON",
 )
-def calibrate(audit_set: str, provider: str, no_llm: bool, output: str | None):
+def calibrate(audit_set: str, provider: str, no_llm: bool, output: str | None) -> None:
     """Run judge calibration against human annotations."""
     console.print(f"[bold]Running calibration against {audit_set}...[/bold]")
 
@@ -550,7 +549,7 @@ def budget_sweep(
     provider: str,
     limit: int | None,
     output: str,
-):
+) -> None:
     """Run evaluation at multiple token budgets to show budget-performance curves."""
     budget_list = [int(b.strip()) for b in budgets.split(",")]
 
@@ -661,7 +660,7 @@ def variance_report(
     provider: str,
     limit: int | None,
     output: str,
-):
+) -> None:
     """Run evaluation across multiple seeds and report mean/std variance."""
     import numpy as np
 
@@ -791,7 +790,7 @@ def variance_report(
     default=42,
     help="Random seed for sampling",
 )
-def create_audit_set(release_dir: str, output: str, sample_size: int, seed: int):
+def create_audit_set(release_dir: str, output: str, sample_size: int, seed: int) -> None:
     """Create an audit set template for human annotation."""
     console.print(f"[bold]Creating audit template from {release_dir}...[/bold]")
 
@@ -883,7 +882,7 @@ def leaderboard(
     submitter: str,
     submission_notes: str,
     limit: int | None,
-):
+) -> None:
     """Generate an official leaderboard submission.
 
     This command runs the standardized evaluation protocol and generates
@@ -960,7 +959,7 @@ def leaderboard(
         })
 
     # Aggregate results
-    def compute_stats(key):
+    def compute_stats(key: str) -> dict[str, float]:
         values = [r[key] for r in all_results]
         import statistics
         return {
@@ -1126,9 +1125,9 @@ def create_splits(
     dev_ratio: float,
     test_ratio: float,
     hidden_ratio: float,
-):
+) -> None:
     """Create train/dev/test/hidden splits with canaries."""
-    from statebench.splits import SplitManager, SplitConfig
+    from statebench.splits import SplitConfig, SplitManager
 
     console.print("[bold]Creating dataset splits...[/bold]")
 
@@ -1197,9 +1196,10 @@ def create_splits(
     required=True,
     help="Path to .canary_registry.json",
 )
-def check_contamination(responses: str, canary_registry: str):
+def check_contamination(responses: str, canary_registry: str) -> None:
     """Check model responses for canary contamination."""
-    from statebench.splits import check_contamination as do_check, format_contamination_report
+    from statebench.splits import check_contamination as do_check
+    from statebench.splits import format_contamination_report
 
     console.print("[bold]Checking for canary contamination...[/bold]")
 
@@ -1243,7 +1243,7 @@ def check_contamination(responses: str, canary_registry: str):
     required=True,
     help="Path to splits directory",
 )
-def split_stats(split_dir: str):
+def split_stats(split_dir: str) -> None:
     """Show statistics for a split directory."""
     from statebench.splits import SplitManager
 

@@ -14,14 +14,11 @@ from statebench.generator.adversarial import (
     AdversarialGenerator,
     TimelinePerturbator,
 )
+
 # v1.0: Enterprise Track
 from statebench.generator.templates.authority import (
     AUTHORITY_CONFLICT_TEMPLATES,
     AuthorityConflictTemplate,
-)
-from statebench.generator.templates.enterprise import (
-    ENTERPRISE_PRIVACY_TEMPLATES,
-    EnterprisePrivacyTemplate,
 )
 from statebench.generator.templates.brutal import BRUTAL_SCENARIOS, BrutalScenario
 from statebench.generator.templates.causality import (
@@ -39,6 +36,10 @@ from statebench.generator.templates.commitment import COMMITMENT_TEMPLATES, Comm
 from statebench.generator.templates.detection import (
     DETECTION_TEMPLATES,
     DetectionTemplate,
+)
+from statebench.generator.templates.enterprise import (
+    ENTERPRISE_PRIVACY_TEMPLATES,
+    EnterprisePrivacyTemplate,
 )
 from statebench.generator.templates.environmental import (
     ENVIRONMENTAL_TEMPLATES,
@@ -1237,7 +1238,7 @@ class TimelineGenerator:
 
         # Query - must identify WHICH constraint(s) block
         current_time += timedelta(minutes=2)
-        constraint_keys = [c["key"] for c in template.constraints]
+        [c["key"] for c in template.constraints]
         ground_truth = GroundTruth(
             decision=template.expected_decision,
             must_mention=template.blocking_constraints,  # type: ignore[arg-type]
@@ -1422,10 +1423,15 @@ class TimelineGenerator:
         current_time += timedelta(minutes=2)
         ground_truth = GroundTruth(
             decision=template.expected_decision,
-            must_mention=["cannot", "both"],  # Must acknowledge conflict,  # type: ignore[arg-type]
-            must_not_mention=[template.if_only_a[:10], template.if_only_b[:10]],  # Can't just pick one,  # type: ignore[arg-type]
+            must_mention=["cannot", "both"],  # type: ignore[arg-type]
+            must_not_mention=[  # type: ignore[arg-type]
+                template.if_only_a[:10], template.if_only_b[:10]
+            ],
             allowed_sources=["persistent_facts", "environment"],
-            reasoning=f"Conflicting constraints. If only A: {template.if_only_a}. If only B: {template.if_only_b}",
+            reasoning=(
+                f"Conflicting constraints. If only A: {template.if_only_a}. "
+                f"If only B: {template.if_only_b}"
+            ),
         )
 
         events.append(Query(

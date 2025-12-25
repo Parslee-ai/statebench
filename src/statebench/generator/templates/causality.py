@@ -21,7 +21,6 @@ using the state causally.
 """
 
 from dataclasses import dataclass
-from typing import Literal
 
 
 @dataclass
@@ -363,7 +362,11 @@ INVENTORY_RESERVED = EdgeCaseTemplate(
     name="inventory_reserved",
     domain="sales",
     description="Inventory count includes reserved units",
-    constraint={"key": "inventory", "value": "100 units in warehouse (40 reserved for pending orders)", "source": "wms"},
+    constraint={
+        "key": "inventory",
+        "value": "100 units in warehouse (40 reserved for pending orders)",
+        "source": "wms",
+    },
     edge_case_request="New customer wants to order 80 units immediately",
     decision_query="Can we fulfill this 80-unit order from current stock?",
     expected_decision="No - only 60 units available (100 - 40 reserved)",
@@ -397,8 +400,14 @@ SPEED_VS_QUALITY = ConflictingConstraintTemplate(
     name="speed_vs_quality",
     domain="project",
     description="Deadline conflicts with quality requirement",
-    constraint_a={"key": "deadline", "value": "Feature must ship Monday", "source": "product_manager"},
-    constraint_b={"key": "quality_gate", "value": "All features require 80% test coverage before release", "source": "eng_policy"},
+    constraint_a={
+        "key": "deadline", "value": "Feature must ship Monday", "source": "product_manager"
+    },
+    constraint_b={
+        "key": "quality_gate",
+        "value": "All features require 80% test coverage before release",
+        "source": "eng_policy",
+    },
     scenario="It's Friday. Feature is code-complete but has 30% test coverage. "
              "Writing tests to 80% coverage takes 3 days.",
     decision_query="Should we ship the feature Monday?",
@@ -411,8 +420,16 @@ CUSTOMER_A_VS_CUSTOMER_B = ConflictingConstraintTemplate(
     name="customer_priority_conflict",
     domain="support",
     description="Two customers with conflicting priority claims",
-    constraint_a={"key": "customer_a_sla", "value": "Acme Corp has 4-hour response SLA (Enterprise tier)", "source": "crm"},
-    constraint_b={"key": "customer_b_sla", "value": "Beta Inc has 4-hour response SLA (Enterprise tier)", "source": "crm"},
+    constraint_a={
+        "key": "customer_a_sla",
+        "value": "Acme Corp has 4-hour response SLA (Enterprise tier)",
+        "source": "crm",
+    },
+    constraint_b={
+        "key": "customer_b_sla",
+        "value": "Beta Inc has 4-hour response SLA (Enterprise tier)",
+        "source": "crm",
+    },
     scenario="Both customers submitted critical tickets at same time. "
              "Only 1 senior engineer available. Each ticket needs 4 hours to resolve.",
     decision_query="How should we prioritize these tickets?",
@@ -482,10 +499,19 @@ HEADCOUNT_BUDGET_TIMELINE = ChainDependencyTemplate(
     name="headcount_budget_timeline",
     domain="hr",
     description="Hiring decision depends on budget which depends on fiscal year",
-    initial_fact={"key": "fiscal_year", "value": "Fiscal year ends March 31", "source": "finance"},
-    derived_fact={"key": "remaining_budget", "value": "Q4 hiring budget: $150,000 (use-or-lose)", "source": "hr_finance"},
-    final_constraint={"key": "hiring_timeline", "value": "Average time-to-hire: 8 weeks. "
-                      "New hires must start before budget expires.", "source": "talent_acquisition"},
+    initial_fact={
+        "key": "fiscal_year", "value": "Fiscal year ends March 31", "source": "finance"
+    },
+    derived_fact={
+        "key": "remaining_budget",
+        "value": "Q4 hiring budget: $150,000 (use-or-lose)",
+        "source": "hr_finance",
+    },
+    final_constraint={
+        "key": "hiring_timeline",
+        "value": "Average time-to-hire: 8 weeks. New hires must start before budget expires.",
+        "source": "talent_acquisition",
+    },
     scenario="Today is February 15. Want to hire 2 senior engineers at $180,000 total.",
     decision_query="Can we complete these hires within our Q4 budget?",
     expected_decision="No - 8 weeks from Feb 15 = April 12, after March 31 budget expiry",
@@ -501,9 +527,21 @@ CAPACITY_DEPENDENCY_REVENUE = ChainDependencyTemplate(
     name="capacity_dependency_revenue",
     domain="sales",
     description="New deal depends on capacity which depends on existing commitments",
-    initial_fact={"key": "current_commitments", "value": "Committed to 3 implementations in Q1 (600 hours)", "source": "pmo"},
-    derived_fact={"key": "available_capacity", "value": "Implementation team: 800 hours/quarter total", "source": "resource_mgr"},
-    final_constraint={"key": "new_deal_requirement", "value": "New deal requires 300 hours implementation", "source": "sales"},
+    initial_fact={
+        "key": "current_commitments",
+        "value": "Committed to 3 implementations in Q1 (600 hours)",
+        "source": "pmo",
+    },
+    derived_fact={
+        "key": "available_capacity",
+        "value": "Implementation team: 800 hours/quarter total",
+        "source": "resource_mgr",
+    },
+    final_constraint={
+        "key": "new_deal_requirement",
+        "value": "New deal requires 300 hours implementation",
+        "source": "sales",
+    },
     scenario="Sales wants to close a new deal requiring 300 implementation hours in Q1.",
     decision_query="Can we commit to implementing this new deal in Q1?",
     expected_decision="No - only 200 hours available (800 - 600 committed)",
@@ -543,7 +581,11 @@ AGGREGATE_SPEND = AggregationTemplate(
     name="aggregate_spend",
     domain="procurement",
     description="Multiple small purchases that together exceed authority",
-    constraint={"key": "quarterly_limit", "value": "Single-vendor quarterly spend limit: $50,000 without RFP", "source": "procurement_policy"},
+    constraint={
+        "key": "quarterly_limit",
+        "value": "Single-vendor quarterly spend limit: $50,000 without RFP",
+        "source": "procurement_policy",
+    },
     items=[
         {"name": "January order", "value": "$18,000"},
         {"name": "February order", "value": "$22,000"},
@@ -560,7 +602,11 @@ AGGREGATE_HOURS = AggregationTemplate(
     name="aggregate_hours",
     domain="project",
     description="Multiple task assignments that overload a team member",
-    constraint={"key": "max_allocation", "value": "No engineer should exceed 40 hours/week allocation", "source": "hr_policy"},
+    constraint={
+        "key": "max_allocation",
+        "value": "No engineer should exceed 40 hours/week allocation",
+        "source": "hr_policy",
+    },
     items=[
         {"name": "Project Alpha", "value": "15 hours/week"},
         {"name": "Project Beta", "value": "12 hours/week"},
@@ -578,7 +624,11 @@ AGGREGATE_RISK = AggregationTemplate(
     name="aggregate_risk",
     domain="sales",
     description="Multiple deals with same customer exceeding risk threshold",
-    constraint={"key": "customer_concentration", "value": "No single customer can exceed 20% of pipeline", "source": "sales_policy"},
+    constraint={
+        "key": "customer_concentration",
+        "value": "No single customer can exceed 20% of pipeline",
+        "source": "sales_policy",
+    },
     items=[
         {"name": "Deal 1 (closed)", "value": "$500,000"},
         {"name": "Deal 2 (in progress)", "value": "$300,000"},

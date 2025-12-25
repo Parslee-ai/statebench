@@ -7,16 +7,32 @@ and cryptographic hashes for verification.
 import hashlib
 import json
 import random
+from collections.abc import Iterator
 from datetime import datetime
 from pathlib import Path
-from typing import Iterator
+from typing import Any, TypedDict
 
 from statebench.generator.engine import TimelineGenerator
 from statebench.schema.timeline import Timeline
 
 
+class SplitConfig(TypedDict):
+    train: float
+    dev: float
+    test: float
+
+
+class ReleaseVersionConfig(TypedDict):
+    seed: int
+    tracks: list[str]
+    count_per_track: int
+    splits: SplitConfig
+    adversarial_ratio: float
+    include_adversarial_slice: bool
+
+
 # Canonical release configuration
-RELEASE_CONFIG = {
+RELEASE_CONFIG: dict[str, ReleaseVersionConfig] = {
     "v0.1": {
         "seed": 20251221,  # Fixed seed for reproducibility
         "tracks": [
@@ -68,7 +84,7 @@ def compute_file_hash(path: Path) -> str:
 def generate_release(
     version: str,
     output_dir: Path,
-) -> dict:
+) -> dict[str, Any]:
     """Generate a canonical benchmark release.
 
     Args:
@@ -112,7 +128,8 @@ def generate_release(
     }
 
     # Write split files and compute hashes
-    manifest = {
+    splits_manifest: dict[str, dict[str, Any]] = {}
+    manifest: dict[str, Any] = {
         "version": version,
         "created": datetime.utcnow().isoformat() + "Z",
         "seed": config["seed"],
@@ -120,7 +137,7 @@ def generate_release(
         "tracks": config["tracks"],
         "count_per_track": config["count_per_track"],
         "adversarial_ratio": config["adversarial_ratio"],
-        "splits": {},
+        "splits": splits_manifest,
     }
 
     for split_name, timelines in splits.items():
@@ -134,11 +151,11 @@ def generate_release(
         file_hash = compute_file_hash(file_path)
 
         # Track distribution
-        track_counts = {}
+        track_counts: dict[str, int] = {}
         for t in timelines:
             track_counts[t.track] = track_counts.get(t.track, 0) + 1
 
-        manifest["splits"][split_name] = {
+        splits_manifest[split_name] = {
             "file": f"{split_name}.jsonl",
             "count": len(timelines),
             "sha256": file_hash,

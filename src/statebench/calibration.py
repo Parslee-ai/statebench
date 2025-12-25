@@ -5,8 +5,8 @@ and establish judge reliability.
 """
 
 import json
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Iterator
 
 from pydantic import BaseModel
 
@@ -77,7 +77,7 @@ def calculate_cohens_kappa(confusion: dict[str, dict[str, int]]) -> float:
         return 0.0
 
     # Calculate observed agreement
-    p_o = sum(confusion.get(l, {}).get(l, 0) for l in labels) / n
+    p_o = sum(confusion.get(lbl, {}).get(lbl, 0) for lbl in labels) / n
 
     # Calculate expected agreement
     p_e = 0.0
@@ -145,7 +145,8 @@ def run_calibration(
 
         if human_key not in decision_confusion:
             decision_confusion[human_key] = {}
-        decision_confusion[human_key][judge_key] = decision_confusion[human_key].get(judge_key, 0) + 1
+        current = decision_confusion[human_key].get(judge_key, 0)
+        decision_confusion[human_key][judge_key] = current + 1
 
         if judge_correct == human_correct:
             decision_correct_agree += 1
@@ -201,11 +202,15 @@ def run_calibration(
     decision_agreement = decision_correct_agree / total if total > 0 else 0.0
     decision_kappa = calculate_cohens_kappa(decision_confusion)
 
-    mm_precision = must_mention_tp / (must_mention_tp + must_mention_fp) if (must_mention_tp + must_mention_fp) > 0 else 1.0
-    mm_recall = must_mention_tp / (must_mention_tp + must_mention_fn) if (must_mention_tp + must_mention_fn) > 0 else 1.0
+    mm_total = must_mention_tp + must_mention_fp
+    mm_precision = must_mention_tp / mm_total if mm_total > 0 else 1.0
+    mm_total_recall = must_mention_tp + must_mention_fn
+    mm_recall = must_mention_tp / mm_total_recall if mm_total_recall > 0 else 1.0
 
-    mnm_precision = must_not_mention_tp / (must_not_mention_tp + must_not_mention_fp) if (must_not_mention_tp + must_not_mention_fp) > 0 else 1.0
-    mnm_recall = must_not_mention_tp / (must_not_mention_tp + must_not_mention_fn) if (must_not_mention_tp + must_not_mention_fn) > 0 else 1.0
+    mnm_total = must_not_mention_tp + must_not_mention_fp
+    mnm_precision = must_not_mention_tp / mnm_total if mnm_total > 0 else 1.0
+    mnm_total_recall = must_not_mention_tp + must_not_mention_fn
+    mnm_recall = must_not_mention_tp / mnm_total_recall if mnm_total_recall > 0 else 1.0
 
     return CalibrationResult(
         total_items=total,
@@ -242,6 +247,7 @@ def create_audit_template(
         Number of items created
     """
     import random
+
     from statebench.release import load_split
     from statebench.schema.timeline import Query
 

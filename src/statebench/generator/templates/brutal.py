@@ -13,7 +13,6 @@ If a system passes these, it means something.
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
 
 
 @dataclass
@@ -135,7 +134,10 @@ PROCUREMENT_NIGHTMARE = BrutalScenario(
         ),
         BrutalEvent(
             day=4, time="3:00 PM", speaker="Sarah", role="VP Operations",
-            content="Wait, VendorA is back in play? They were $180K though... and we only have CEO approval for $145K VendorB.",
+            content=(
+                "Wait, VendorA is back in play? They were $180K though... "
+                "and we only have CEO approval for $145K VendorB."
+            ),
             event_type="instruction",
         ),
 
@@ -318,7 +320,10 @@ SUPPORT_SPIRAL = BrutalScenario(
         # Day 2: Escalation
         BrutalEvent(
             day=2, time="9:00 AM", speaker="L2 Support", role="Senior Support",
-            content="L1 diagnosis was wrong. This is a database sync issue. Data exists but not propagating to dashboard.",
+            content=(
+                "L1 diagnosis was wrong. This is a database sync issue. "
+                "Data exists but not propagating to dashboard."
+            ),
             event_type="correction",
         ),
         BrutalEvent(
@@ -333,7 +338,10 @@ SUPPORT_SPIRAL = BrutalScenario(
         ),
         BrutalEvent(
             day=2, time="3:00 PM", speaker="Engineering", role="Engineer",
-            content="Actually L2 was also wrong. The data is correct. Customer's filtering is excluding yesterday because of timezone mismatch.",
+            content=(
+                "Actually L2 was also wrong. The data is correct. "
+                "Customer's filtering is excluding yesterday because of timezone mismatch."
+            ),
             event_type="correction",
         ),
 
@@ -345,7 +353,10 @@ SUPPORT_SPIRAL = BrutalScenario(
         ),
         BrutalEvent(
             day=3, time="10:00 AM", speaker="Engineering", role="Engineer",
-            content="Correction: We pushed a timezone handling change last week that affected their filter defaults. It's our bug.",
+            content=(
+                "Correction: We pushed a timezone handling change last week "
+                "that affected their filter defaults. It's our bug."
+            ),
             event_type="correction",
         ),
         BrutalEvent(

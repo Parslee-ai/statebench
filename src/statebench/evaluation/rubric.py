@@ -4,7 +4,6 @@ Defines how to score model responses against ground truth constraints.
 """
 
 import re
-from typing import Callable
 
 
 def normalize_text(text: str) -> str:

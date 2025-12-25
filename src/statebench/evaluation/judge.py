@@ -11,9 +11,12 @@ handling paraphrases gracefully.
 from anthropic import Anthropic
 from openai import OpenAI
 
-from statebench.evaluation.rubric import ScoringRubric, contains_phrase, extract_decision
 from statebench.evaluation.metrics import QueryResult
-from statebench.schema.timeline import Query, GroundTruth
+from statebench.evaluation.rubric import contains_phrase, extract_decision
+from statebench.schema.timeline import GroundTruth
+
+# Type for LLM clients
+LLMClient = OpenAI | Anthropic
 
 
 class ResponseJudge:
@@ -32,9 +35,9 @@ class ResponseJudge:
         """
         self.use_llm_judge = use_llm_judge
         self.provider = provider
-        self._client = None
+        self._client: LLMClient | None = None
 
-    def _get_client(self):
+    def _get_client(self) -> LLMClient:
         """Get or create the LLM client."""
         if self._client is None:
             if self.provider == "openai":

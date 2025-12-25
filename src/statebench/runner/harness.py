@@ -7,8 +7,9 @@ collecting results for evaluation.
 import json
 import os
 import time
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Iterator
+from typing import Any
 
 from anthropic import Anthropic
 from openai import OpenAI
@@ -23,16 +24,14 @@ try:
 except ImportError:
     HAS_GEMINI = False
 
-from statebench.schema.timeline import Timeline, Query, ConversationTurn, StateWrite, Supersession
 from statebench.baselines import MemoryStrategy, get_baseline
 from statebench.evaluation import (
-    ResponseJudge,
-    create_judge,
-    MetricsAggregator,
     BenchmarkMetrics,
+    MetricsAggregator,
     QueryResult,
+    create_judge,
 )
-
+from statebench.schema.timeline import ConversationTurn, Query, StateWrite, Supersession, Timeline
 
 console = Console()
 
@@ -67,12 +66,12 @@ class EvaluationHarness:
         self.model = model
         self.provider = provider
         self.token_budget = token_budget
-        self._client = None
+        self._client: Any = None
         # Use OpenAI for judging by default (most reliable)
         judge_provider = "openai" if provider == "google" else provider
         self.judge = create_judge(use_llm=use_llm_judge, provider=judge_provider)
 
-    def _get_client(self):
+    def _get_client(self) -> Any:
         """Get or create the LLM client."""
         if self._client is None:
             if self.provider == "openai":

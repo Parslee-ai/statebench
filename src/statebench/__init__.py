@@ -2,14 +2,14 @@
 
 __version__ = "0.1.0"
 
-from statebench.schema.timeline import Timeline, Event, GroundTruth
 from statebench.schema.state import (
+    EnvironmentSignal,
     IdentityRole,
     PersistentFact,
-    WorkingSetItem,
-    EnvironmentSignal,
     StateSnapshot,
+    WorkingSetItem,
 )
+from statebench.schema.timeline import Event, GroundTruth, Timeline
 
 __all__ = [
     "Timeline",
