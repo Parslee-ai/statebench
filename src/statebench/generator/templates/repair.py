@@ -15,6 +15,7 @@ the original (now-corrected) value.
 """
 
 from dataclasses import dataclass
+from typing import Any
 
 
 @dataclass
@@ -25,14 +26,14 @@ class RepairChain:
     description: str
 
     # Initial (wrong) fact
-    initial_fact: dict  # key, value, source
+    initial_fact: dict[str, Any]  # key, value, source
 
     # Decision made based on wrong fact
     initial_decision: str
     decision_reasoning: str
 
     # Correction applied
-    correction: dict  # key, new_value, reason
+    correction: dict[str, Any]  # key, new_value, reason
 
     # Query after correction - tests propagation
     propagation_query: str

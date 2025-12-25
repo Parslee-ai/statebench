@@ -14,6 +14,7 @@ The system must:
 """
 
 from dataclasses import dataclass
+from typing import Any
 
 
 @dataclass
@@ -28,11 +29,11 @@ class EnvironmentalTemplate:
     entity_type: str
 
     # Initial environmental state
-    initial_signal: dict  # type, content, time
+    initial_signal: dict[str, Any]  # type, content, time
     initial_signal_text: str
 
     # Updated environmental state (fresher)
-    updated_signal: dict
+    updated_signal: dict[str, Any]
     updated_signal_text: str
     time_gap_minutes: int  # Time between initial and updated
 

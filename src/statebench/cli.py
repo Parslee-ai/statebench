@@ -311,8 +311,8 @@ def inspect(dataset: str, limit: int) -> None:
     console.print(f"Total timelines: {len(timelines)}")
 
     # Track counts
-    tracks = {}
-    domains = {}
+    tracks: dict[str, int] = {}
+    domains: dict[str, int] = {}
     for t in timelines:
         tracks[t.track] = tracks.get(t.track, 0) + 1
         domains[t.domain] = domains.get(t.domain, 0) + 1
@@ -332,11 +332,16 @@ def inspect(dataset: str, limit: int) -> None:
         console.print(f"User: {t.initial_state.identity_role.user_name}")
 
         for event in t.events:
-            if hasattr(event, "text"):
-                console.print(f"  [{event.type}] {event.speaker}: {event.text[:80]}...")
-            elif hasattr(event, "prompt"):
-                console.print(f"  [query] {event.prompt}")
-                console.print(f"    Expected: {event.ground_truth.decision}")
+            if hasattr(event, "text") and hasattr(event, "speaker"):
+                event_text = getattr(event, "text", "")
+                event_speaker = getattr(event, "speaker", "")
+                console.print(f"  [{event.type}] {event_speaker}: {event_text[:80]}...")
+            elif hasattr(event, "prompt") and hasattr(event, "ground_truth"):
+                event_prompt = getattr(event, "prompt", "")
+                event_gt = getattr(event, "ground_truth", None)
+                console.print(f"  [query] {event_prompt}")
+                if event_gt:
+                    console.print(f"    Expected: {event_gt.decision}")
 
 
 @main.command()
@@ -687,29 +692,43 @@ def variance_report(
         all_mm_rate.append(metrics.overall_must_mention_rate)
 
     # Calculate stats
+    decision_mean = float(np.mean(all_decision_acc))
+    decision_std = float(np.std(all_decision_acc))
+    decision_min = float(np.min(all_decision_acc))
+    decision_max = float(np.max(all_decision_acc))
+
+    sfrr_mean = float(np.mean(all_sfrr))
+    sfrr_std = float(np.std(all_sfrr))
+    sfrr_min = float(np.min(all_sfrr))
+    sfrr_max = float(np.max(all_sfrr))
+
+    mm_mean = float(np.mean(all_mm_rate))
+    mm_std = float(np.std(all_mm_rate))
+    mm_min = float(np.min(all_mm_rate))
+    mm_max = float(np.max(all_mm_rate))
     results = {
         "baseline": baseline,
         "model": model,
         "n_runs": len(seed_list),
         "decision_accuracy": {
-            "mean": float(np.mean(all_decision_acc)),
-            "std": float(np.std(all_decision_acc)),
-            "min": float(np.min(all_decision_acc)),
-            "max": float(np.max(all_decision_acc)),
+            "mean": decision_mean,
+            "std": decision_std,
+            "min": decision_min,
+            "max": decision_max,
             "values": all_decision_acc,
         },
         "sfrr": {
-            "mean": float(np.mean(all_sfrr)),
-            "std": float(np.std(all_sfrr)),
-            "min": float(np.min(all_sfrr)),
-            "max": float(np.max(all_sfrr)),
+            "mean": sfrr_mean,
+            "std": sfrr_std,
+            "min": sfrr_min,
+            "max": sfrr_max,
             "values": all_sfrr,
         },
         "must_mention_rate": {
-            "mean": float(np.mean(all_mm_rate)),
-            "std": float(np.std(all_mm_rate)),
-            "min": float(np.min(all_mm_rate)),
-            "max": float(np.max(all_mm_rate)),
+            "mean": mm_mean,
+            "std": mm_std,
+            "min": mm_min,
+            "max": mm_max,
             "values": all_mm_rate,
         },
     }
@@ -724,31 +743,31 @@ def variance_report(
 
     table.add_row(
         "Decision Accuracy",
-        f"{results['decision_accuracy']['mean']:.1%}",
-        f"±{results['decision_accuracy']['std']:.1%}",
-        f"{results['decision_accuracy']['min']:.1%}",
-        f"{results['decision_accuracy']['max']:.1%}",
+        f"{decision_mean:.1%}",
+        f"±{decision_std:.1%}",
+        f"{decision_min:.1%}",
+        f"{decision_max:.1%}",
     )
     table.add_row(
         "SFRR",
-        f"{results['sfrr']['mean']:.1%}",
-        f"±{results['sfrr']['std']:.1%}",
-        f"{results['sfrr']['min']:.1%}",
-        f"{results['sfrr']['max']:.1%}",
+        f"{sfrr_mean:.1%}",
+        f"±{sfrr_std:.1%}",
+        f"{sfrr_min:.1%}",
+        f"{sfrr_max:.1%}",
     )
     table.add_row(
         "Must Mention Rate",
-        f"{results['must_mention_rate']['mean']:.1%}",
-        f"±{results['must_mention_rate']['std']:.1%}",
-        f"{results['must_mention_rate']['min']:.1%}",
-        f"{results['must_mention_rate']['max']:.1%}",
+        f"{mm_mean:.1%}",
+        f"±{mm_std:.1%}",
+        f"{mm_min:.1%}",
+        f"{mm_max:.1%}",
     )
 
     console.print("\n")
     console.print(table)
 
     # Stability assessment
-    if results['decision_accuracy']['std'] < 0.02:
+    if decision_std < 0.02:
         console.print("\n[green]✓ Results are stable (std < 2%)[/green]")
     else:
         console.print("\n[yellow]⚠ Results show variance (std >= 2%)[/yellow]")

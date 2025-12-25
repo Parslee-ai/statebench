@@ -15,8 +15,12 @@ These metrics catch cases where must_not_mention passes but the response
 is still wrong because it implicitly relies on superseded information.
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from typing import Literal
+
+from statebench.evaluation.metrics import QueryResult
 
 
 @dataclass
@@ -213,8 +217,8 @@ def analyze_action_correctness(
 
 
 def compute_resurrection_metrics(
-    query_results: list,
-    supersession_context: dict[str, dict],
+    query_results: list[QueryResult],
+    supersession_context: dict[str, dict[str, object]],
 ) -> ResurrectionMetrics:
     """Compute resurrection metrics from query results.
 
@@ -246,18 +250,18 @@ def compute_resurrection_metrics(
             metrics.explicit_resurrections += 1
 
         # Check for implicit resurrection via value echoes
-        if context.get("superseded_values") and context.get("current_values"):
-            echoes = detect_value_echo(
-                result.response,
-                context["superseded_values"],
-                context["current_values"],
-            )
+        superseded_values = context.get("superseded_values")
+        current_values = context.get("current_values")
+        if superseded_values and current_values:
+            superseded_list = list(superseded_values) if isinstance(superseded_values, list) else []
+            current_list = list(current_values) if isinstance(current_values, list) else []
+            echoes = detect_value_echo(result.response, superseded_list, current_list)
             for echo in echoes:
                 instance = ImplicitResurrectionInstance(
                     timeline_id=timeline_id,
                     query_idx=result.query_idx,
                     evidence=echo,
-                    superseded_fact=str(context["superseded_values"]),
+                    superseded_fact=str(superseded_values),
                     detection_method="value_echo",
                 )
                 metrics.implicit_resurrections.append(instance)
@@ -278,11 +282,15 @@ def compute_resurrection_metrics(
             metrics.temporal_error_count += 1
 
         # Analyze action correctness
-        if context.get("current_decision") and context.get("superseded_decision"):
+        current_decision = context.get("current_decision")
+        superseded_decision = context.get("superseded_decision")
+        if current_decision and superseded_decision:
+            current_str = str(current_decision)
+            superseded_str = str(superseded_decision) if superseded_decision else None
             is_correct, basis = analyze_action_correctness(
                 result.response,
-                context["current_decision"],
-                context["superseded_decision"],
+                current_str,
+                superseded_str,
             )
 
             action = extract_action(result.response)
@@ -306,7 +314,7 @@ def compute_resurrection_metrics(
                         timeline_id=timeline_id,
                         query_idx=result.query_idx,
                         evidence=f"Action '{action[:100]}' aligned with superseded state",
-                        superseded_fact=context.get("superseded_decision", ""),
+                        superseded_fact=str(superseded_decision) if superseded_decision else "",
                         detection_method="action_mismatch",
                     )
                     metrics.implicit_resurrections.append(instance)

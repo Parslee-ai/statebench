@@ -13,6 +13,7 @@ If a system passes these, it means something.
 """
 
 from dataclasses import dataclass, field
+from typing import Any
 
 
 @dataclass
@@ -37,10 +38,10 @@ class BrutalScenario:
     events: list[BrutalEvent] = field(default_factory=list)
 
     # Critical state that must be tracked correctly
-    critical_state: dict = field(default_factory=dict)
+    critical_state: dict[str, Any] = field(default_factory=dict)
 
     # Final queries that test everything
-    final_queries: list[dict] = field(default_factory=list)
+    final_queries: list[dict[str, Any]] = field(default_factory=list)
 
 
 # --- The Procurement Nightmare ---

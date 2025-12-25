@@ -1423,8 +1423,8 @@ class TimelineGenerator:
         current_time += timedelta(minutes=2)
         ground_truth = GroundTruth(
             decision=template.expected_decision,
-            must_mention=["cannot", "both"],  # type: ignore[arg-type]
-            must_not_mention=[  # type: ignore[arg-type]
+            must_mention=["cannot", "both"],
+            must_not_mention=[
                 template.if_only_a[:10], template.if_only_b[:10]
             ],
             allowed_sources=["persistent_facts", "environment"],

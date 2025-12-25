@@ -13,10 +13,14 @@ from openai import OpenAI
 
 from statebench.evaluation.metrics import QueryResult
 from statebench.evaluation.rubric import contains_phrase, extract_decision
-from statebench.schema.timeline import GroundTruth
+from statebench.schema.timeline import GroundTruth, MentionRequirement
 
-# Type for LLM clients
-LLMClient = OpenAI | Anthropic
+
+def _get_phrase(item: str | MentionRequirement) -> str:
+    """Extract phrase string from either a string or MentionRequirement."""
+    if isinstance(item, str):
+        return item
+    return item.phrase
 
 
 class ResponseJudge:
@@ -35,23 +39,25 @@ class ResponseJudge:
         """
         self.use_llm_judge = use_llm_judge
         self.provider = provider
-        self._client: LLMClient | None = None
+        self._openai_client: OpenAI | None = None
+        self._anthropic_client: Anthropic | None = None
 
-    def _get_client(self) -> LLMClient:
-        """Get or create the LLM client."""
-        if self._client is None:
-            if self.provider == "openai":
-                self._client = OpenAI()
-            else:
-                self._client = Anthropic()
-        return self._client
+    def _get_openai_client(self) -> OpenAI:
+        """Get or create the OpenAI client."""
+        if self._openai_client is None:
+            self._openai_client = OpenAI()
+        return self._openai_client
+
+    def _get_anthropic_client(self) -> Anthropic:
+        """Get or create the Anthropic client."""
+        if self._anthropic_client is None:
+            self._anthropic_client = Anthropic()
+        return self._anthropic_client
 
     def _llm_check_paraphrase(self, response: str, target_phrase: str) -> bool:
         """Use LLM to check if response contains a paraphrase of target."""
         if not self.use_llm_judge:
             return False
-
-        client = self._get_client()
 
         prompt = f"""Does the following response contain or convey the same meaning as the target phrase?
 
@@ -62,19 +68,25 @@ Response: "{response}"
 Answer with just YES or NO."""
 
         if self.provider == "openai":
-            result = client.chat.completions.create(
+            openai_client = self._get_openai_client()
+            openai_result = openai_client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=10,
             )
-            answer = result.choices[0].message.content or ""
+            answer = openai_result.choices[0].message.content or ""
         else:
-            result = client.messages.create(
+            anthropic_client = self._get_anthropic_client()
+            anthropic_result = anthropic_client.messages.create(
                 model="claude-3-haiku-20240307",
                 max_tokens=10,
                 messages=[{"role": "user", "content": prompt}],
             )
-            answer = result.content[0].text
+            answer = ""
+            if anthropic_result.content:
+                first_block = anthropic_result.content[0]
+                if hasattr(first_block, "text"):
+                    answer = getattr(first_block, "text", "")
 
         return "YES" in answer.upper()
 
@@ -82,8 +94,6 @@ Answer with just YES or NO."""
         """Use LLM to extract decision from response."""
         if not self.use_llm_judge:
             return None
-
-        client = self._get_client()
 
         options_str = ", ".join(f'"{o}"' for o in options)
         prompt = f"""What decision does this response indicate? Choose from: {options_str}
@@ -93,19 +103,25 @@ Response: "{response}"
 Answer with just one of the options, nothing else."""
 
         if self.provider == "openai":
-            result = client.chat.completions.create(
+            openai_client = self._get_openai_client()
+            openai_result = openai_client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=20,
             )
-            answer = result.choices[0].message.content or ""
+            answer = openai_result.choices[0].message.content or ""
         else:
-            result = client.messages.create(
+            anthropic_client = self._get_anthropic_client()
+            anthropic_result = anthropic_client.messages.create(
                 model="claude-3-haiku-20240307",
                 max_tokens=20,
                 messages=[{"role": "user", "content": prompt}],
             )
-            answer = result.content[0].text
+            answer = ""
+            if anthropic_result.content:
+                first_block = anthropic_result.content[0]
+                if hasattr(first_block, "text"):
+                    answer = getattr(first_block, "text", "")
 
         # Extract the decision from the answer
         answer_lower = answer.lower().strip().strip('"').strip("'")
@@ -137,14 +153,18 @@ Answer with just one of the options, nothing else."""
         Returns:
             QueryResult with scoring details
         """
+        # Convert MentionRequirement to strings for QueryResult
+        must_mention_strs = [_get_phrase(m) for m in ground_truth.must_mention]
+        must_not_mention_strs = [_get_phrase(m) for m in ground_truth.must_not_mention]
+
         result = QueryResult(
             timeline_id=timeline_id,
             query_idx=query_idx,
             track=track,
             domain=domain,
             expected_decision=ground_truth.decision,
-            must_mention=ground_truth.must_mention,
-            must_not_mention=ground_truth.must_not_mention,
+            must_mention=must_mention_strs,
+            must_not_mention=must_not_mention_strs,
             response=response,
         )
 
@@ -162,7 +182,8 @@ Answer with just one of the options, nothing else."""
                 result.decision_correct = llm_decision.lower() == ground_truth.decision.lower()
 
         # Step 2: Must mention checks
-        for phrase in ground_truth.must_mention:
+        for item in ground_truth.must_mention:
+            phrase = _get_phrase(item)
             # Deterministic check first
             if contains_phrase(response, phrase):
                 result.must_mention_hits.append(phrase)
@@ -173,7 +194,8 @@ Answer with just one of the options, nothing else."""
                 result.must_mention_misses.append(phrase)
 
         # Step 3: Must not mention checks (stricter - only deterministic)
-        for phrase in ground_truth.must_not_mention:
+        for item in ground_truth.must_not_mention:
+            phrase = _get_phrase(item)
             if contains_phrase(response, phrase):
                 result.must_not_mention_violations.append(phrase)
 

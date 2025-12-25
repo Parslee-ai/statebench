@@ -117,7 +117,7 @@ class ScoringRubric:
         self.must_mention = must_mention
         self.must_not_mention = must_not_mention
 
-    def score(self, response: str) -> dict:
+    def score(self, response: str) -> dict[str, object]:
         """Score a response against the rubric.
 
         Returns:

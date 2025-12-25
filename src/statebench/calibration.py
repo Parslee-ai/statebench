@@ -7,11 +7,19 @@ and establish judge reliability.
 import json
 from collections.abc import Iterator
 from pathlib import Path
+from typing import Any
 
 from pydantic import BaseModel
 
 from statebench.evaluation.judge import create_judge
-from statebench.schema.timeline import GroundTruth
+from statebench.schema.timeline import GroundTruth, MentionRequirement
+
+
+def _get_phrase_str(item: str | MentionRequirement) -> str:
+    """Extract phrase string from either a string or MentionRequirement."""
+    if isinstance(item, str):
+        return item
+    return item.phrase
 
 
 class HumanLabels(BaseModel):
@@ -44,8 +52,8 @@ class CalibrationResult(BaseModel):
 
     # Detailed breakdowns
     decision_confusion: dict[str, dict[str, int]]  # human -> judge -> count
-    must_mention_details: list[dict]
-    must_not_mention_details: list[dict]
+    must_mention_details: list[dict[str, Any]]
+    must_not_mention_details: list[dict[str, Any]]
 
 
 def load_audit_set(path: Path) -> Iterator[AuditItem]:
@@ -155,7 +163,7 @@ def run_calibration(
         human_hits = set(p.lower() for p in item.human_labels.must_mention_hits)
         judge_hits = set(p.lower() for p in result.must_mention_hits)
 
-        all_phrases = set(p.lower() for p in item.ground_truth.must_mention)
+        all_phrases = set(_get_phrase_str(p).lower() for p in item.ground_truth.must_mention)
         for phrase in all_phrases:
             in_human = phrase in human_hits
             in_judge = phrase in judge_hits
@@ -178,7 +186,7 @@ def run_calibration(
         human_violations = set(p.lower() for p in item.human_labels.must_not_mention_violations)
         judge_violations = set(p.lower() for p in result.must_not_mention_violations)
 
-        all_forbidden = set(p.lower() for p in item.ground_truth.must_not_mention)
+        all_forbidden = set(_get_phrase_str(p).lower() for p in item.ground_truth.must_not_mention)
         for phrase in all_forbidden:
             in_human = phrase in human_violations
             in_judge = phrase in judge_violations
@@ -255,7 +263,7 @@ def create_audit_template(
     timelines = list(load_split(release_dir, "dev"))
 
     # Extract all query events with their context
-    query_items = []
+    query_items: list[dict[str, Any]] = []
     for timeline in timelines:
         for idx, event in enumerate(timeline.events):
             if isinstance(event, Query):
@@ -273,11 +281,13 @@ def create_audit_template(
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with open(output_path, "w") as f:
         for item in sampled:
+            timeline_obj = item["timeline"]
+            query_obj = item["query"]
             audit_item = {
-                "timeline_id": item["timeline"].id,
+                "timeline_id": timeline_obj.id,
                 "query_idx": item["query_idx"],
                 "response": "[PLACEHOLDER - Run model to get response]",
-                "ground_truth": item["query"].ground_truth.model_dump(),
+                "ground_truth": query_obj.ground_truth.model_dump(),
                 "human_labels": {
                     "decision_correct": None,  # Annotator fills this
                     "must_mention_hits": [],   # Annotator fills this

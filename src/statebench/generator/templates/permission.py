@@ -14,6 +14,7 @@ The system must:
 """
 
 from dataclasses import dataclass
+from typing import Any
 
 
 @dataclass
@@ -27,8 +28,8 @@ class PermissionTemplate:
     org_name: str
 
     # Two users with different roles
-    user_high: dict  # Higher permission user
-    user_low: dict   # Lower permission user
+    user_high: dict[str, Any]  # Higher permission user
+    user_low: dict[str, Any]   # Lower permission user
 
     # Shared context (both can see)
     shared_facts: list[str]

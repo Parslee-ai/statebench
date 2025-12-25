@@ -12,7 +12,7 @@ Failure modes:
 """
 
 from dataclasses import dataclass
-from typing import Literal
+from typing import Any, Literal
 
 
 @dataclass
@@ -30,11 +30,11 @@ class ScopeLeakTemplate:
     ]
 
     # Context that should remain scoped
-    scoped_context: dict  # The local/temporary/hypothetical context
+    scoped_context: dict[str, Any]  # The local/temporary/hypothetical context
     scope_boundary: str   # What should contain the scoped context
 
     # Global/persistent context
-    global_context: dict  # Facts that should persist
+    global_context: dict[str, Any]  # Facts that should persist
 
     # Query that tests scope boundary
     query: str

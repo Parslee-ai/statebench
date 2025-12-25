@@ -21,6 +21,7 @@ using the state causally.
 """
 
 from dataclasses import dataclass
+from typing import Any
 
 
 @dataclass
@@ -31,7 +32,7 @@ class CausalityTemplate:
     description: str
 
     # The constraint that should affect the decision
-    constraint: dict  # key, value, source
+    constraint: dict[str, str]  # key, value, source
     constraint_description: str
 
     # The scenario requiring a decision
@@ -239,7 +240,7 @@ class MultiConstraintTemplate:
     name: str
     domain: str
     description: str
-    constraints: list[dict]  # Multiple constraints
+    constraints: list[dict[str, str]]  # Multiple constraints
     scenario: str
     decision_query: str
     # The decision depends on ALL constraints being satisfied
@@ -311,7 +312,7 @@ class EdgeCaseTemplate:
     name: str
     domain: str
     description: str
-    constraint: dict
+    constraint: dict[str, str]
     # The request is EXACTLY at or just over the threshold
     edge_case_request: str
     decision_query: str
@@ -385,8 +386,8 @@ class ConflictingConstraintTemplate:
     name: str
     domain: str
     description: str
-    constraint_a: dict
-    constraint_b: dict
+    constraint_a: dict[str, str]
+    constraint_b: dict[str, str]
     scenario: str
     decision_query: str
     # The correct answer acknowledges the conflict
@@ -464,9 +465,9 @@ class ChainDependencyTemplate:
     domain: str
     description: str
     # The chain of dependencies
-    initial_fact: dict
-    derived_fact: dict  # Depends on initial_fact
-    final_constraint: dict  # Uses derived_fact
+    initial_fact: dict[str, str]
+    derived_fact: dict[str, str]  # Depends on initial_fact
+    final_constraint: dict[str, str]  # Uses derived_fact
     scenario: str
     decision_query: str
     expected_decision: str
@@ -565,9 +566,9 @@ class AggregationTemplate:
     name: str
     domain: str
     description: str
-    constraint: dict
+    constraint: dict[str, str]
     # Multiple items that individually seem fine
-    items: list[dict]  # Each has name, value
+    items: list[dict[str, str]]  # Each has name, value
     aggregation_query: str
     decision_query: str
     expected_decision: str
@@ -704,7 +705,7 @@ HARD_CAUSALITY_TEMPLATES = (
 )
 
 
-def get_causality_templates(include_hard: bool = False) -> list:
+def get_causality_templates(include_hard: bool = False) -> list[Any]:
     """Get causality templates.
 
     Args:
@@ -715,15 +716,15 @@ def get_causality_templates(include_hard: bool = False) -> list:
     """
     if include_hard:
         return SIMPLE_CAUSALITY_TEMPLATES + HARD_CAUSALITY_TEMPLATES
-    return SIMPLE_CAUSALITY_TEMPLATES
+    return list(SIMPLE_CAUSALITY_TEMPLATES)
 
 
-def get_hard_causality_templates() -> list:
+def get_hard_causality_templates() -> list[Any]:
     """Get only the hard mode causality templates."""
-    return HARD_CAUSALITY_TEMPLATES
+    return list(HARD_CAUSALITY_TEMPLATES)
 
 
-def get_paired_test(template: CausalityTemplate) -> tuple[dict, dict]:
+def get_paired_test(template: CausalityTemplate) -> tuple[dict[str, Any], dict[str, Any]]:
     """Generate a paired test for counterfactual verification.
 
     Returns:
@@ -738,7 +739,7 @@ def get_paired_test(template: CausalityTemplate) -> tuple[dict, dict]:
         "decision_indicators": template.decision_indicators,
     }
 
-    without_constraint = {
+    without_constraint: dict[str, Any] = {
         "constraint": None,  # Constraint removed
         "scenario": template.scenario,
         "query": template.decision_query,
