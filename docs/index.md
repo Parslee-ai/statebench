@@ -75,24 +75,25 @@ We compared transcript replay, rolling summaries, RAG, fact extraction, and stat
 
 State-based wins on accuracy. But there is a tradeoff.
 
-### GPT-5.2
+### GPT-5.2 (OpenAI)
 
 | Baseline | Decision Acc | SFRR ↓ | Must Mention |
 |----------|--------------|--------|--------------|
-| **state_based** | **72.6%** | 34.4% | **78.0%** |
-| rolling_summary | 67.5% | 29.6% | 61.7% |
-| transcript_replay | 63.2% | **24.7%** | 65.5% |
-| fact_extraction | 58.2% | 28.0% | 56.3% |
+| **state_based** | **80.3%** | 34.4% | **79.8%** |
+| rolling_summary | 72.1% | **21.3%** | 66.4% |
+| transcript_replay | 60.7% | 24.6% | 67.2% |
+| fact_extraction | 63.9% | 27.9% | 56.3% |
 
-### Claude Sonnet 4
+### Claude Opus 4.5 (Anthropic)
 
 | Baseline | Decision Acc | SFRR ↓ | Must Mention |
 |----------|--------------|--------|--------------|
-| **state_based** | **41.2%** | 44.9% | **85.8%** |
-| rolling_summary | 36.6% | 38.5% | 68.0% |
-| transcript_replay | 31.5% | **33.3%** | 69.3% |
+| state_based_no_supersession | **62.9%** | 38.2% | 86.0% |
+| **state_based** | 58.2% | 41.0% | **87.4%** |
+| transcript_replay | 53.0% | **33.5%** | 74.8% |
+| rolling_summary | 51.4% | 45.8% | 73.6% |
 
-The pattern is consistent across models.
+GPT-5.2 achieves significantly higher decision accuracy. Opus 4.5 shows stronger fact grounding (higher must-mention rates) but weaker decision reasoning.
 
 ---
 
