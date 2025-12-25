@@ -1308,5 +1308,110 @@ def split_stats(split_dir: str) -> None:
         console.print(f"\nCanaries: {metadata['canary_count']}")
 
 
+# =============================================================================
+# HuggingFace Hub Integration Commands
+# =============================================================================
+
+
+@main.command("hf-prepare")
+@click.option(
+    "--release",
+    "-r",
+    default="v1.0",
+    help="Release version to prepare (default: v1.0)",
+)
+@click.option(
+    "--output",
+    "-o",
+    type=click.Path(),
+    default="data/hf-staging",
+    help="Output directory for staged files",
+)
+def hf_prepare(release: str, output: str) -> None:
+    """Prepare a release for HuggingFace Hub (local preview).
+
+    Creates Parquet files and a sample JSON for inspection before pushing.
+    """
+    from statebench.huggingface import prepare_hf_staging
+
+    release_dir = Path(f"data/releases/{release}")
+    if not release_dir.exists():
+        console.print(f"[red]Release {release} not found at {release_dir}[/red]")
+        console.print(f"Run: statebench release --version {release} first")
+        return
+
+    console.print(f"[bold]Preparing {release} for HuggingFace Hub...[/bold]")
+
+    output_path = Path(output)
+    counts = prepare_hf_staging(release_dir, output_path)
+
+    table = Table(title="Prepared Splits")
+    table.add_column("Split", style="cyan")
+    table.add_column("Count", justify="right")
+
+    for split_name, count in counts.items():
+        table.add_row(split_name, str(count))
+
+    console.print(table)
+    console.print(f"\n[green]Staged files saved to {output_path}[/green]")
+    console.print("  - Parquet files for each split")
+    console.print("  - sample.json for inspection")
+    console.print("\nTo push to HuggingFace Hub:")
+    console.print(f"  statebench hf-push --release {release}")
+
+
+@main.command("hf-push")
+@click.option(
+    "--release",
+    "-r",
+    default="v1.0",
+    help="Release version to push (default: v1.0)",
+)
+@click.option(
+    "--repo",
+    default="parslee/statebench",
+    help="HuggingFace repository ID (default: parslee/statebench)",
+)
+@click.option(
+    "--private",
+    is_flag=True,
+    help="Make the repository private",
+)
+@click.option(
+    "--token",
+    envvar="HF_TOKEN",
+    help="HuggingFace API token (or set HF_TOKEN env var)",
+)
+def hf_push(release: str, repo: str, private: bool, token: str | None) -> None:
+    """Push a release to HuggingFace Hub.
+
+    Requires authentication via --token or HF_TOKEN environment variable.
+    You can also run `huggingface-cli login` to cache credentials.
+    """
+    from statebench.huggingface import push_to_hub
+
+    release_dir = Path(f"data/releases/{release}")
+    if not release_dir.exists():
+        console.print(f"[red]Release {release} not found at {release_dir}[/red]")
+        console.print(f"Run: statebench release --version {release} first")
+        return
+
+    console.print(f"[bold]Pushing {release} to {repo}...[/bold]")
+
+    try:
+        url = push_to_hub(release_dir, repo_id=repo, private=private, token=token)
+        console.print("\n[green]Successfully pushed to HuggingFace Hub![/green]")
+        console.print(f"URL: {url}")
+        console.print("\nTo load the dataset:")
+        console.print("  from datasets import load_dataset")
+        console.print(f'  ds = load_dataset("{repo}")')
+    except Exception as e:
+        console.print(f"\n[red]Failed to push: {e}[/red]")
+        console.print("\nTroubleshooting:")
+        console.print("  1. Run: huggingface-cli login")
+        console.print("  2. Or set HF_TOKEN environment variable")
+        console.print("  3. Ensure you have write access to the repository")
+
+
 if __name__ == "__main__":
     main()
