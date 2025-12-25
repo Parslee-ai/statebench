@@ -11,7 +11,7 @@ from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
-from anthropic import Anthropic
+from anthropic import Anthropic, APIStatusError
 from openai import OpenAI
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
@@ -32,6 +32,9 @@ from statebench.evaluation import (
     create_judge,
 )
 from statebench.schema.timeline import ConversationTurn, Query, StateWrite, Supersession, Timeline
+
+MAX_RETRIES = 5
+RETRY_BASE_DELAY = 2.0  # seconds
 
 console = Console()
 
@@ -116,14 +119,31 @@ class EvaluationHarness:
             tokens = response.usage.total_tokens if response.usage else 0
 
         elif self.provider == "anthropic":
-            response = client.messages.create(
-                model=self.model,
-                max_tokens=completion_budget,
-                system=system_prompt,
-                messages=[{"role": "user", "content": user_prompt}],
-            )
-            text = response.content[0].text
-            tokens = response.usage.input_tokens + response.usage.output_tokens
+            # Retry with exponential backoff for overloaded errors
+            anthropic_response = None
+            for attempt in range(MAX_RETRIES):
+                try:
+                    anthropic_response = client.messages.create(
+                        model=self.model,
+                        max_tokens=completion_budget,
+                        system=system_prompt,
+                        messages=[{"role": "user", "content": user_prompt}],
+                    )
+                    break
+                except APIStatusError as e:
+                    if e.status_code == 529 and attempt < MAX_RETRIES - 1:
+                        delay = RETRY_BASE_DELAY * (2 ** attempt)
+                        time.sleep(delay)
+                        continue
+                    raise
+            if anthropic_response is None:
+                raise RuntimeError("Failed to get response after retries")
+            text = ""
+            if anthropic_response.content:
+                first_block = anthropic_response.content[0]
+                if hasattr(first_block, "text"):
+                    text = getattr(first_block, "text", "")
+            tokens = anthropic_response.usage.input_tokens + anthropic_response.usage.output_tokens
 
         elif self.provider == "google":
             # Combine system prompt and user prompt for Gemini

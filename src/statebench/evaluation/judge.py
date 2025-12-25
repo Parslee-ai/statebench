@@ -8,12 +8,17 @@ The dual approach ensures high precision on clear violations while
 handling paraphrases gracefully.
 """
 
-from anthropic import Anthropic
+import time
+
+from anthropic import Anthropic, APIStatusError
 from openai import OpenAI
 
 from statebench.evaluation.metrics import QueryResult
 from statebench.evaluation.rubric import contains_phrase, extract_decision
 from statebench.schema.timeline import GroundTruth, MentionRequirement
+
+MAX_RETRIES = 5
+RETRY_BASE_DELAY = 2.0  # seconds
 
 
 def _get_phrase(item: str | MentionRequirement) -> str:
@@ -77,11 +82,19 @@ Answer with just YES or NO."""
             answer = openai_result.choices[0].message.content or ""
         else:
             anthropic_client = self._get_anthropic_client()
-            anthropic_result = anthropic_client.messages.create(
-                model="claude-3-haiku-20240307",
-                max_tokens=10,
-                messages=[{"role": "user", "content": prompt}],
-            )
+            for attempt in range(MAX_RETRIES):
+                try:
+                    anthropic_result = anthropic_client.messages.create(
+                        model="claude-3-haiku-20240307",
+                        max_tokens=10,
+                        messages=[{"role": "user", "content": prompt}],
+                    )
+                    break
+                except APIStatusError as e:
+                    if e.status_code == 529 and attempt < MAX_RETRIES - 1:
+                        time.sleep(RETRY_BASE_DELAY * (2 ** attempt))
+                        continue
+                    raise
             answer = ""
             if anthropic_result.content:
                 first_block = anthropic_result.content[0]
@@ -112,11 +125,19 @@ Answer with just one of the options, nothing else."""
             answer = openai_result.choices[0].message.content or ""
         else:
             anthropic_client = self._get_anthropic_client()
-            anthropic_result = anthropic_client.messages.create(
-                model="claude-3-haiku-20240307",
-                max_tokens=20,
-                messages=[{"role": "user", "content": prompt}],
-            )
+            for attempt in range(MAX_RETRIES):
+                try:
+                    anthropic_result = anthropic_client.messages.create(
+                        model="claude-3-haiku-20240307",
+                        max_tokens=20,
+                        messages=[{"role": "user", "content": prompt}],
+                    )
+                    break
+                except APIStatusError as e:
+                    if e.status_code == 529 and attempt < MAX_RETRIES - 1:
+                        time.sleep(RETRY_BASE_DELAY * (2 ** attempt))
+                        continue
+                    raise
             answer = ""
             if anthropic_result.content:
                 first_block = anthropic_result.content[0]
