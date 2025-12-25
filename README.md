@@ -41,7 +41,9 @@ Passing is rare. Most transcript-replay systems fail Track 1 (Causality) at mean
 
 ## Leaderboard (v1.0)
 
-Official results on the v1.0 test split (50 timelines, GPT-5.2).
+Official results on the v1.0 test split (209 timelines).
+
+### GPT-5.2 (OpenAI)
 
 | Baseline | Decision Accuracy | SFRR ↓ | Must Mention |
 |----------|-------------------|--------|--------------|
@@ -54,6 +56,22 @@ Official results on the v1.0 test split (50 timelines, GPT-5.2).
 | `transcript_replay` | 60.7% | 24.6% | 67.2% |
 | `transcript_latest_wins` | 60.7% | **21.3%** | 42.0% |
 | `no_memory` | 26.2% | 19.7% | 5.0% |
+
+### Claude Opus 4.5 (Anthropic)
+
+| Baseline | Decision Accuracy | SFRR ↓ | Must Mention |
+|----------|-------------------|--------|--------------|
+| `state_based_no_supersession` | **62.9%** | 38.2% | 86.0% |
+| `state_based` | 58.2% | 41.0% | **87.4%** |
+| `transcript_replay` | 53.0% | 33.5% | 74.8% |
+| `rolling_summary` | 51.4% | 45.8% | 73.6% |
+| `fact_extraction_with_supersession` | 51.4% | 39.0% | 71.0% |
+| `rag_transcript` | 51.0% | 44.2% | 76.9% |
+| `fact_extraction` | 49.0% | 37.5% | 68.8% |
+| `transcript_latest_wins` | 36.7% | **24.3%** | 48.1% |
+| `no_memory` | 13.5% | 7.6% | 7.9% |
+
+**Key findings:** GPT-5.2 significantly outperforms Opus 4.5 on decision accuracy (80.3% vs 62.9% for best baseline). However, Opus 4.5 achieves higher must-mention rates on state-based approaches (87.4% vs 79.8%), suggesting stronger fact grounding but weaker decision reasoning.
 
 ## Failure Taxonomy
 
