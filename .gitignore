@@ -51,6 +51,7 @@ dmypy.json
 
 # Generated data (keep templates, ignore large generated files)
 data/generated/*.jsonl
+data/hf-staging/
 
 # Results
 results/
