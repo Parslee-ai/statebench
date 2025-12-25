@@ -69,13 +69,14 @@ Persistent Facts use a **tri-partite memory structure** (from the paper):
 **Schema**:
 ```
 PersistentFact {
-    key: string             // unique identifier
+    id: string              // unique fact identifier (required)
+    key: string             // semantic key for the fact
     value: any              // the fact content
-    source: string          // where this fact came from
+    source: Source          // provenance information (see below)
     timestamp: datetime     // when fact was established
     is_valid: boolean       // whether fact is current (not superseded)
-    superseded_by: string?  // key of fact that superseded this one
-    supersedes: string?     // key of fact this one supersedes
+    superseded_by: string?  // id of fact that superseded this one
+    supersedes: string?     // id of fact this one supersedes
 
     // Tri-partite classification
     memory_type: "user" | "capability" | "organizational"
@@ -85,13 +86,20 @@ PersistentFact {
     scope_id: string?       // identifies specific task/session
 
     // Dependency tracking (enables repair propagation)
-    depends_on: string[]    // keys of facts this depends on
-    derived_facts: string[] // keys of facts derived from this
+    depends_on: string[]    // ids of facts this depends on
+    derived_facts: string[] // ids of facts derived from this
     needs_review: boolean   // true if dependency was invalidated
 
     // Constraint metadata
     is_constraint: boolean  // formal policy constraint
     constraint_type: string? // "budget", "deadline", "capacity", "policy"
+}
+
+Source {
+    type: "conversation" | "state_write" | "system" | "policy"
+    turn_index: int?        // for conversation sources
+    event_index: int?       // for state_write sources
+    authority: string?      // authority level of source
 }
 ```
 
@@ -468,6 +476,8 @@ Expected:
 
 ## Version History
 
+- v1.3 (2025-12): Updated schema for v1.0 release - added required `id` field to
+  PersistentFact, structured Source object for provenance tracking
 - v1.2 (2025-12): Added full spec vs. reference implementation distinction, SFRR-Accuracy
   tradeoff analysis, implementation notes clarifying StateBench scope
 - v1.1 (2025-12): Added tri-partite memory, scope tracking, constraints, dependencies
