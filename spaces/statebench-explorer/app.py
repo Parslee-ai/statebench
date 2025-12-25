@@ -204,7 +204,15 @@ def build_context_with_baseline(events: list[dict], baseline_name: str) -> str:
         return "Could not build context"
 
     except ImportError:
-        return "⚠️ StateBench package not installed. Install with: pip install statebench"
+        # Fallback: show raw conversation when statebench not available
+        lines = ["*Context building requires statebench package (not available in this Space)*\n"]
+        lines.append("**Raw conversation:**\n")
+        for event in events:
+            if event.get("type") == "conversation_turn":
+                speaker = event.get("speaker", "?")
+                text = event.get("text", "")
+                lines.append(f"- **{speaker}**: {text}")
+        return "\n".join(lines)
     except Exception as e:
         return f"Error building context: {str(e)}"
 
