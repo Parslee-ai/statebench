@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "statebench"
-version = "1.0.0"
+version = "1.0.2"
 description = "A benchmark for measuring LLM state correctness over time"
 readme = "README.md"
 license = "MIT"
