@@ -39,53 +39,21 @@ A system that passes StateBench has demonstrated:
 
 Passing is rare. Most transcript-replay systems fail Track 1 (Causality) at meaningful scale.
 
-## Leaderboard (v0.2)
+## Leaderboard (v1.0)
 
-Official results on the v0.2 test split (100 timelines, 3 seeds).
-
-### GPT-5.2
+Official results on the v1.0 test split (50 timelines, GPT-5.2).
 
 | Baseline | Decision Accuracy | SFRR ↓ | Must Mention |
 |----------|-------------------|--------|--------------|
-| `state_based` | **72.63%** ±2.57% | 34.36% ±0.71% | **77.99%** ±1.22% |
-| `rolling_summary` | 67.49% ±3.40% | 29.63% ±1.63% | 61.73% ±0.78% |
-| `rag_transcript` | 67.08% ±2.34% | 28.60% ±1.89% | 66.75% ±0.64% |
-| `transcript_replay` | 63.17% ±3.77% | **24.69%** ±1.23% | 65.45% ±0.74% |
-| `fact_extraction` | 58.23% ±4.02% | 27.98% ±3.51% | 56.31% ±1.11% |
-| `no_memory` | 17.49% ±0.71% | 17.90% ±0.00% | 4.29% ±0.28% |
-
-### GPT-4o
-
-| Baseline | Decision Accuracy | SFRR ↓ | Must Mention |
-|----------|-------------------|--------|--------------|
-| `state_based` | **57.00%** ±3.40% | 24.90% ±0.94% | **65.78%** ±0.84% |
-| `transcript_replay` | **57.00%** ±1.28% | **16.67%** ±0.62% | 52.27% ±0.37% |
-| `rolling_summary` | 52.67% ±1.28% | 22.22% ±1.23% | 54.77% ±1.22% |
-| `rag_transcript` | 52.06% ±1.55% | 18.72% ±0.71% | 59.63% ±1.34% |
-| `fact_extraction` | 44.44% ±4.32% | 24.07% ±0.62% | 47.73% ±0.85% |
-| `no_memory` | 22.22% ±0.62% | 7.00% ±0.94% | 3.56% ±0.28% |
-
-### Claude Sonnet 4
-
-| Baseline | Decision Accuracy | SFRR ↓ | Must Mention |
-|----------|-------------------|--------|--------------|
-| `state_based` | **41.15%** ±1.78% | 44.86% ±0.94% | **85.84%** ±1.25% |
-| `rolling_summary` | 36.63% ±2.57% | 38.48% ±1.43% | 68.04% ±0.56% |
-| `rag_transcript` | 34.77% ±2.57% | 40.74% ±0.62% | 70.55% ±0.74% |
-| `transcript_replay` | 31.48% ±0.62% | 33.33% ±1.23% | 69.26% ±0.37% |
-| `fact_extraction` | 28.60% ±1.78% | 34.98% ±0.71% | 62.14% ±0.24% |
-| `no_memory` | 9.47% ±0.36% | **9.88%** ±1.07% | 3.80% ±0.28% |
-
-### Claude Opus 4.5
-
-| Baseline | Decision Accuracy | SFRR ↓ | Must Mention |
-|----------|-------------------|--------|--------------|
-| `state_based` | **37.86%** ±0.94% | 45.68% ±2.23% | **84.95%** ±0.64% |
-| `rolling_summary` | 36.01% ±1.28% | 39.71% ±0.36% | 68.04% ±1.56% |
-| `rag_transcript` | 33.54% ±2.57% | 45.06% ±2.83% | 74.68% ±1.20% |
-| `fact_extraction` | 31.69% ±2.49% | 38.27% ±2.69% | 66.67% ±0.85% |
-| `transcript_replay` | 30.25% ±2.47% | **38.07%** ±0.94% | 70.47% ±0.70% |
-| `no_memory` | 9.67% ±0.71% | **7.41%** ±0.00% | 4.13% ±0.24% |
+| `state_based` | **80.3%** | 34.4% | **79.8%** |
+| `state_based_no_supersession` | 75.4% | 23.0% | 84.0% |
+| `rolling_summary` | 72.1% | 21.3% | 66.4% |
+| `fact_extraction_with_supersession` | 72.1% | 26.2% | 63.9% |
+| `rag_transcript` | 68.9% | 29.5% | 62.2% |
+| `fact_extraction` | 63.9% | 27.9% | 56.3% |
+| `transcript_replay` | 60.7% | 24.6% | 67.2% |
+| `transcript_latest_wins` | 60.7% | **21.3%** | 42.0% |
+| `no_memory` | 26.2% | 19.7% | 5.0% |
 
 ## Failure Taxonomy
 
@@ -175,22 +143,26 @@ statebench compare --dataset data/benchmark.jsonl --model gpt-5.2
 statebench leaderboard --baseline state_based --submitter "YourOrg" --model gpt-5.2
 ```
 
-## Benchmark Tracks
+## Benchmark Tracks (v1.0)
 
-### Track 1: Causality (Multi-Constraint Reasoning)
-Tests whether the system can evaluate multiple constraints simultaneously. A request might satisfy budget but violate approval authority—both must be checked.
+StateBench v1.0 includes 14 evaluation tracks across 1,400 timelines:
 
-### Track 2: Hallucination Resistance
-The system must only assert state that was explicitly established. Tests resistance to inventing preferences, constraints, or commitments that were never stated.
-
-### Track 3: Repair Propagation
-When base facts are corrected, derived conclusions must be recalculated. Tests whether corrections flow through to downstream reasoning.
-
-### Track 4: Scope Leak Prevention
-Hypothetical scenarios ("what if we had $50k?") must not become real facts. Draft proposals must not become commitments. Task-local state stays local.
-
-### Track 5: Brutal Realistic
-Long, messy multi-turn scenarios combining multiple failure modes: conflicting stakeholders, corrections, interruptions, deadline changes, and authority conflicts.
+| Track | Tests |
+|-------|-------|
+| `supersession` | Facts invalidated by newer facts stay dead |
+| `supersession_detection` | Implicit supersession without explicit markers |
+| `commitment_durability` | Confirmed commitments persist across interruptions |
+| `interruption_resumption` | Context survives topic switches |
+| `scope_permission` | Role-based access control enforcement |
+| `environmental_freshness` | Time-sensitive state expiration |
+| `authority_hierarchy` | Higher-authority sources override lower |
+| `enterprise_privacy` | Confidential information stays restricted |
+| `identity` | User identity and role tracking |
+| `time_decay` | Temporal relevance of historical facts |
+| `confidentiality` | Information classification enforcement |
+| `contradiction` | Conflicting facts handled correctly |
+| `detection` | Anomaly and edge case detection |
+| `adversarial` | Adversarial prompts designed to trick the system |
 
 ## Metrics
 
@@ -215,16 +187,19 @@ See Section 7.1 of the [paper](docs/state-based-context-architecture.pdf) for de
 
 ## Reference Implementations
 
-StateBench includes six baseline implementations:
+StateBench includes nine baseline implementations:
 
 | Baseline | Approach |
 |----------|----------|
 | `no_memory` | No history. Current query only. |
 | `transcript_replay` | Raw conversation history |
+| `transcript_latest_wins` | Transcript with recency bias |
 | `rolling_summary` | LLM-summarized history |
 | `rag_transcript` | Retrieved transcript chunks |
 | `fact_extraction` | Extracted fact store (Mem0-style) |
+| `fact_extraction_with_supersession` | Fact store with supersession tracking |
 | `state_based` | Structured state with supersession tracking, scope management, and repair propagation |
+| `state_based_no_supersession` | State-based without supersession (ablation) |
 
 All baselines operate under identical token budgets (default 8K) for fair comparison.
 
@@ -252,16 +227,19 @@ This design isolates the effect of supersession tracking from retrieval optimiza
 Implement the `MemoryStrategy` interface:
 
 ```python
-from statebench.baselines.base import MemoryStrategy
+from statebench.baselines.base import MemoryStrategy, ContextResult
 
 class MyStrategy(MemoryStrategy):
     def process_event(self, event) -> None:
         """Handle conversation events, state writes, supersessions."""
         pass
 
-    def build_context(self, query: str) -> str:
-        """Build context string from your memory state."""
-        pass
+    def build_context(self, query: str) -> ContextResult:
+        """Build context with provenance tracking."""
+        return ContextResult(
+            context="Your assembled context string",
+            sources=[]  # Optional: list of Source objects for provenance
+        )
 
     def get_system_prompt(self) -> str:
         """System instructions for the model."""
@@ -283,19 +261,20 @@ statebench evaluate -d data/benchmark.jsonl -b my_strategy -m gpt-5.2
 StateBench provides versioned, reproducible benchmark releases:
 
 ```bash
-# Generate official v0.1 release
-statebench release --version v0.1 --output data/releases/v0.1
+# Generate official v1.0 release
+statebench release --version v1.0 --output data/releases/v1.0
 
 # Verify release integrity
-statebench verify data/releases/v0.1
+statebench verify data/releases/v1.0
 ```
 
 Each release includes:
-- Train/dev/test splits (60/20/20)
+- Train/dev/test/hidden splits (60/15/15/10)
+- Canary contamination detection for hidden split
 - SHA256 hashes for verification
 - Manifest with generation parameters
 
-**Use the test split for official results.** Use dev for development.
+**Use the test split for official results.** Use dev for development. Hidden split includes canaries to detect training data contamination.
 
 ## Leaderboard Submission
 
@@ -304,7 +283,7 @@ statebench leaderboard \
   --baseline my_strategy \
   --submitter "MyOrg" \
   --model gpt-5.2 \
-  --release v0.2 \
+  --release v1.0 \
   --split test
 ```
 
@@ -316,15 +295,17 @@ Generates a cryptographically-signed submission file with:
 ## CLI Reference
 
 ```bash
-statebench generate    # Generate test timelines
-statebench evaluate    # Run conformance tests
-statebench compare     # Compare implementations
-statebench inspect     # Examine dataset
-statebench baselines   # List available baselines
-statebench release     # Create canonical release
-statebench verify      # Verify release integrity
-statebench leaderboard # Generate submission
-statebench budget-sweep    # Test across token budgets
+statebench generate       # Generate test timelines
+statebench evaluate       # Run conformance tests
+statebench compare        # Compare implementations
+statebench inspect        # Examine dataset
+statebench baselines      # List available baselines
+statebench release        # Create canonical release
+statebench verify         # Verify release integrity
+statebench leaderboard    # Generate submission
+statebench create-splits  # Create train/dev/test/hidden splits
+statebench split-stats    # Show split statistics
+statebench budget-sweep   # Test across token budgets
 statebench variance-report # Multi-seed stability
 ```
 
