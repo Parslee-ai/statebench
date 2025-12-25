@@ -1,0 +1,65 @@
+# StateBench v1.0 Docker Compose Configuration
+#
+# Usage:
+#   # Generate dataset
+#   docker compose run statebench generate --tracks all --count 100 -o /data/benchmark.jsonl
+#
+#   # Evaluate baseline
+#   docker compose run statebench evaluate -d /data/benchmark.jsonl -b state_based -m gpt-4o
+#
+#   # Create splits
+#   docker compose run statebench create-splits -d /data/benchmark.jsonl -o /data/splits
+
+services:
+  statebench:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    volumes:
+      - ../data:/data
+      - ../results:/results
+    environment:
+      - OPENAI_API_KEY
+      - ANTHROPIC_API_KEY
+      - GOOGLE_API_KEY
+    working_dir: /app
+
+  # Evaluation runner with GPU support (optional)
+  statebench-gpu:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    volumes:
+      - ../data:/data
+      - ../results:/results
+    environment:
+      - OPENAI_API_KEY
+      - ANTHROPIC_API_KEY
+      - GOOGLE_API_KEY
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    profiles:
+      - gpu
+
+  # Development container with mounted source
+  dev:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    volumes:
+      - ../:/app
+      - ../data:/data
+    environment:
+      - OPENAI_API_KEY
+      - ANTHROPIC_API_KEY
+      - GOOGLE_API_KEY
+    entrypoint: /bin/bash
+    stdin_open: true
+    tty: true
+    profiles:
+      - dev
