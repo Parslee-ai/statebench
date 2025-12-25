@@ -1,0 +1,74 @@
+{
+  "no_memory": {
+    "model": "gpt-5.2",
+    "total_queries": 61,
+    "overall_sfrr": 0.19672131147540983,
+    "overall_decision_accuracy": 0.26229508196721313,
+    "overall_must_mention_rate": 0.05042016806722689,
+    "overall_must_not_mention_violation_rate": 0.09554140127388536
+  },
+  "transcript_replay": {
+    "model": "gpt-5.2",
+    "total_queries": 61,
+    "overall_sfrr": 0.2459016393442623,
+    "overall_decision_accuracy": 0.6065573770491803,
+    "overall_must_mention_rate": 0.6722689075630253,
+    "overall_must_not_mention_violation_rate": 0.12101910828025478
+  },
+  "rolling_summary": {
+    "model": "gpt-5.2",
+    "total_queries": 61,
+    "overall_sfrr": 0.21311475409836064,
+    "overall_decision_accuracy": 0.7213114754098361,
+    "overall_must_mention_rate": 0.6638655462184874,
+    "overall_must_not_mention_violation_rate": 0.10828025477707007
+  },
+  "rag_transcript": {
+    "model": "gpt-5.2",
+    "total_queries": 61,
+    "overall_sfrr": 0.29508196721311475,
+    "overall_decision_accuracy": 0.6885245901639344,
+    "overall_must_mention_rate": 0.6218487394957983,
+    "overall_must_not_mention_violation_rate": 0.15286624203821655
+  },
+  "fact_extraction": {
+    "model": "gpt-5.2",
+    "total_queries": 61,
+    "overall_sfrr": 0.2786885245901639,
+    "overall_decision_accuracy": 0.639344262295082,
+    "overall_must_mention_rate": 0.5630252100840336,
+    "overall_must_not_mention_violation_rate": 0.1337579617834395
+  },
+  "state_based": {
+    "model": "gpt-5.2",
+    "total_queries": 61,
+    "overall_sfrr": 0.3442622950819672,
+    "overall_decision_accuracy": 0.8032786885245902,
+    "overall_must_mention_rate": 0.7983193277310925,
+    "overall_must_not_mention_violation_rate": 0.18471337579617833
+  },
+  "state_based_no_supersession": {
+    "model": "gpt-5.2",
+    "total_queries": 61,
+    "overall_sfrr": 0.22950819672131148,
+    "overall_decision_accuracy": 0.7540983606557377,
+    "overall_must_mention_rate": 0.8403361344537815,
+    "overall_must_not_mention_violation_rate": 0.14012738853503184
+  },
+  "fact_extraction_with_supersession": {
+    "model": "gpt-5.2",
+    "total_queries": 61,
+    "overall_sfrr": 0.26229508196721313,
+    "overall_decision_accuracy": 0.7213114754098361,
+    "overall_must_mention_rate": 0.6386554621848739,
+    "overall_must_not_mention_violation_rate": 0.12738853503184713
+  },
+  "transcript_latest_wins": {
+    "model": "gpt-5.2",
+    "total_queries": 61,
+    "overall_sfrr": 0.21311475409836064,
+    "overall_decision_accuracy": 0.6065573770491803,
+    "overall_must_mention_rate": 0.42016806722689076,
+    "overall_must_not_mention_violation_rate": 0.09554140127388536
+  }
+}
