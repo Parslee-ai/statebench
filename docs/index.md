@@ -144,7 +144,7 @@ statebench evaluate -d benchmark.jsonl -b state_based -m gpt-4o
 statebench compare -d benchmark.jsonl -m gpt-4o
 ```
 
-[GitHub repository →](https://github.com/Parslee-ai/statebench)
+[GitHub →](https://github.com/Parslee-ai/statebench) · [PyPI →](https://pypi.org/project/statebench/) · [HuggingFace Dataset →](https://huggingface.co/datasets/parslee/statebench) · [Explorer →](https://huggingface.co/spaces/parslee/statebench-explorer)
 
 ---
 
