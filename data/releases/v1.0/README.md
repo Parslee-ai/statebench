@@ -81,9 +81,33 @@ for event in timeline.events:
     print(event.type, event)
 ```
 
-## Evaluation with StateBench
+## Evaluation
 
-For proper evaluation with memory baselines:
+### With Lighteval (HuggingFace)
+
+```bash
+pip install lighteval statebench
+
+# Clone the task file
+git clone https://github.com/Parslee-ai/statebench.git
+cd statebench
+
+# Run evaluation
+lighteval accelerate \
+    "model_name=meta-llama/Llama-2-7b-hf" \
+    "statebench|0|0" \
+    --custom-tasks lighteval_tasks/statebench_task.py
+
+# Run on specific track
+lighteval accelerate \
+    "model_name=meta-llama/Llama-2-7b-hf" \
+    "statebench:supersession|0|0" \
+    --custom-tasks lighteval_tasks/statebench_task.py
+```
+
+### With Native StateBench Harness
+
+For full evaluation with multiple memory baselines:
 
 ```bash
 pip install statebench
@@ -92,7 +116,7 @@ pip install statebench
 statebench evaluate -d test.jsonl -b state_based -m gpt-4o -p openai
 ```
 
-See the [StateBench repository](https://github.com/parslee-ai/statebench) for full documentation.
+See the [StateBench repository](https://github.com/Parslee-ai/statebench) for full documentation.
 
 ## Key Metrics
 
@@ -111,7 +135,9 @@ See the [StateBench repository](https://github.com/parslee-ai/statebench) for fu
 
 ## Baseline Scoreboard
 
-Results on the test split with different memory strategies:
+Results on the test split with different memory strategies.
+
+> **Dataset revision**: `ffb2d1ab314ba6c2f92195e5e642ddffadee8df4`
 
 ### GPT-5.2
 
