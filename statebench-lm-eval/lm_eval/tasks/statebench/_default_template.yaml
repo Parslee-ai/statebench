@@ -1,0 +1,40 @@
+# StateBench task group configuration for lm-evaluation-harness
+#
+# This defines the base configuration inherited by track-specific tasks.
+# StateBench is a multi-turn stateful benchmark - we pre-compute context
+# using the transcript_replay baseline to flatten into independent queries.
+
+group: statebench
+task: null  # Set by individual task files
+dataset_path: parslee/statebench
+dataset_name: null
+output_type: generate_until
+
+# Use validation split for development, test for official evaluation
+test_split: test
+validation_split: validation
+
+# Document processing happens in utils.py
+process_docs: !function utils.process_docs
+doc_to_text: !function utils.doc_to_text
+doc_to_target: !function utils.doc_to_target
+
+# Generation settings
+generation_kwargs:
+  max_gen_toks: 256
+  temperature: 0
+  do_sample: false
+
+# Stop at newline (typical for short answers)
+until:
+  - "\n"
+  - "\n\n"
+
+# Custom StateBench scoring
+metric_list:
+  - metric: !function utils.decision_accuracy
+    aggregation: mean
+    higher_is_better: true
+
+metadata:
+  version: 1.0

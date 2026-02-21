@@ -1,0 +1,84 @@
+{
+  "protocol_version": "1.0",
+  "is_official": true,
+  "submission_timestamp": "2025-12-24T01:23:17.153402Z",
+  "submitter": "Parslee",
+  "notes": "",
+  "benchmark": {
+    "name": "StateBench",
+    "release": "v0.2",
+    "split": "test",
+    "dataset_sha256": "7d67bef785c39a9f210e84506e12ba130cd84dd3b490ac2d775f9096e4d7e681",
+    "total_queries": 162,
+    "limit_applied": null
+  },
+  "system": {
+    "baseline": "no_memory",
+    "model": "claude-opus-4-5-20251101",
+    "provider": "anthropic"
+  },
+  "evaluation": {
+    "seeds": [
+      42,
+      123,
+      456
+    ],
+    "num_runs": 3
+  },
+  "results": {
+    "decision_accuracy": {
+      "mean": 0.09670781893004114,
+      "std": 0.007127781101106491,
+      "min": 0.09259259259259259,
+      "max": 0.10493827160493827
+    },
+    "sfrr": {
+      "mean": 0.07407407407407407,
+      "std": 0.0,
+      "min": 0.07407407407407407,
+      "max": 0.07407407407407407
+    },
+    "must_mention_rate": {
+      "mean": 0.0412621359223301,
+      "std": 0.00242718446601942,
+      "min": 0.038834951456310676,
+      "max": 0.043689320388349516
+    },
+    "must_not_mention_violation_rate": {
+      "mean": 0.03298245614035088,
+      "std": 0.001215474250925527,
+      "min": 0.031578947368421054,
+      "max": 0.03368421052631579
+    }
+  },
+  "per_seed_results": [
+    {
+      "seed": 42,
+      "decision_accuracy": 0.10493827160493827,
+      "sfrr": 0.07407407407407407,
+      "must_mention_rate": 0.038834951456310676,
+      "must_not_mention_violation_rate": 0.031578947368421054,
+      "total_queries": 162,
+      "avg_tokens": 183.01234567901236
+    },
+    {
+      "seed": 123,
+      "decision_accuracy": 0.09259259259259259,
+      "sfrr": 0.07407407407407407,
+      "must_mention_rate": 0.043689320388349516,
+      "must_not_mention_violation_rate": 0.03368421052631579,
+      "total_queries": 162,
+      "avg_tokens": 181.92592592592592
+    },
+    {
+      "seed": 456,
+      "decision_accuracy": 0.09259259259259259,
+      "sfrr": 0.07407407407407407,
+      "must_mention_rate": 0.0412621359223301,
+      "must_not_mention_violation_rate": 0.03368421052631579,
+      "total_queries": 162,
+      "avg_tokens": 183.61111111111111
+    }
+  ],
+  "submission_hash": "68410fcbd6cd077e66620c6e73014f73cbb3e8be885c70908fbb3f06396a67ba"
+}

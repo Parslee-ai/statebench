@@ -1,0 +1,74 @@
+{
+  "no_memory": {
+    "model": "claude-opus-4-5-20251101",
+    "total_queries": 251,
+    "overall_sfrr": 0.07569721115537849,
+    "overall_decision_accuracy": 0.13545816733067728,
+    "overall_must_mention_rate": 0.07910750507099391,
+    "overall_must_not_mention_violation_rate": 0.037953795379537955
+  },
+  "transcript_replay": {
+    "model": "claude-opus-4-5-20251101",
+    "total_queries": 251,
+    "overall_sfrr": 0.3346613545816733,
+    "overall_decision_accuracy": 0.5298804780876494,
+    "overall_must_mention_rate": 0.7484787018255578,
+    "overall_must_not_mention_violation_rate": 0.20627062706270627
+  },
+  "rolling_summary": {
+    "model": "claude-opus-4-5-20251101",
+    "total_queries": 251,
+    "overall_sfrr": 0.4581673306772908,
+    "overall_decision_accuracy": 0.5139442231075697,
+    "overall_must_mention_rate": 0.7363083164300203,
+    "overall_must_not_mention_violation_rate": 0.2871287128712871
+  },
+  "rag_transcript": {
+    "model": "claude-opus-4-5-20251101",
+    "total_queries": 251,
+    "overall_sfrr": 0.44223107569721115,
+    "overall_decision_accuracy": 0.5099601593625498,
+    "overall_must_mention_rate": 0.768762677484787,
+    "overall_must_not_mention_violation_rate": 0.27722772277227725
+  },
+  "fact_extraction": {
+    "model": "claude-opus-4-5-20251101",
+    "total_queries": 251,
+    "overall_sfrr": 0.3745019920318725,
+    "overall_decision_accuracy": 0.4900398406374502,
+    "overall_must_mention_rate": 0.6876267748478702,
+    "overall_must_not_mention_violation_rate": 0.21122112211221122
+  },
+  "state_based": {
+    "model": "claude-opus-4-5-20251101",
+    "total_queries": 251,
+    "overall_sfrr": 0.4103585657370518,
+    "overall_decision_accuracy": 0.5816733067729084,
+    "overall_must_mention_rate": 0.8742393509127789,
+    "overall_must_not_mention_violation_rate": 0.23597359735973597
+  },
+  "state_based_no_supersession": {
+    "model": "claude-opus-4-5-20251101",
+    "total_queries": 251,
+    "overall_sfrr": 0.38247011952191234,
+    "overall_decision_accuracy": 0.6294820717131474,
+    "overall_must_mention_rate": 0.8600405679513184,
+    "overall_must_not_mention_violation_rate": 0.23927392739273928
+  },
+  "fact_extraction_with_supersession": {
+    "model": "claude-opus-4-5-20251101",
+    "total_queries": 251,
+    "overall_sfrr": 0.3904382470119522,
+    "overall_decision_accuracy": 0.5139442231075697,
+    "overall_must_mention_rate": 0.7099391480730223,
+    "overall_must_not_mention_violation_rate": 0.22937293729372937
+  },
+  "transcript_latest_wins": {
+    "model": "claude-opus-4-5-20251101",
+    "total_queries": 251,
+    "overall_sfrr": 0.24302788844621515,
+    "overall_decision_accuracy": 0.3665338645418327,
+    "overall_must_mention_rate": 0.48073022312373226,
+    "overall_must_not_mention_violation_rate": 0.16501650165016502
+  }
+}

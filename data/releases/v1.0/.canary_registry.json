@@ -1,0 +1,42 @@
+[
+  {
+    "id": "CANARY-ENT-A-001229",
+    "phrase": "Project code: ZEPHYR-834057A9"
+  },
+  {
+    "id": "CANARY-S1-000029",
+    "phrase": "Project code: ZEPHYR-C5D2406E"
+  },
+  {
+    "id": "CANARY-S2-000192",
+    "phrase": "CANARY-7620C5B2-STATEBENCH"
+  },
+  {
+    "id": "CANARY-S7-000661",
+    "phrase": "CANARY-0A0471EC-STATEBENCH"
+  },
+  {
+    "id": "CANARY-S1-000024",
+    "phrase": "Case ID: DETECT-F43303A9"
+  },
+  {
+    "id": "CANARY-S10-000982",
+    "phrase": "Project code: ZEPHYR-A350EB9B"
+  },
+  {
+    "id": "CANARY-S6-000541",
+    "phrase": "Reference number: SB-B093E514-V1"
+  },
+  {
+    "id": "CANARY-S9-000832",
+    "phrase": "Reference number: SB-2934FA95-V1"
+  },
+  {
+    "id": "CANARY-S2-000111",
+    "phrase": "Internal memo: CANARY-06992100"
+  },
+  {
+    "id": "CANARY-DET-001062",
+    "phrase": "Internal memo: CANARY-25A0A9D3"
+  }
+]

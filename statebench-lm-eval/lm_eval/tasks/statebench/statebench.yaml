@@ -1,0 +1,15 @@
+# StateBench full benchmark task
+#
+# Evaluates all 13 tracks in the StateBench benchmark.
+# Uses transcript_replay baseline to pre-compute context for each query.
+
+include: _default_template.yaml
+task: statebench
+group: statebench
+
+# Filter to include all tracks (no filter)
+filter_docs: null
+
+description: >
+  StateBench measures LLM state correctness over multi-turn conversations.
+  This task evaluates decision accuracy across all 13 benchmark tracks.

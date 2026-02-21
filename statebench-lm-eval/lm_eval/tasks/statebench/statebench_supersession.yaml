@@ -1,0 +1,15 @@
+# StateBench supersession track task
+#
+# Evaluates only the supersession and supersession_detection tracks.
+# These test whether models correctly handle invalidated information.
+
+include: _default_template.yaml
+task: statebench_supersession
+group: statebench
+
+# Filter to supersession-related tracks
+filter_docs: !function utils.filter_supersession_tracks
+
+description: >
+  StateBench supersession track: Tests whether models avoid mentioning
+  facts that have been superseded by newer information.

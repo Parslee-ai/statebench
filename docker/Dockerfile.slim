@@ -1,0 +1,43 @@
+# StateBench v1.0 Slim Docker Image
+#
+# Minimal image for production evaluation runs.
+# Does not include development dependencies.
+#
+# Build:
+#   docker build -t statebench:slim -f docker/Dockerfile.slim .
+
+FROM python:3.11-slim as builder
+
+WORKDIR /build
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy source
+COPY pyproject.toml ./
+COPY src/ ./src/
+
+# Install package (production only)
+RUN pip install --user .
+
+# Final slim image
+FROM python:3.11-slim
+
+# Copy installed packages from builder
+COPY --from=builder /root/.local /root/.local
+
+# Ensure scripts are in PATH
+ENV PATH=/root/.local/bin:$PATH
+
+# Create data directory
+WORKDIR /app
+RUN mkdir -p /data
+
+# Run as non-root user for security
+RUN useradd --create-home --shell /bin/bash statebench
+USER statebench
+
+ENTRYPOINT ["statebench"]
+CMD ["--help"]
