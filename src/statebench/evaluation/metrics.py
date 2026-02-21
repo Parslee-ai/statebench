@@ -45,6 +45,11 @@ class QueryResult:
     tokens_used: int = 0
     latency_ms: int = 0
 
+    # Compaction metrics
+    compaction_triggered: bool = False
+    compaction_tokens_before: int = 0
+    compaction_tokens_after: int = 0
+
 
 @dataclass
 class TrackMetrics:
@@ -101,6 +106,10 @@ class BenchmarkMetrics:
     # Configuration
     token_budget: int = 8000
     seed: int | None = None
+
+    # Compaction metrics (populated when fact padding is used)
+    compaction_triggered_count: int = 0
+    avg_compaction_ratio: float = 0.0  # tokens_after / tokens_before (lower = more compaction)
 
 
 class MetricsAggregator:
@@ -208,6 +217,16 @@ class MetricsAggregator:
             all_latency = [r.latency_ms for r in self.results if r.latency_ms > 0]
             if all_latency:
                 metrics.avg_latency_ms = sum(all_latency) / len(all_latency)
+
+            # Compaction stats
+            compacted = [r for r in self.results if r.compaction_triggered]
+            metrics.compaction_triggered_count = len(compacted)
+            if compacted:
+                ratios = [
+                    r.compaction_tokens_after / max(1, r.compaction_tokens_before)
+                    for r in compacted
+                ]
+                metrics.avg_compaction_ratio = sum(ratios) / len(ratios)
 
         return metrics
 

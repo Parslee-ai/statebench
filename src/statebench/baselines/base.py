@@ -74,6 +74,12 @@ class ContextResult:
     # Token usage
     token_count: int = 0
 
+    # Compaction metrics (populated by Memgine when compaction triggers)
+    compaction_triggered: bool = False
+    compaction_tokens_before: int = 0
+    compaction_tokens_after: int = 0
+    compaction_entries_compacted: int = 0
+
     def get_included_fact_ids(self) -> set[str]:
         """Get IDs of all included facts."""
         return {f.fact_id for f in self.facts_included}

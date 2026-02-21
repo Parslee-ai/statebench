@@ -24,9 +24,28 @@ __all__ = [
     "StateBasedNoSupersessionStrategy",
     "FactExtractionWithSupersessionStrategy",
     "TranscriptLatestWinsStrategy",
+    "MemgineStrategy",
 ]
 
-BASELINE_REGISTRY = {
+
+def _get_memgine_strategy() -> type:
+    """Lazy import to avoid circular dependency."""
+    from statebench.memgine.strategy import MemgineStrategy
+    return MemgineStrategy
+
+
+class _LazyMemgine:
+    """Lazy proxy that defers import of MemgineStrategy until instantiation."""
+
+    def __call__(self, **kwargs: object) -> MemoryStrategy:
+        cls = _get_memgine_strategy()
+        return cls(**kwargs)  # type: ignore[no-any-return]
+
+    def __repr__(self) -> str:
+        return "<MemgineStrategy (lazy)>"
+
+
+BASELINE_REGISTRY: dict[str, type | _LazyMemgine] = {
     # Core baselines
     "no_memory": NoMemoryStrategy,
     "transcript_replay": TranscriptReplayStrategy,
@@ -38,6 +57,8 @@ BASELINE_REGISTRY = {
     "state_based_no_supersession": StateBasedNoSupersessionStrategy,
     "fact_extraction_with_supersession": FactExtractionWithSupersessionStrategy,
     "transcript_latest_wins": TranscriptLatestWinsStrategy,
+    # Engine baselines
+    "memgine": _LazyMemgine(),
 }
 
 
@@ -61,3 +82,10 @@ def get_baseline(name: str, **kwargs: object) -> MemoryStrategy:
         )
     strategy_class = BASELINE_REGISTRY[name]
     return strategy_class(**kwargs)  # type: ignore[no-any-return]
+
+
+# Lazy accessor for MemgineStrategy for tests that import it directly
+def __getattr__(name: str) -> type:
+    if name == "MemgineStrategy":
+        return _get_memgine_strategy()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

@@ -1,6 +1,7 @@
 """Command-line interface for StateBench."""
 
 import json
+import statistics
 from pathlib import Path
 
 import click
@@ -11,6 +12,7 @@ from rich.table import Table
 from statebench.baselines import BASELINE_REGISTRY
 from statebench.calibration import create_audit_template, run_calibration
 from statebench.evaluation import format_metrics_table
+from statebench.evaluation.metrics import BenchmarkMetrics
 from statebench.generator.engine import generate_dataset
 from statebench.release import RELEASE_CONFIG, generate_release, verify_release
 from statebench.runner.harness import EvaluationHarness, load_timelines
@@ -40,6 +42,49 @@ AVAILABLE_TRACKS = [
     "enterprise_privacy",
     "authority_hierarchy",
 ]
+
+
+def _aggregate_runs(
+    metrics_list: list[BenchmarkMetrics],
+) -> dict[str, dict[str, float]]:
+    """Compute mean/std for key metrics across multiple runs.
+
+    Returns dict mapping metric name -> {"mean": float, "std": float}.
+    Includes per-track decision accuracy under "tracks.<name>.decision_accuracy".
+    Uses population std (pstdev) so N=1 yields std=0.0.
+    """
+    result: dict[str, dict[str, float]] = {}
+
+    for key, attr in [
+        ("decision_accuracy", "overall_decision_accuracy"),
+        ("sfrr", "overall_sfrr"),
+        ("must_mention_rate", "overall_must_mention_rate"),
+        ("must_not_mention_violation_rate", "overall_must_not_mention_violation_rate"),
+    ]:
+        values = [getattr(m, attr) for m in metrics_list]
+        result[key] = {
+            "mean": statistics.mean(values),
+            "std": statistics.pstdev(values),
+        }
+
+    # Per-track decision accuracy
+    all_tracks: set[str] = set()
+    for m in metrics_list:
+        all_tracks.update(m.tracks.keys())
+
+    for track in sorted(all_tracks):
+        values = [
+            m.tracks[track].decision_accuracy
+            for m in metrics_list
+            if track in m.tracks
+        ]
+        if values:
+            result[f"tracks.{track}.decision_accuracy"] = {
+                "mean": statistics.mean(values),
+                "std": statistics.pstdev(values),
+            }
+
+    return result
 
 
 @click.group()
@@ -142,6 +187,19 @@ def generate(tracks: tuple[str, ...], count: int, output: str, seed: int | None)
     default=None,
     help="Output path for results JSON",
 )
+@click.option(
+    "--runs",
+    "-r",
+    type=int,
+    default=1,
+    help="Number of runs for sensitivity analysis (default: 1)",
+)
+@click.option(
+    "--pad-facts",
+    type=int,
+    default=0,
+    help="Inject N filler facts per timeline to stress-test compaction (default: 0)",
+)
 def evaluate(
     dataset: str,
     baseline: str,
@@ -149,23 +207,34 @@ def evaluate(
     provider: str,
     limit: int | None,
     output: str | None,
+    runs: int,
+    pad_facts: int,
 ) -> None:
     """Evaluate a baseline on a dataset."""
-    console.print(f"[bold]Evaluating {baseline} with {model}...[/bold]")
+    harness = EvaluationHarness(model=model, provider=provider, pad_facts=pad_facts)
 
-    harness = EvaluationHarness(model=model, provider=provider)
-    metrics = harness.evaluate(Path(dataset), baseline, limit=limit)
+    if pad_facts > 0:
+        console.print(f"[yellow]Fact padding enabled: {pad_facts} filler facts per timeline[/yellow]")
 
-    # Print results
-    console.print("\n")
-    console.print(format_metrics_table(metrics))
+    if runs <= 1:
+        # Single run: unchanged behavior
+        console.print(f"[bold]Evaluating {baseline} with {model}...[/bold]")
+        metrics = harness.evaluate(Path(dataset), baseline, limit=limit)
 
-    # Save if output specified
-    if output:
-        output_path = Path(output)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(output_path, "w") as f:
-            json.dump({
+        console.print("\n")
+        console.print(format_metrics_table(metrics))
+
+        if metrics.compaction_triggered_count > 0:
+            console.print(
+                f"\nCompaction: triggered on {metrics.compaction_triggered_count}"
+                f"/{metrics.total_queries} queries, "
+                f"avg ratio: {metrics.avg_compaction_ratio:.2f}"
+            )
+
+        if output:
+            output_path = Path(output)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_data: dict[str, object] = {
                 "baseline": metrics.baseline,
                 "model": metrics.model,
                 "total_queries": metrics.total_queries,
@@ -183,8 +252,116 @@ def evaluate(
                     }
                     for track, tm in metrics.tracks.items()
                 },
-            }, f, indent=2)
-        console.print(f"\n[green]Results saved to {output_path}[/green]")
+            }
+            if pad_facts > 0:
+                output_data["pad_facts"] = pad_facts
+                output_data["compaction_triggered_count"] = metrics.compaction_triggered_count
+                output_data["avg_compaction_ratio"] = metrics.avg_compaction_ratio
+            with open(output_path, "w") as f:
+                json.dump(output_data, f, indent=2)
+            console.print(f"\n[green]Results saved to {output_path}[/green]")
+    else:
+        # Multi-run: collect metrics across N runs, report mean±std
+        console.print(
+            f"[bold]Evaluating {baseline} with {model} ({runs} runs)...[/bold]"
+        )
+        metrics_list: list[BenchmarkMetrics] = []
+        for i in range(runs):
+            console.print(f"\n[bold]Run {i + 1}/{runs}...[/bold]")
+            m = harness.evaluate(Path(dataset), baseline, limit=limit)
+            metrics_list.append(m)
+
+        agg = _aggregate_runs(metrics_list)
+
+        # Summary table
+        table = Table(title=f"{baseline} / {model} ({runs} runs)")
+        table.add_column("Metric")
+        table.add_column("Mean", justify="right")
+        table.add_column("Std", justify="right")
+
+        labels = [
+            ("Decision Accuracy", "decision_accuracy"),
+            ("SFRR", "sfrr"),
+            ("Must Mention Rate", "must_mention_rate"),
+            ("MNM Violation Rate", "must_not_mention_violation_rate"),
+        ]
+        for label, key in labels:
+            table.add_row(
+                label,
+                f"{agg[key]['mean']:.1%}",
+                f"\u00b1{agg[key]['std']:.1%}",
+            )
+
+        console.print("\n")
+        console.print(table)
+
+        # Per-track decision accuracy table
+        track_keys = [k for k in sorted(agg) if k.startswith("tracks.")]
+        if track_keys:
+            track_table = Table(title="Per-track Decision Accuracy")
+            track_table.add_column("Track")
+            track_table.add_column("Mean", justify="right")
+            track_table.add_column("Std", justify="right")
+
+            for k in track_keys:
+                track_name = k.split(".")[1]
+                track_table.add_row(
+                    track_name,
+                    f"{agg[k]['mean']:.1%}",
+                    f"\u00b1{agg[k]['std']:.1%}",
+                )
+
+            console.print("\n")
+            console.print(track_table)
+
+        # Save JSON if output specified
+        if output:
+            output_path = Path(output)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+
+            per_run = []
+            for m in metrics_list:
+                per_run.append({
+                    "decision_accuracy": m.overall_decision_accuracy,
+                    "sfrr": m.overall_sfrr,
+                    "must_mention_rate": m.overall_must_mention_rate,
+                    "must_not_mention_violation_rate": (
+                        m.overall_must_not_mention_violation_rate
+                    ),
+                    "total_queries": m.total_queries,
+                    "tracks": {
+                        track: {
+                            "decision_accuracy": tm.decision_accuracy,
+                            "sfrr": tm.sfrr,
+                            "must_mention_rate": tm.must_mention_rate,
+                            "must_not_mention_violation_rate": (
+                                tm.must_not_mention_violation_rate
+                            ),
+                        }
+                        for track, tm in m.tracks.items()
+                    },
+                })
+
+            # Build aggregate tracks section
+            agg_tracks: dict[str, dict[str, dict[str, float]]] = {}
+            for k in track_keys:
+                track_name = k.split(".")[1]
+                if track_name not in agg_tracks:
+                    agg_tracks[track_name] = {}
+                agg_tracks[track_name]["decision_accuracy"] = agg[k]
+
+            with open(output_path, "w") as f:
+                json.dump({
+                    "baseline": metrics_list[0].baseline,
+                    "model": metrics_list[0].model,
+                    "n_runs": runs,
+                    "aggregate": {
+                        k: v for k, v in agg.items() if not k.startswith("tracks.")
+                    },
+                    "tracks": agg_tracks,
+                    "per_run": per_run,
+                }, f, indent=2)
+            console.print(f"\n[green]Results saved to {output_path}[/green]")
 
 
 @main.command()
@@ -229,6 +406,13 @@ def evaluate(
     default="results/comparison.json",
     help="Output path for results",
 )
+@click.option(
+    "--runs",
+    "-r",
+    type=int,
+    default=1,
+    help="Number of runs for sensitivity analysis (default: 1)",
+)
 def compare(
     dataset: str,
     baselines: tuple[str, ...],
@@ -236,56 +420,146 @@ def compare(
     provider: str,
     limit: int | None,
     output: str,
+    runs: int,
 ) -> None:
     """Compare multiple baselines on a dataset."""
     if not baselines:
         baselines = tuple(BASELINE_REGISTRY.keys())
 
-    console.print(f"[bold]Comparing {len(baselines)} baselines with {model}...[/bold]")
-
     harness = EvaluationHarness(model=model, provider=provider)
-    results = harness.compare_baselines(
-        Path(dataset),
-        list(baselines),
-        limit=limit,
-    )
 
-    # Print comparison table
-    table = Table(title="Baseline Comparison")
-    table.add_column("Baseline")
-    table.add_column("SFRR", justify="right")
-    table.add_column("Decision Acc", justify="right")
-    table.add_column("MM Rate", justify="right")
-    table.add_column("MNM Violations", justify="right")
-
-    for baseline, metrics in results.items():
-        table.add_row(
-            baseline,
-            f"{metrics.overall_sfrr:.1%}",
-            f"{metrics.overall_decision_accuracy:.1%}",
-            f"{metrics.overall_must_mention_rate:.1%}",
-            f"{metrics.overall_must_not_mention_violation_rate:.1%}",
+    if runs <= 1:
+        # Single run: unchanged behavior
+        console.print(
+            f"[bold]Comparing {len(baselines)} baselines with {model}...[/bold]"
+        )
+        results = harness.compare_baselines(
+            Path(dataset),
+            list(baselines),
+            limit=limit,
         )
 
-    console.print("\n")
-    console.print(table)
+        table = Table(title="Baseline Comparison")
+        table.add_column("Baseline")
+        table.add_column("SFRR", justify="right")
+        table.add_column("Decision Acc", justify="right")
+        table.add_column("MM Rate", justify="right")
+        table.add_column("MNM Violations", justify="right")
 
-    # Save results
-    output_path = Path(output)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(output_path, "w") as f:
-        json.dump({
-            baseline: {
-                "model": metrics.model,
-                "total_queries": metrics.total_queries,
-                "overall_sfrr": metrics.overall_sfrr,
-                "overall_decision_accuracy": metrics.overall_decision_accuracy,
-                "overall_must_mention_rate": metrics.overall_must_mention_rate,
-                "overall_must_not_mention_violation_rate": metrics.overall_must_not_mention_violation_rate,
+        for bl_name, metrics in results.items():
+            table.add_row(
+                bl_name,
+                f"{metrics.overall_sfrr:.1%}",
+                f"{metrics.overall_decision_accuracy:.1%}",
+                f"{metrics.overall_must_mention_rate:.1%}",
+                f"{metrics.overall_must_not_mention_violation_rate:.1%}",
+            )
+
+        console.print("\n")
+        console.print(table)
+
+        output_path = Path(output)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(output_path, "w") as f:
+            json.dump({
+                bl_name: {
+                    "model": metrics.model,
+                    "total_queries": metrics.total_queries,
+                    "overall_sfrr": metrics.overall_sfrr,
+                    "overall_decision_accuracy": metrics.overall_decision_accuracy,
+                    "overall_must_mention_rate": metrics.overall_must_mention_rate,
+                    "overall_must_not_mention_violation_rate": (
+                        metrics.overall_must_not_mention_violation_rate
+                    ),
+                }
+                for bl_name, metrics in results.items()
+            }, f, indent=2)
+        console.print(f"\n[green]Results saved to {output_path}[/green]")
+    else:
+        # Multi-run: evaluate each baseline N times, aggregate
+        console.print(
+            f"[bold]Comparing {len(baselines)} baselines with {model}"
+            f" ({runs} runs)...[/bold]"
+        )
+
+        # baseline_name -> list of BenchmarkMetrics
+        all_baseline_metrics: dict[str, list[BenchmarkMetrics]] = {
+            bl: [] for bl in baselines
+        }
+
+        for i in range(runs):
+            console.print(f"\n[bold]Run {i + 1}/{runs}...[/bold]")
+            run_results = harness.compare_baselines(
+                Path(dataset),
+                list(baselines),
+                limit=limit,
+            )
+            for bl_name, metrics in run_results.items():
+                all_baseline_metrics[bl_name].append(metrics)
+
+        # Print comparison table with mean±std
+        table = Table(title=f"Baseline Comparison ({runs} runs)")
+        table.add_column("Baseline")
+        table.add_column("Decision Acc", justify="right")
+        table.add_column("SFRR", justify="right")
+        table.add_column("MM Rate", justify="right")
+        table.add_column("MNM Violations", justify="right")
+
+        # baseline_name -> aggregated stats
+        all_aggs: dict[str, dict[str, dict[str, float]]] = {}
+
+        for bl_name in baselines:
+            agg = _aggregate_runs(all_baseline_metrics[bl_name])
+            all_aggs[bl_name] = agg
+
+            da = agg["decision_accuracy"]
+            sf = agg["sfrr"]
+            mm = agg["must_mention_rate"]
+            mnm = agg["must_not_mention_violation_rate"]
+
+            table.add_row(
+                bl_name,
+                f"{da['mean']:.1%} \u00b1{da['std']:.1%}",
+                f"{sf['mean']:.1%} \u00b1{sf['std']:.1%}",
+                f"{mm['mean']:.1%} \u00b1{mm['std']:.1%}",
+                f"{mnm['mean']:.1%} \u00b1{mnm['std']:.1%}",
+            )
+
+        console.print("\n")
+        console.print(table)
+
+        # Save results
+        output_path = Path(output)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        json_results: dict[str, object] = {}
+        for bl_name in baselines:
+            agg = all_aggs[bl_name]
+
+            per_run = []
+            for m in all_baseline_metrics[bl_name]:
+                per_run.append({
+                    "decision_accuracy": m.overall_decision_accuracy,
+                    "sfrr": m.overall_sfrr,
+                    "must_mention_rate": m.overall_must_mention_rate,
+                    "must_not_mention_violation_rate": (
+                        m.overall_must_not_mention_violation_rate
+                    ),
+                    "total_queries": m.total_queries,
+                })
+
+            json_results[bl_name] = {
+                "model": model,
+                "n_runs": runs,
+                "aggregate": {
+                    k: v for k, v in agg.items() if not k.startswith("tracks.")
+                },
+                "per_run": per_run,
             }
-            for baseline, metrics in results.items()
-        }, f, indent=2)
-    console.print(f"\n[green]Results saved to {output_path}[/green]")
+
+        with open(output_path, "w") as f:
+            json.dump(json_results, f, indent=2)
+        console.print(f"\n[green]Results saved to {output_path}[/green]")
 
 
 @main.command()

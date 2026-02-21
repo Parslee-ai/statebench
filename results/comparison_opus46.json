@@ -1,0 +1,34 @@
+{
+  "memgine": {
+    "model": "claude-opus-4-6",
+    "total_queries": 248,
+    "overall_sfrr": 0.40725806451612906,
+    "overall_decision_accuracy": 0.907258064516129,
+    "overall_must_mention_rate": 0.8834355828220859,
+    "overall_must_not_mention_violation_rate": 0.21287128712871287
+  },
+  "state_based": {
+    "model": "claude-opus-4-6",
+    "total_queries": 248,
+    "overall_sfrr": 0.49193548387096775,
+    "overall_decision_accuracy": 0.8790322580645161,
+    "overall_must_mention_rate": 0.9038854805725971,
+    "overall_must_not_mention_violation_rate": 0.31683168316831684
+  },
+  "transcript_replay": {
+    "model": "claude-opus-4-6",
+    "total_queries": 248,
+    "overall_sfrr": 0.375,
+    "overall_decision_accuracy": 0.8064516129032258,
+    "overall_must_mention_rate": 0.787321063394683,
+    "overall_must_not_mention_violation_rate": 0.2524752475247525
+  },
+  "state_based_no_supersession": {
+    "model": "claude-opus-4-6",
+    "total_queries": 248,
+    "overall_sfrr": 0.40725806451612906,
+    "overall_decision_accuracy": 0.8911290322580645,
+    "overall_must_mention_rate": 0.8773006134969326,
+    "overall_must_not_mention_violation_rate": 0.2706270627062706
+  }
+}

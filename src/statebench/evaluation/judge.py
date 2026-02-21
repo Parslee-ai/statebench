@@ -109,18 +109,58 @@ Answer with just YES or NO."""
             return None
 
         options_str = ", ".join(f'"{o}"' for o in options)
+        # For meta-decision labels, add clarifying context so the judge
+        # understands what behavioral pattern each option describes
+        hints = ""
+        for o in options:
+            if o == "use fresh signal":
+                hints += (
+                    '\nNote: "use fresh signal" means the response is based on '
+                    "the most recent/updated information rather than stale data."
+                )
+            elif o == "recall primary task":
+                hints += (
+                    '\nNote: "recall primary task" means the response correctly '
+                    "recalls and provides details about the primary task that was "
+                    "being discussed before an interruption occurred."
+                )
+            elif o == "see critical state":
+                hints += (
+                    '\nNote: "see critical state" means the response demonstrates '
+                    "awareness of the current critical state of affairs, incorporating "
+                    "the latest updates and corrections rather than outdated information."
+                )
+            elif o == "use only permitted information":
+                hints += (
+                    '\nNote: "use only permitted information" means the response '
+                    "answers the question using only non-restricted data. If the "
+                    "response provides relevant information without mentioning "
+                    "restricted or confidential data, choose this option."
+                )
+            elif o == "use only global/committed information":
+                hints += (
+                    '\nNote: "use only global/committed information" means the '
+                    "response answers using only confirmed/committed facts and "
+                    "does NOT reference hypothetical, draft, or exploratory "
+                    "information. If the response sticks to known facts without "
+                    "mentioning speculative or unconfirmed data, choose this option."
+                )
         prompt = f"""What decision does this response indicate? Choose from: {options_str}
-
+{hints}
 Response: "{response}"
 
 Answer with just one of the options, nothing else."""
+
+        # Use enough tokens to reproduce the longest option
+        max_option_tokens = max(len(o.split()) * 2 for o in options)
+        judge_max_tokens = max(30, max_option_tokens)
 
         if self.provider == "openai":
             openai_client = self._get_openai_client()
             openai_result = openai_client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[{"role": "user", "content": prompt}],
-                max_tokens=20,
+                max_tokens=judge_max_tokens,
             )
             answer = openai_result.choices[0].message.content or ""
         else:
@@ -129,7 +169,7 @@ Answer with just one of the options, nothing else."""
                 try:
                     anthropic_result = anthropic_client.messages.create(
                         model="claude-3-haiku-20240307",
-                        max_tokens=20,
+                        max_tokens=judge_max_tokens,
                         messages=[{"role": "user", "content": prompt}],
                     )
                     break
@@ -144,11 +184,19 @@ Answer with just one of the options, nothing else."""
                 if hasattr(first_block, "text"):
                     answer = getattr(first_block, "text", "")
 
-        # Extract the decision from the answer
+        # Extract the decision from the answer. Also check if the answer
+        # is a truncated prefix of an option (LLM may run out of tokens
+        # when reproducing long decision strings).
         answer_lower = answer.lower().strip().strip('"').strip("'")
         for option in options:
-            if option.lower() in answer_lower:
+            option_lower = option.lower()
+            if option_lower in answer_lower:
                 return option
+        # Truncation fallback: if the answer is a substantial prefix of an option
+        if len(answer_lower) >= 15:
+            for option in options:
+                if option.lower().startswith(answer_lower):
+                    return option
 
         return None
 

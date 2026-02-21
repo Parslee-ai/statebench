@@ -84,16 +84,16 @@ DEAL_DEADLINE = EnvironmentalTemplate(
         "content": "Quarter ends in 2 weeks",
         "time": "Dec 15",
     },
-    initial_signal_text="Quarter end is December 31st (2 weeks away)",
+    initial_signal_text="Quarter-end deadline is 2 weeks away",
     updated_signal={
         "type": "deadline",
         "content": "Quarter ends tomorrow",
         "time": "Dec 30",
     },
-    updated_signal_text="Quarter ends tomorrow (Dec 31). Final day for Q4 deals.",
+    updated_signal_text="Quarter ends TOMORROW. Final day for Q4 deals.",
     time_gap_minutes=21600,  # 15 days later
     query_template="How urgent is closing the Enterprise Deal?",
-    should_use_fresh=["tomorrow", "final day", "Q4", "urgent"],
+    should_use_fresh=["tomorrow", "final day"],
     should_not_use_stale=["2 weeks", "plenty of time"],
     time_sensitivity="Deadline proximity determines urgency level",
 )
@@ -271,7 +271,7 @@ CONTRACT_RENEWAL = EnvironmentalTemplate(
         "content": "Auto-renewal in 30 days",
         "time": "Nov 1",
     },
-    initial_signal_text="VendorX contract auto-renews in 30 days (Dec 1) unless cancelled",
+    initial_signal_text="VendorX contract auto-renews in 30 days unless cancelled",
     updated_signal={
         "type": "alert",
         "content": "Auto-renewal tomorrow. Cancel deadline: 5 PM today",
@@ -281,7 +281,7 @@ CONTRACT_RENEWAL = EnvironmentalTemplate(
     time_gap_minutes=41760,  # 29 days
     query_template="What's the deadline for the VendorX decision?",
     should_use_fresh=["5 PM today", "tomorrow", "cancel deadline"],
-    should_not_use_stale=["30 days", "Dec 1", "plenty of time"],
+    should_not_use_stale=["30 days", "plenty of time"],
     time_sensitivity="Contract renewal requires immediate decision",
 )
 

@@ -31,6 +31,7 @@ from statebench.evaluation import (
     QueryResult,
     create_judge,
 )
+from statebench.runner.fact_padding import generate_filler_facts
 from statebench.schema.timeline import ConversationTurn, Query, StateWrite, Supersession, Timeline
 
 MAX_RETRIES = 5
@@ -57,6 +58,7 @@ class EvaluationHarness:
         provider: str = "openai",
         use_llm_judge: bool = True,
         token_budget: int = 8000,
+        pad_facts: int = 0,
     ):
         """Initialize the harness.
 
@@ -65,10 +67,12 @@ class EvaluationHarness:
             provider: LLM provider ("openai", "anthropic", or "google")
             use_llm_judge: Whether to use LLM for judging
             token_budget: Token budget for context
+            pad_facts: Number of filler facts to inject per timeline (0 = disabled)
         """
         self.model = model
         self.provider = provider
         self.token_budget = token_budget
+        self.pad_facts = pad_facts
         self._client: Any = None
         # Use OpenAI for judging by default (most reliable)
         judge_provider = "openai" if provider == "google" else provider
@@ -188,13 +192,20 @@ class EvaluationHarness:
             if callable(init_fn):
                 init_fn(timeline.initial_state)
 
+        # Inject filler facts to stress-test compaction (if enabled)
+        if self.pad_facts > 0:
+            seed = hash(timeline.id) & 0x7FFFFFFF  # Deterministic per-timeline
+            filler_events = generate_filler_facts(self.pad_facts, seed=seed)
+            for filler in filler_events:
+                strategy.process_event(filler)
+
         results = []
         query_idx = 0
 
         for event in timeline.events:
             if isinstance(event, Query):
-                # Build context and generate response
-                prompt = strategy.format_prompt(event.prompt)
+                # Build context and generate response (with provenance)
+                prompt, ctx_result = strategy.format_prompt_with_provenance(event.prompt)
                 system_prompt = strategy.get_system_prompt()
 
                 response, tokens, latency = self._generate_response(system_prompt, prompt)
@@ -210,6 +221,11 @@ class EvaluationHarness:
                 )
                 result.tokens_used = tokens
                 result.latency_ms = latency
+
+                # Capture compaction metrics from context assembly
+                result.compaction_triggered = ctx_result.compaction_triggered
+                result.compaction_tokens_before = ctx_result.compaction_tokens_before
+                result.compaction_tokens_after = ctx_result.compaction_tokens_after
 
                 results.append(result)
                 query_idx += 1
@@ -291,6 +307,7 @@ def run_evaluation(
     model: str = "gpt-4o",
     provider: str = "openai",
     limit: int | None = None,
+    pad_facts: int = 0,
 ) -> BenchmarkMetrics:
     """Convenience function to run evaluation.
 
@@ -300,9 +317,10 @@ def run_evaluation(
         model: Model to use
         provider: LLM provider
         limit: Maximum timelines to process
+        pad_facts: Number of filler facts to inject per timeline
 
     Returns:
         BenchmarkMetrics
     """
-    harness = EvaluationHarness(model=model, provider=provider)
+    harness = EvaluationHarness(model=model, provider=provider, pad_facts=pad_facts)
     return harness.evaluate(Path(dataset_path), baseline, limit=limit)

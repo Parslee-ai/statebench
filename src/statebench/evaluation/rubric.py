@@ -76,7 +76,8 @@ def extract_decision(response: str, expected: str) -> tuple[str | None, bool]:
     if expected_lower in ("yes", "no"):
         # Look for clear yes/no signals
         yes_signals = ["yes", "go ahead", "proceed", "approved", "can do", "will do"]
-        no_signals = ["no", "don't", "do not", "cannot", "should not", "shouldn't", "stop", "hold off"]
+        no_signals = ["no", "don't", "do not", "cannot", "should not", "shouldn't",
+                      "stop", "hold off", "not possible", "not permitted", "exceeds"]
 
         has_yes = any(signal in response_lower for signal in yes_signals)
         has_no = any(signal in response_lower for signal in no_signals)
@@ -86,14 +87,35 @@ def extract_decision(response: str, expected: str) -> tuple[str | None, bool]:
         elif has_yes and not has_no:
             return "yes", expected_lower == "yes"
         elif has_no and has_yes:
-            # Conflicting signals - check which comes first or is stronger
-            # "No" followed by explanation usually means no
+            # Conflicting signals — prefer explicit standalone "no"/"yes" words
+            # over contextual matches like "approved" in explanation text
+            explicit_no = bool(re.search(r'\bno\b', response_lower))
+            explicit_yes = bool(re.search(r'\byes\b', response_lower))
+            if explicit_no and not explicit_yes:
+                return "no", expected_lower == "no"
+            if explicit_yes and not explicit_no:
+                return "yes", expected_lower == "yes"
+            # Both explicit or neither — fall back to first position
             first_no = min((response_lower.find(s) for s in no_signals if s in response_lower), default=999)
             first_yes = min((response_lower.find(s) for s in yes_signals if s in response_lower), default=999)
             if first_no < first_yes:
                 return "no", expected_lower == "no"
             else:
                 return "yes", expected_lower == "yes"
+
+        # No explicit yes/no signals found. A substantive factual response
+        # (providing requested information without hedging) is an implicit
+        # affirmative. Refusal/uncertainty signals indicate non-answers.
+        refusal_signals = [
+            "not specified", "not provided", "no information",
+            "cannot determine", "insufficient", "unclear",
+            "not available", "not mentioned", "unknown",
+        ]
+        has_refusal = any(signal in response_lower for signal in refusal_signals)
+        is_substantive = len(response_lower.split()) >= 5
+
+        if is_substantive and not has_refusal:
+            return "yes", expected_lower == "yes"
 
         return None, False
 
