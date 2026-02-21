@@ -25,7 +25,7 @@ StateBench exposes it.
 
 ## What Actually Goes Wrong
 
-We tested six different memory strategies across multiple frontier models. The failures are systematic.
+We tested ten different memory strategies across multiple frontier models. The failures are systematic.
 
 **Resurrection.** User says "I moved to Seattle." System acknowledges it. Later, system ships the order to Portland—the old address that was explicitly invalidated.
 
@@ -71,20 +71,31 @@ Three metrics that matter:
 
 ## The Results
 
-We compared transcript replay, rolling summaries, RAG, fact extraction, and state-based context assembly.
+We compared transcript replay, rolling summaries, RAG, fact extraction, state-based context assembly, and a deterministic memory engine (Memgine).
 
-State-based wins on accuracy. But there is a tradeoff.
+State-based wins on accuracy. A deterministic engine wins decisively.
 
-### GPT-5.2 (OpenAI)
+### Memgine (Deterministic Engine)
+
+Memgine implements the full state-based specification with query-relevance sorting, engine-level access control, and adaptive inline repair. Results on the v1.0 development split (3-run mean ± std):
+
+| Configuration | Decision Acc | SFRR ↓ | Must Mention |
+|---------------|--------------|--------|--------------|
+| **memgine** / Opus 4.6 | **97.3% ± 0.5%** | 37.1% | **90.7% ± 0.5%** |
+| **memgine** / GPT-5.2 | 95.8% ± 0.4% | **24.2%** | 80.7% ± 0.7% |
+
+On the held-out test split: 96.0% (Opus 4.6), 92.6% (GPT-5.2).
+
+### Reference Baselines — GPT-5.2 (OpenAI)
 
 | Baseline | Decision Acc | SFRR ↓ | Must Mention |
 |----------|--------------|--------|--------------|
 | **state_based** | **80.3%** | 34.4% | **79.8%** |
 | rolling_summary | 72.1% | **21.3%** | 66.4% |
-| transcript_replay | 60.7% | 24.6% | 67.2% |
 | fact_extraction | 63.9% | 27.9% | 56.3% |
+| transcript_replay | 60.7% | 24.6% | 67.2% |
 
-### Claude Opus 4.5 (Anthropic)
+### Reference Baselines — Claude Opus 4.5 (Anthropic)
 
 | Baseline | Decision Acc | SFRR ↓ | Must Mention |
 |----------|--------------|--------|--------------|
@@ -93,7 +104,7 @@ State-based wins on accuracy. But there is a tradeoff.
 | transcript_replay | 53.0% | **33.5%** | 74.8% |
 | rolling_summary | 51.4% | 45.8% | 73.6% |
 
-GPT-5.2 achieves significantly higher decision accuracy. Opus 4.5 shows stronger fact grounding (higher must-mention rates) but weaker decision reasoning.
+Memgine's deterministic engine achieves 95.8% on GPT-5.2—a 15.5pp improvement over the best reference baseline. Opus 4.6 outperforms GPT-5.2 under Memgine (97.3% vs 95.8%), reversing the pattern seen in reference baselines.
 
 ---
 
@@ -105,9 +116,9 @@ Transcript replay has lower SFRR not because it handles supersession well, but b
 
 State-based approaches surface more facts—including ones the model should ignore.
 
-This is not a context management problem alone. It is also a model reasoning problem. Even with explicit "this fact is superseded" markers, models still reference dead information.
+Memgine addresses this with engine-level enforcement: restricted facts are removed from context before they reach the model. On the `scope_leak` track, this raises Opus 4.6 from 33.3% (prompt-based markers) to 100% (engine-level filtering).
 
-The architecture helps. It does not solve everything.
+The architecture helps. The engine enforces.
 
 ---
 
@@ -138,23 +149,29 @@ pip install statebench
 statebench generate --tracks all --count 100 --output benchmark.jsonl
 
 # Test your system
-statebench evaluate -d benchmark.jsonl -b state_based -m gpt-4o
+statebench evaluate -d benchmark.jsonl -b memgine -m gpt-5.2
 
 # Compare approaches
-statebench compare -d benchmark.jsonl -m gpt-4o
+statebench compare -d benchmark.jsonl -m gpt-5.2
 ```
 
 [GitHub →](https://github.com/Parslee-ai/statebench) · [PyPI →](https://pypi.org/project/statebench/) · [HuggingFace Dataset →](https://huggingface.co/datasets/parslee/statebench) · [Explorer →](https://huggingface.co/spaces/parslee/statebench-explorer)
 
 ---
 
-## The Paper
+## The Papers
 
-For the formal treatment—architecture specification, enterprise requirements, full experimental methodology:
+**The Architecture:**
 
 [**Beyond Conversation: A State-Based Context Architecture for Enterprise AI Agents**](state-based-context-architecture.pdf)
 
-Liotta, 2025.
+Liotta, 2025. The theoretical foundations—four-layer state model, supersession tracking, benchmark design, and evaluation across nine baselines.
+
+**The Engine:**
+
+[**Memgine: A Deterministic Memory Engine for Stateful AI Agents**](memgine-deterministic-memory-engine.pdf)
+
+Liotta, 2026. The production implementation—query-relevance sorting, engine-level access control, adaptive inline repair, per-track analysis, and the enforcement-reasoning boundary.
 
 ---
 

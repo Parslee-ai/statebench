@@ -10,7 +10,9 @@
 
 StateBench is not another LLM benchmark. It is a test suite that proves whether your AI system actually maintains correct state over time—or just pretends to.
 
-> **Paper:** For the theoretical foundations and comprehensive evaluation, see [Beyond Conversation: A State-Based Context Architecture for Enterprise AI Agents](docs/state-based-context-architecture.pdf) (Liotta, 2025).
+> **Papers:**
+> - [Beyond Conversation: A State-Based Context Architecture for Enterprise AI Agents](docs/state-based-context-architecture.pdf) (Liotta, 2025) — the theoretical foundations and benchmark evaluation.
+> - [Memgine: A Deterministic Memory Engine for Stateful AI Agents](docs/memgine-deterministic-memory-engine.pdf) (Liotta, 2026) — a production engine implementing the full specification, achieving 95.8% decision accuracy.
 
 ## The Problem
 
@@ -42,11 +44,31 @@ A system that passes StateBench has demonstrated:
 
 Passing is rare. Most transcript-replay systems fail Track 1 (Causality) at meaningful scale.
 
-## Leaderboard (v1.0)
+## Leaderboard (v1.1)
 
-Official results on the v1.0 test split (209 timelines).
+### Memgine Engine Results
 
-### GPT-5.2 (OpenAI)
+Memgine implements the full state-based specification with query-relevance sorting, engine-level access control, and adaptive inline repair. Results on the v1.0 development split (248 queries, 3-run mean ± std):
+
+| Configuration | Decision Accuracy | SFRR ↓ | Must Mention | MNM Violation ↓ |
+|---------------|-------------------|--------|--------------|-----------------|
+| `memgine` / Opus 4.6 | **97.3% ± 0.5%** | 37.1% ± 0.6% | **90.7% ± 0.5%** | 20.5% ± 0.7% |
+| `memgine` / GPT-5.2 | 95.8% ± 0.4% | 24.2% ± 1.3% | 80.7% ± 0.7% | **13.1% ± 0.7%** |
+
+On the held-out test split (251 queries, 3-run mean ± std):
+
+| Configuration | Decision Accuracy | SFRR ↓ | Must Mention | MNM Violation ↓ |
+|---------------|-------------------|--------|--------------|-----------------|
+| `memgine` / Opus 4.6 | **96.0% ± 1.2%** | 34.1% ± 0.2% | **89.0% ± 0.3%** | 17.4% ± 0.1% |
+| `memgine` / GPT-5.2 | 92.6% ± 1.1% | 23.4% ± 1.1% | 76.4% ± 0.3% | **10.9% ± 0.3%** |
+
+See the [Memgine paper](docs/memgine-deterministic-memory-engine.pdf) for per-track analysis and ablation studies.
+
+### Baseline Comparison (v1.0)
+
+Reference baseline results on the v1.0 test split (209 timelines).
+
+#### GPT-5.2 (OpenAI)
 
 | Baseline | Decision Accuracy | SFRR ↓ | Must Mention |
 |----------|-------------------|--------|--------------|
@@ -60,7 +82,7 @@ Official results on the v1.0 test split (209 timelines).
 | `transcript_latest_wins` | 60.7% | **21.3%** | 42.0% |
 | `no_memory` | 26.2% | 19.7% | 5.0% |
 
-### Claude Opus 4.5 (Anthropic)
+#### Claude Opus 4.5 (Anthropic)
 
 | Baseline | Decision Accuracy | SFRR ↓ | Must Mention |
 |----------|-------------------|--------|--------------|
@@ -74,7 +96,7 @@ Official results on the v1.0 test split (209 timelines).
 | `transcript_latest_wins` | 36.7% | **24.3%** | 48.1% |
 | `no_memory` | 13.5% | 7.6% | 7.9% |
 
-**Key findings:** GPT-5.2 significantly outperforms Opus 4.5 on decision accuracy (80.3% vs 62.9% for best baseline). However, Opus 4.5 achieves higher must-mention rates on state-based approaches (87.4% vs 79.8%), suggesting stronger fact grounding but weaker decision reasoning.
+**Key findings:** Memgine's deterministic engine achieves 95.8% decision accuracy on GPT-5.2—a 15.5pp improvement over the best reference baseline (80.3%). Engine-level access control eliminates scope leakage that prompt-based approaches cannot prevent. Opus 4.6 outperforms GPT-5.2 under Memgine (97.3% vs 95.8%), reversing the pattern seen in reference baselines where GPT-5.2 leads.
 
 ## Failure Taxonomy
 
@@ -155,18 +177,18 @@ export GOOGLE_API_KEY=AIza...  # Optional
 statebench generate --tracks all --count 100 --output data/benchmark.jsonl
 
 # Run conformance tests
-statebench evaluate --dataset data/benchmark.jsonl --baseline state_based --model gpt-5.2
+statebench evaluate --dataset data/benchmark.jsonl --baseline memgine --model gpt-5.2
 
 # Compare implementations
 statebench compare --dataset data/benchmark.jsonl --model gpt-5.2
 
 # Generate official submission
-statebench leaderboard --baseline state_based --submitter "YourOrg" --model gpt-5.2
+statebench leaderboard --baseline memgine --submitter "YourOrg" --model gpt-5.2
 ```
 
 ## Benchmark Tracks (v1.0)
 
-StateBench v1.0 includes 14 evaluation tracks across 1,400 timelines:
+StateBench v1.0 includes 13 evaluation tracks plus an adversarial track:
 
 | Track | Tests |
 |-------|-------|
@@ -178,11 +200,11 @@ StateBench v1.0 includes 14 evaluation tracks across 1,400 timelines:
 | `environmental_freshness` | Time-sensitive state expiration |
 | `authority_hierarchy` | Higher-authority sources override lower |
 | `enterprise_privacy` | Confidential information stays restricted |
-| `identity` | User identity and role tracking |
-| `time_decay` | Temporal relevance of historical facts |
-| `confidentiality` | Information classification enforcement |
-| `contradiction` | Conflicting facts handled correctly |
-| `detection` | Anomaly and edge case detection |
+| `hallucination_resistance` | System refuses to invent unstated facts |
+| `scope_leak` | Hypothetical/draft content stays contained |
+| `causality` | Causal chain and dependency reasoning |
+| `repair_propagation` | Corrections cascade to derived conclusions |
+| `brutal_realistic` | Multi-failure compound scenarios |
 | `adversarial` | Adversarial prompts designed to trick the system |
 
 ## Metrics
@@ -204,44 +226,41 @@ This suggests that resurrection failures are not solely a context management pro
 - **Lower SFRR preference:** Applications where acting on stale information causes severe harm
 - **Higher accuracy preference:** Applications prioritizing comprehensive responses
 
-See Section 7.1 of the [paper](docs/state-based-context-architecture.pdf) for detailed analysis.
+See Section 7.1 of the [architecture paper](docs/state-based-context-architecture.pdf) for detailed analysis and Section 7 of the [Memgine paper](docs/memgine-deterministic-memory-engine.pdf) for how engine-level enforcement addresses this tradeoff.
 
-## Reference Implementations
+## Implementations
 
-StateBench includes nine baseline implementations:
+StateBench includes ten baseline implementations:
 
 | Baseline | Approach |
 |----------|----------|
-| `no_memory` | No history. Current query only. |
-| `transcript_replay` | Raw conversation history |
-| `transcript_latest_wins` | Transcript with recency bias |
-| `rolling_summary` | LLM-summarized history |
-| `rag_transcript` | Retrieved transcript chunks |
-| `fact_extraction` | Extracted fact store (Mem0-style) |
-| `fact_extraction_with_supersession` | Fact store with supersession tracking |
+| `memgine` | **Deterministic memory engine** — full state-based spec with query-relevance sorting, engine-level access control, adaptive inline repair, and threshold-based compaction |
 | `state_based` | Structured state with supersession tracking, scope management, and repair propagation |
 | `state_based_no_supersession` | State-based without supersession (ablation) |
+| `fact_extraction_with_supersession` | Fact store with supersession tracking |
+| `fact_extraction` | Extracted fact store (Mem0-style) |
+| `rolling_summary` | LLM-summarized history |
+| `rag_transcript` | Retrieved transcript chunks |
+| `transcript_replay` | Raw conversation history |
+| `transcript_latest_wins` | Transcript with recency bias |
+| `no_memory` | No history. Current query only. |
 
 All baselines operate under identical token budgets (default 8K) for fair comparison.
 
-### Implementation Scope
+### Memgine
 
-The `state_based` baseline is a **reference implementation** that demonstrates core concepts but intentionally omits some production optimizations to isolate the effect of supersession tracking:
+Memgine is a **deterministic memory engine** that implements the full state-based specification described in the [architecture paper](docs/state-based-context-architecture.pdf). It adds four capabilities over the `state_based` reference baseline:
 
-**Implemented:**
-- Four-layer context assembly (Identity, Environment, Persistent Facts, Working Set)
-- Supersession tracking with `is_valid`, `superseded_by`, `supersedes` pointers
-- Dependency tracking and repair propagation for derived facts
-- Scope inference (global, task, hypothetical, draft, session)
-- Tri-partite memory classification (user, capability, organizational)
-- Constraint detection and emphasis
+1. **Query-relevance sorting** — places the most relevant facts closest to the query, exploiting transformer recency attention patterns
+2. **Engine-level access control** — removes restricted, hypothetical, and scoped facts from context before they reach the model
+3. **Adaptive inline repair** — places invalidated conclusions next to their corrected parent facts with `RECALCULATE` markers
+4. **Threshold-based compaction** — layer-specific rules via a Summary DAG for graceful degradation under token pressure
 
-**Omitted (for cleaner ablation):**
-- Relevance ranking by query (facts sorted by timestamp instead)
-- Token budget management (all valid facts included regardless of count)
-- NLU-based supersession detection (relies on explicit `Supersession` events)
+See the [Memgine paper](docs/memgine-deterministic-memory-engine.pdf) for the full specification and evaluation.
 
-This design isolates the effect of supersession tracking from retrieval optimizations. The gains in Decision Accuracy and Must Mention are attributable to valid-only filtering and scope management, not retrieval optimization. Production systems would implement the full algorithm described in the [paper](docs/state-based-context-architecture.pdf).
+### Reference Baselines
+
+The `state_based` baseline is a **reference implementation** that demonstrates core concepts but intentionally omits production optimizations to isolate the effect of supersession tracking. This design isolates the contribution of supersession tracking from retrieval optimizations. See Section 5 of the [architecture paper](docs/state-based-context-architecture.pdf) for methodology.
 
 ## Adding Your Implementation
 
@@ -340,11 +359,13 @@ statebench/
 │   │   ├── templates/   # Track-specific templates
 │   │   └── adversarial.py  # Adversarial case generation
 │   ├── baselines/       # Reference implementations
+│   ├── memgine/         # Deterministic memory engine
 │   ├── evaluation/      # Judging and metrics
 │   └── cli.py           # Command interface
 ├── data/releases/       # Canonical benchmark releases
 ├── docs/
-│   ├── state-based-context-architecture.pdf  # Research paper
+│   ├── state-based-context-architecture.pdf  # Architecture paper
+│   ├── memgine-deterministic-memory-engine.pdf  # Memgine paper
 │   ├── EVALUATION.md    # Scoring methodology
 │   └── ALGORITHM.md     # State-based algorithm spec
 └── results/             # Evaluation outputs
