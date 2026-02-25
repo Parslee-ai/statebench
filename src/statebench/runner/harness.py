@@ -135,7 +135,7 @@ class EvaluationHarness:
                     )
                     break
                 except APIStatusError as e:
-                    if e.status_code == 529 and attempt < MAX_RETRIES - 1:
+                    if e.status_code in (500, 502, 503, 529) and attempt < MAX_RETRIES - 1:
                         delay = RETRY_BASE_DELAY * (2 ** attempt)
                         time.sleep(delay)
                         continue
