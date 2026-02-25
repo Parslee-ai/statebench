@@ -34,8 +34,8 @@ from statebench.evaluation import (
 from statebench.runner.fact_padding import generate_filler_facts
 from statebench.schema.timeline import ConversationTurn, Query, StateWrite, Supersession, Timeline
 
-MAX_RETRIES = 5
-RETRY_BASE_DELAY = 2.0  # seconds
+MAX_RETRIES = 8
+RETRY_BASE_DELAY = 5.0  # seconds
 
 console = Console()
 

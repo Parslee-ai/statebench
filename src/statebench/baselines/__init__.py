@@ -7,6 +7,7 @@ from statebench.baselines.ablations import (
 )
 from statebench.baselines.base import MemoryStrategy
 from statebench.baselines.fact_extract import FactExtractionStrategy
+from statebench.baselines.flat_file import FlatFileStrategy
 from statebench.baselines.no_memory import NoMemoryStrategy
 from statebench.baselines.rag import RAGTranscriptStrategy
 from statebench.baselines.state_based import StateBasedStrategy
@@ -25,6 +26,7 @@ __all__ = [
     "FactExtractionWithSupersessionStrategy",
     "TranscriptLatestWinsStrategy",
     "MemgineStrategy",
+    "FlatFileStrategy",
 ]
 
 
@@ -59,6 +61,8 @@ BASELINE_REGISTRY: dict[str, type | _LazyMemgine] = {
     "transcript_latest_wins": TranscriptLatestWinsStrategy,
     # Engine baselines
     "memgine": _LazyMemgine(),
+    # OpenClaw flat-file baseline
+    "flat_file": FlatFileStrategy,
 }
 
 
