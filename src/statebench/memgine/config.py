@@ -59,6 +59,24 @@ class MemgineConfig:
         }
         return budgets[layer].tokens(self.token_budget)
 
+    def with_layer_weights(self, weights: dict[int, float]) -> "MemgineConfig":
+        """Return a new config with adjusted layer budget fractions.
+
+        Used by query-complexity routing to adapt budgets per query type.
+        The weights dict maps layer (1-4) to fraction (must sum to 1.0).
+        """
+        return MemgineConfig(
+            token_budget=self.token_budget,
+            layer1_budget=LayerBudget(fraction=weights.get(1, self.layer1_budget.fraction)),
+            layer2_budget=LayerBudget(fraction=weights.get(2, self.layer2_budget.fraction)),
+            layer3_budget=LayerBudget(fraction=weights.get(3, self.layer3_budget.fraction)),
+            layer4_budget=LayerBudget(fraction=weights.get(4, self.layer4_budget.fraction)),
+            thresholds=self.thresholds,
+            working_set_max=self.working_set_max,
+            working_set_keep_recent=self.working_set_keep_recent,
+            environment_max=self.environment_max,
+        )
+
     def validate(self) -> None:
         """Check configuration is valid."""
         total = (

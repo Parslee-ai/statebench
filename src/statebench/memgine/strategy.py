@@ -49,6 +49,10 @@ class MemgineStrategy(MemoryStrategy):
         """Build context with provenance for an LLM query."""
         return self._engine.build_context(query)
 
+    def consolidate(self) -> dict[str, int]:
+        """Run a consolidation/dreaming pass. Returns operation counts."""
+        return self._engine.consolidate()
+
     def reset(self) -> None:
         """Reset internal state for a new timeline."""
         self._engine.reset()

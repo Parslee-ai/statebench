@@ -24,6 +24,13 @@ from typing import Literal
 import tiktoken
 
 from statebench.baselines.base import ContextResult, FactMetadata, MemoryStrategy
+from statebench.confidence import Confidence, confidence_annotation, infer_confidence
+from statebench.constraint_checker import (
+    FactValue,
+    check_constraints,
+    format_constraint_checklist,
+)
+from statebench.query_classifier import QueryComplexity, classify_query
 from statebench.schema.state import IdentityRole, Scope, Source
 from statebench.schema.timeline import (
     ConversationTurn,
@@ -71,6 +78,9 @@ class EnhancedFact:
     # Constraint metadata (fixes causality)
     is_constraint: bool = False
     constraint_type: str | None = None
+
+    # Confidence scoring (v2.0)
+    confidence: Confidence = "likely"
 
     def to_fact_metadata(self) -> FactMetadata:
         """Convert to FactMetadata for provenance tracking."""
@@ -279,6 +289,13 @@ class StateBasedStrategy(MemoryStrategy):
                 derived_facts=list(fact.derived_facts),
                 is_constraint=self._is_constraint(fact.value, fact.source),
                 constraint_type=self._infer_constraint_type(fact.value),
+                confidence=infer_confidence(
+                    authority=fact.source.authority,
+                    source_type=fact.source.type,
+                    scope=fact.scope,
+                    is_constraint=self._is_constraint(fact.value, fact.source),
+                    ts=fact.ts,
+                ),
             )
             self.facts[fact_id] = enhanced
             self.facts_by_key[fact.key] = fact_id
@@ -349,6 +366,13 @@ class StateBasedStrategy(MemoryStrategy):
                         depends_on=deps,
                         is_constraint=is_const,
                         constraint_type=const_type,
+                        confidence=infer_confidence(
+                            authority=write.source.authority,
+                            source_type=write.source.type,
+                            scope=write.scope,
+                            is_constraint=is_const,
+                            ts=event.ts,
+                        ),
                     )
                     self.facts[fact_id] = fact
                     self.facts_by_key[write.key] = fact_id
@@ -414,6 +438,13 @@ class StateBasedStrategy(MemoryStrategy):
                         depends_on=deps,
                         is_constraint=is_const,
                         constraint_type=const_type,
+                        confidence=infer_confidence(
+                            authority=write.source.authority,
+                            source_type=write.source.type,
+                            scope=write.scope,
+                            is_constraint=is_const,
+                            ts=event.ts,
+                        ),
                     )
                     self.facts[fact_id] = fact
                     self.facts_by_key[write.key] = fact_id
@@ -500,7 +531,9 @@ class StateBasedStrategy(MemoryStrategy):
         """Build structured context from state layers with provenance.
 
         v1.0: Returns ContextResult with full provenance tracking.
+        v2.0: Query-complexity routing — adapts context assembly to query type.
         """
+        classification = classify_query(query)
         parts: list[str] = []
         facts_included: list[FactMetadata] = []
         facts_excluded: list[FactMetadata] = []
@@ -532,6 +565,25 @@ class StateBasedStrategy(MemoryStrategy):
                 facts_included.append(c.to_fact_metadata())
                 inclusion_reasons[c.fact_id] = "active constraint"
 
+        # Layer 2a+: Constraint pre-computation (for constraint-check queries)
+        if constraints and classification.complexity in (
+            QueryComplexity.CONSTRAINT_CHECK,
+            QueryComplexity.AGGREGATION,
+        ):
+            constraint_fvs = [
+                FactValue(fact_id=c.fact_id, key=c.key, value=c.value)
+                for c in constraints
+            ]
+            all_valid = self._get_valid_facts()
+            fact_fvs = [
+                FactValue(fact_id=f.fact_id, key=f.key, value=f.value)
+                for f in all_valid if not f.is_constraint
+            ]
+            check_results = check_constraints(constraint_fvs, fact_fvs)
+            checklist = format_constraint_checklist(check_results)
+            if checklist:
+                parts.append(checklist)
+
         # Layer 2b: Facts by memory type (tri-partite structure from paper)
         other_facts = [f for f in self._get_valid_facts() if not f.is_constraint]
 
@@ -549,7 +601,7 @@ class StateBasedStrategy(MemoryStrategy):
             # Memory type abbreviations for compact display
             type_labels = {"organizational": "org", "user": "usr", "capability": "cap"}
             facts_text = "\n".join(
-                f"- [{f.fact_id}] [{type_labels.get(f.memory_type, 'usr')}] {f.value}"
+                f"- [{f.fact_id}] [{type_labels.get(f.memory_type, 'usr')}]{confidence_annotation(f.confidence)} {f.value}"
                 for f in sorted(valid_other, key=lambda x: x.ts)
             )
             parts.append(f"## Current Facts\n{facts_text}")
@@ -578,8 +630,12 @@ class StateBasedStrategy(MemoryStrategy):
                 facts_excluded.append(f.to_fact_metadata())
                 inclusion_reasons[fact_id] = f"excluded: superseded by {f.superseded_by}"
 
-        # Layer 2c: Corrected values (only show if there are meaningful corrections)
-        if self.corrections:
+        # Layer 2c: Corrected values (only for repair/constraint queries)
+        if self.corrections and classification.complexity in (
+            QueryComplexity.REPAIR,
+            QueryComplexity.CONSTRAINT_CHECK,
+            QueryComplexity.AGGREGATION,
+        ):
             # Filter to show only significant corrections
             significant_corrections = [
                 c for c in self.corrections
@@ -603,8 +659,8 @@ class StateBasedStrategy(MemoryStrategy):
                 corrected_text = "\n".join(correction_lines)
                 parts.append(f"## 🔄 Recent Corrections\n{corrected_text}")
 
-        # Layer 2d: Superseded facts overview
-        if self.superseded:
+        # Layer 2d: Superseded facts overview (skip for simple lookups — saves tokens)
+        if self.superseded and classification.complexity != QueryComplexity.SIMPLE_LOOKUP:
             superseded_text = "\n".join(
                 f"- {fact_id}: superseded" for fact_id in sorted(self.superseded)
             )
@@ -654,6 +710,7 @@ class StateBasedStrategy(MemoryStrategy):
             facts_excluded=facts_excluded,
             inclusion_reasons=inclusion_reasons,
             token_count=self._count_tokens(context),
+            query_complexity=classification.complexity.value,
         )
 
     def reset(self) -> None:

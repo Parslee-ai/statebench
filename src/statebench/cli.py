@@ -849,6 +849,8 @@ def budget_sweep(
             "must_mention_rate": metrics.overall_must_mention_rate,
             "must_not_mention_violation_rate": metrics.overall_must_not_mention_violation_rate,
             "avg_tokens_per_query": metrics.avg_tokens_per_query,
+            "tokens_per_correct_answer": metrics.tokens_per_correct_answer,
+            "cost_weighted_accuracy": metrics.cost_weighted_accuracy,
         }
 
     # Print summary table
@@ -858,6 +860,8 @@ def budget_sweep(
     table.add_column("SFRR", justify="right")
     table.add_column("MM Rate", justify="right")
     table.add_column("Avg Tokens", justify="right")
+    table.add_column("Tok/Correct", justify="right")
+    table.add_column("Cost-Wtd Acc", justify="right")
 
     for budget, r in sorted(results.items()):
         table.add_row(
@@ -866,6 +870,8 @@ def budget_sweep(
             f"{r['sfrr']:.1%}",
             f"{r['must_mention_rate']:.1%}",
             f"{r['avg_tokens_per_query']:.0f}",
+            f"{r['tokens_per_correct_answer']:.0f}",
+            f"{r['cost_weighted_accuracy']:.2f}",
         )
 
     console.print("\n")

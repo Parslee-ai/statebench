@@ -76,6 +76,9 @@ class TrackMetrics:
     avg_tokens: float = 0.0
     avg_latency_ms: float = 0.0
 
+    # Cost-efficiency (v2.0)
+    tokens_per_correct_answer: float = 0.0
+
 
 @dataclass
 class BenchmarkMetrics:
@@ -106,6 +109,11 @@ class BenchmarkMetrics:
     # Configuration
     token_budget: int = 8000
     seed: int | None = None
+
+    # Cost-efficiency metrics (v2.0)
+    tokens_per_correct_answer: float = 0.0  # Lower is better
+    token_efficiency: float = 0.0  # correct_answers / total_tokens (higher is better)
+    cost_weighted_accuracy: float = 0.0  # accuracy / normalized_token_usage
 
     # Compaction metrics (populated when fact padding is used)
     compaction_triggered_count: int = 0
@@ -171,6 +179,10 @@ class MetricsAggregator:
         metrics.avg_tokens = total_tokens / metrics.total_queries
         metrics.avg_latency_ms = total_latency / metrics.total_queries
 
+        # Cost-efficiency: tokens per correct answer
+        if metrics.correct_decisions > 0 and total_tokens > 0:
+            metrics.tokens_per_correct_answer = total_tokens / metrics.correct_decisions
+
         return metrics
 
     def compute_benchmark_metrics(self, token_budget: int = 8000, seed: int | None = None) -> BenchmarkMetrics:
@@ -218,6 +230,19 @@ class MetricsAggregator:
             if all_latency:
                 metrics.avg_latency_ms = sum(all_latency) / len(all_latency)
 
+            # Cost-efficiency metrics
+            if metrics.total_tokens > 0:
+                metrics.token_efficiency = total_correct / max(1, metrics.total_tokens)
+                metrics.tokens_per_correct_answer = (
+                    metrics.total_tokens / max(1, total_correct)
+                )
+                # Normalize token usage to [0, 1] range relative to budget
+                normalized_usage = metrics.avg_tokens_per_query / max(1, token_budget)
+                if normalized_usage > 0:
+                    metrics.cost_weighted_accuracy = (
+                        metrics.overall_decision_accuracy / normalized_usage
+                    )
+
             # Compaction stats
             compacted = [r for r in self.results if r.compaction_triggered]
             metrics.compaction_triggered_count = len(compacted)
@@ -245,6 +270,8 @@ def format_metrics_table(metrics: BenchmarkMetrics) -> str:
         f"| SFRR (Resurrection Rate) | {metrics.overall_sfrr:.2%} |",
         f"| Must Mention Rate | {metrics.overall_must_mention_rate:.2%} |",
         f"| Must Not Mention Violations | {metrics.overall_must_not_mention_violation_rate:.2%} |",
+        f"| Tokens/Correct Answer | {metrics.tokens_per_correct_answer:.0f} |",
+        f"| Cost-Weighted Accuracy | {metrics.cost_weighted_accuracy:.2f} |",
         "",
         "## By Track",
         "",

@@ -6,6 +6,7 @@ from statebench.baselines.ablations import (
     TranscriptLatestWinsStrategy,
 )
 from statebench.baselines.base import MemoryStrategy
+from statebench.baselines.dialectic import DialecticStrategy
 from statebench.baselines.fact_extract import FactExtractionStrategy
 from statebench.baselines.flat_file import FlatFileStrategy
 from statebench.baselines.no_memory import NoMemoryStrategy
@@ -26,6 +27,7 @@ __all__ = [
     "FactExtractionWithSupersessionStrategy",
     "TranscriptLatestWinsStrategy",
     "MemgineStrategy",
+    "DialecticStrategy",
     "FlatFileStrategy",
 ]
 
@@ -47,7 +49,18 @@ class _LazyMemgine:
         return "<MemgineStrategy (lazy)>"
 
 
-BASELINE_REGISTRY: dict[str, type | _LazyMemgine] = {
+class _LazyCarMemgine:
+    """Lazy proxy for Rust car-memgine strategy."""
+
+    def __call__(self, **kwargs: object) -> MemoryStrategy:
+        from statebench.baselines.car_memgine_strategy import CarMemgineStrategy
+        return CarMemgineStrategy(**kwargs)  # type: ignore[no-any-return]
+
+    def __repr__(self) -> str:
+        return "<CarMemgineStrategy (lazy)>"
+
+
+BASELINE_REGISTRY: dict[str, type | _LazyMemgine | _LazyCarMemgine] = {
     # Core baselines
     "no_memory": NoMemoryStrategy,
     "transcript_replay": TranscriptReplayStrategy,
@@ -61,6 +74,10 @@ BASELINE_REGISTRY: dict[str, type | _LazyMemgine] = {
     "transcript_latest_wins": TranscriptLatestWinsStrategy,
     # Engine baselines
     "memgine": _LazyMemgine(),
+    # Dialectic memory engine (reasoning-first, inspired by Honcho)
+    "dialectic": DialecticStrategy,
+    # Rust car-memgine (graph-based)
+    "car_memgine": _LazyCarMemgine(),
     # OpenClaw flat-file baseline
     "flat_file": FlatFileStrategy,
 }

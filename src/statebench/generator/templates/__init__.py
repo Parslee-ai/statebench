@@ -34,6 +34,11 @@ from statebench.generator.templates.causality import (
     get_hard_causality_templates,
     get_paired_test,
 )
+from statebench.generator.templates.contradiction import (
+    CONTRADICTION_TEMPLATES,
+    ContradictionTemplate,
+    get_contradiction_templates,
+)
 from statebench.generator.templates.commitment import (
     COMMITMENT_TEMPLATES,
     CommitmentTemplate,
@@ -78,10 +83,22 @@ from statebench.generator.templates.interruption import (
     InterruptionTemplate,
     get_interruption_templates_by_domain,
 )
+from statebench.generator.templates.multi_session import (
+    MULTI_SESSION_TEMPLATES,
+    MultiSessionTemplate,
+    SessionBoundary,
+    get_multi_session_templates,
+)
 from statebench.generator.templates.permission import (
     PERMISSION_TEMPLATES,
     PermissionTemplate,
     get_permission_templates_by_domain,
+)
+from statebench.generator.templates.reasoning_depth import (
+    REASONING_DEPTH_TEMPLATES,
+    ReasoningDepthTemplate,
+    get_reasoning_depth_templates,
+    get_reasoning_depth_templates_by_domain,
 )
 from statebench.generator.templates.repair import (
     REPAIR_CHAIN_TEMPLATES,
@@ -149,6 +166,20 @@ __all__ = [
     "get_causality_templates",
     "get_hard_causality_templates",
     "get_paired_test",
+    # Track: Multi-Session Persistence
+    "MultiSessionTemplate",
+    "SessionBoundary",
+    "MULTI_SESSION_TEMPLATES",
+    "get_multi_session_templates",
+    # Track: Contradiction Resolution
+    "ContradictionTemplate",
+    "CONTRADICTION_TEMPLATES",
+    "get_contradiction_templates",
+    # Track: Reasoning Depth
+    "ReasoningDepthTemplate",
+    "REASONING_DEPTH_TEMPLATES",
+    "get_reasoning_depth_templates",
+    "get_reasoning_depth_templates_by_domain",
     # Track 9: Repair Propagation
     "RepairChain",
     "REPAIR_CHAIN_TEMPLATES",

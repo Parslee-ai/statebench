@@ -12,6 +12,13 @@ from typing import Literal
 import tiktoken
 
 from statebench.baselines.base import ContextResult, FactMetadata
+from statebench.confidence import confidence_annotation, infer_confidence
+from statebench.constraint_checker import (
+    FactValue as ConstraintFactValue,
+    check_constraints,
+    format_constraint_checklist,
+)
+from statebench.query_classifier import QueryComplexity, classify_query
 from statebench.memgine.compaction import CompactionEngine
 from statebench.memgine.config import MemgineConfig
 from statebench.memgine.dag import SummaryDAG
@@ -340,8 +347,22 @@ class MemgineEngine:
         5. Working Set (chronological — temporal order matters)
         6. Environment (freshness sorted)
         7. Known Unknowns (prevent hallucination, nearest to query)
+
+        v2.0: Query-complexity routing adapts context assembly per query type.
         """
-        compaction_result = self._compactor.maybe_compact()
+        classification = classify_query(query)
+
+        # Adaptive token budgets: adjust layer fractions based on query type
+        query_config = self._config.with_layer_weights(
+            classification.suggested_layer_weights
+        )
+        # Use adapted config for compaction decisions (exception-safe)
+        original_config = self._compactor._config
+        self._compactor._config = query_config
+        try:
+            compaction_result = self._compactor.maybe_compact()
+        finally:
+            self._compactor._config = original_config
 
         parts: list[str] = []
         facts_included: list[FactMetadata] = []
@@ -376,6 +397,30 @@ class MemgineEngine:
                     inclusion_reasons[entry.fact_id] = "active constraint"
             if lines:
                 parts.append("## ⚠️ Active Constraints (CHECK ALL)\n" + "\n".join(lines))
+
+        # --- Constraint pre-computation (for constraint-check queries) ---
+        if constraint_entries and classification.complexity in (
+            QueryComplexity.CONSTRAINT_CHECK,
+            QueryComplexity.AGGREGATION,
+        ):
+            valid_non_constraints = self._get_valid_non_constraint_entries()
+            c_fvs = [
+                ConstraintFactValue(
+                    fact_id=e.fact_id or "", key=e.key or "", value=e.value
+                )
+                for e in constraint_entries
+                if "[RESTRICTED:" not in e.value
+            ]
+            f_fvs = [
+                ConstraintFactValue(
+                    fact_id=e.fact_id or "", key=e.key or "", value=e.value
+                )
+                for e in valid_non_constraints
+            ]
+            check_results = check_constraints(c_fvs, f_fvs)
+            checklist = format_constraint_checklist(check_results)
+            if checklist:
+                parts.append(checklist)
 
         # --- Layer 2b: Valid non-constraint facts ---
         valid_entries = self._get_valid_non_constraint_entries()
@@ -441,8 +486,17 @@ class MemgineEngine:
             dep_note = self._format_dependency_note(entry)
             display_key = self._display_key(entry.key) if entry.key else ""
             key_prefix = f"{display_key}: " if display_key else ""
+            conf = infer_confidence(
+                authority=entry.authority,
+                source_type=entry.source_type or "user",
+                scope=entry.scope,
+                is_constraint=entry.is_constraint,
+                ts=entry.ts,
+                now=self._last_event_ts,
+            )
+            conf_note = confidence_annotation(conf)
             fact_lines.append(
-                f"- [{entry.fact_id}] [{mtype}] {key_prefix}{entry.value}{dep_note}"
+                f"- [{entry.fact_id}] [{mtype}]{conf_note} {key_prefix}{entry.value}{dep_note}"
             )
             # Show what this fact replaced — only when old/new share semantic
             # overlap (true value change). Skip when they're unrelated concepts
@@ -473,6 +527,16 @@ class MemgineEngine:
 
         if fact_lines:
             parts.append("## Current Facts\n" + "\n".join(fact_lines))
+
+        # --- Argument chains (for constraint/repair queries) ---
+        if classification.complexity in (
+            QueryComplexity.CONSTRAINT_CHECK,
+            QueryComplexity.REPAIR,
+        ):
+            all_verbatim = [e for _, e in scorable_entries]
+            chains_text = self._build_argument_chains(all_verbatim, constraint_entries)
+            if chains_text:
+                parts.append(chains_text)
 
         # --- Layer 2c: Orphan invalidated facts (no matching parent found) ---
         # Most invalidated entries are inlined near their correcting parent above.
@@ -551,13 +615,14 @@ class MemgineEngine:
             parts.append("## Environment\n" + "\n".join(env_lines))
 
         # --- Known Unknowns (prevent hallucination, nearest to query) ---
+        # For simple lookups, limit to 3 most recent to save tokens
         if self._known_unknowns:
-            unk_lines = [
-                f"- {text}"
-                for text, _ in sorted(
-                    self._known_unknowns.items(), key=lambda kv: kv[1], reverse=True
-                )
-            ]
+            sorted_unknowns = sorted(
+                self._known_unknowns.items(), key=lambda kv: kv[1], reverse=True
+            )
+            if classification.complexity == QueryComplexity.SIMPLE_LOOKUP:
+                sorted_unknowns = sorted_unknowns[:3]
+            unk_lines = [f"- {text}" for text, _ in sorted_unknowns]
             parts.append("## Known Unknowns\n" + "\n".join(unk_lines))
 
         context = "\n\n".join(parts)
@@ -567,6 +632,7 @@ class MemgineEngine:
             facts_excluded=facts_excluded,
             inclusion_reasons=inclusion_reasons,
             token_count=len(self._encoder.encode(context)),
+            query_complexity=classification.complexity.value,
         )
 
         # Attach compaction metrics if compaction was triggered
@@ -586,6 +652,65 @@ class MemgineEngine:
         """Get full supersession history for a fact key."""
         entry_ids = self._layers.get_chain_for_key(fact_key)
         return [self._store.get(eid) for eid in entry_ids]
+
+    # ------------------------------------------------------------------ #
+    # Dreaming / Consolidation
+    # ------------------------------------------------------------------ #
+
+    def consolidate(self) -> dict[str, int]:
+        """Run a deterministic consolidation pass (inspired by Honcho's 'dreaming').
+
+        No LLM calls — uses logical rules only. Operations:
+        1. Detect latent contradictions between valid facts
+        2. Resolve dangling dependency references
+        3. Merge logically equivalent facts (same key, same value)
+
+        Returns a summary of operations performed.
+        """
+        ops = {"contradictions_found": 0, "dangling_resolved": 0, "duplicates_merged": 0}
+
+        # 1. Detect contradictions: two valid facts with the same key but different values
+        key_to_facts: dict[str, list[str]] = {}
+        for fact_id in self._layers.get_valid_fact_ids():
+            entry = self._store.get_by_fact_id(fact_id)
+            if entry and entry.key:
+                key_to_facts.setdefault(entry.key, []).append(fact_id)
+
+        for key, fids in key_to_facts.items():
+            if len(fids) <= 1:
+                continue
+            # Multiple valid facts for same key — keep the newest, flag others
+            entries = []
+            for fid in fids:
+                e = self._store.get_by_fact_id(fid)
+                if e:
+                    entries.append((fid, e))
+            entries.sort(key=lambda pair: pair[1].ts)
+
+            # If values are identical, merge (keep newest, invalidate older)
+            if len(set(e.value for _, e in entries)) == 1:
+                # All same value — keep the latest
+                for fid, _ in entries[:-1]:
+                    self._layers.invalidate_fact(fid, entries[-1][0])
+                    ops["duplicates_merged"] += 1
+            else:
+                # Different values for same key — the latest should win,
+                # but only mark as contradiction (don't auto-resolve — that's
+                # the LLM's job, we just detect)
+                for fid, e in entries[:-1]:
+                    self._needs_review.add(fid)
+                    ops["contradictions_found"] += 1
+
+        # 2. Resolve dangling dependencies: if a fact depends on a
+        #    fact_id that doesn't exist, clean up the reference
+        for fact_id in list(self._layers.get_valid_fact_ids()):
+            deps = self._layers.dependencies.get(fact_id, set())
+            for dep_id in list(deps):
+                if dep_id not in self._layers.valid_facts and dep_id not in self._layers.superseded_by:
+                    deps.discard(dep_id)
+                    ops["dangling_resolved"] += 1
+
+        return ops
 
     # ------------------------------------------------------------------ #
     # Internals
@@ -839,6 +964,55 @@ class MemgineEngine:
         if not valid_deps:
             return ""
         return f" (depends on: {', '.join(valid_deps)})"
+
+    def _build_argument_chains(
+        self, entries: list[StoreEntry], constraint_entries: list[StoreEntry],
+    ) -> str:
+        """Build conclusion-aware argument chains from dependency data.
+
+        Groups facts into premise→conclusion structures so the LLM can
+        verify inference chains rather than reasoning from scratch.
+
+        Returns formatted text for inclusion in context.
+        """
+        # Build a lookup: fact_id -> entry
+        by_fid: dict[str, StoreEntry] = {}
+        for e in entries:
+            if e.fact_id:
+                by_fid[e.fact_id] = e
+        for e in constraint_entries:
+            if e.fact_id:
+                by_fid[e.fact_id] = e
+
+        # Find entries with dependencies (these form conclusions)
+        conclusions: list[tuple[StoreEntry, list[StoreEntry]]] = []
+        used_as_premise: set[str] = set()
+
+        for entry in entries:
+            if not entry.depends_on:
+                continue
+            premises = []
+            for dep_id in entry.depends_on:
+                dep_entry = by_fid.get(dep_id)
+                if dep_entry and self._layers.is_fact_valid(dep_id):
+                    premises.append(dep_entry)
+                    used_as_premise.add(dep_id)
+            if premises:
+                conclusions.append((entry, premises))
+
+        if not conclusions:
+            return ""
+
+        lines = ["## Argument Chains"]
+        for conclusion, premises in conclusions:
+            fid = conclusion.fact_id or "?"
+            lines.append(f"CONCLUSION [{fid}]: {conclusion.value}")
+            for p in premises:
+                pfid = p.fact_id or "?"
+                ptype = "constraint" if p.is_constraint else self._infer_memory_type(p)
+                lines.append(f"  PREMISE [{pfid}] ({ptype}): {p.value}")
+
+        return "\n".join(lines)
 
     @staticmethod
     def _clean_invalidated_text(value: str) -> str:

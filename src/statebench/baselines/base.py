@@ -74,6 +74,9 @@ class ContextResult:
     # Token usage
     token_count: int = 0
 
+    # Query classification (v2.0: populated by query-complexity routing)
+    query_complexity: str = ""
+
     # Compaction metrics (populated by Memgine when compaction triggers)
     compaction_triggered: bool = False
     compaction_tokens_before: int = 0
