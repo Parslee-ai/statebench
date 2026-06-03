@@ -306,3 +306,59 @@ def test_no_llm_calls() -> None:
     # Building context should work without any external calls
     result = engine.build_context("test")
     assert isinstance(result.context, str)
+
+def test_exact_identifier_outranks_lookalike() -> None:
+    """A query code (A101) must rank above a look-alike (B101) that shares all
+    the surrounding words — mirrors car-memgine's exact-identifier boost."""
+    engine = _make_engine()
+    ts = datetime(2024, 1, 1)
+    engine.ingest_fact(
+        fact_id="F-A",
+        key="ticket_a",
+        value="A101 deploy rollback steps",
+        source=_make_source(),
+        ts=ts,
+    )
+    engine.ingest_fact(
+        fact_id="F-B",
+        key="ticket_b",
+        value="B101 deploy rollback steps",
+        source=_make_source(),
+        ts=ts,
+    )
+
+    result = engine.build_context("deploy rollback steps for A101")
+    ctx = result.context
+    pos_a = ctx.find("A101")
+    pos_b = ctx.find("B101")
+    assert pos_a != -1 and pos_b != -1, "both facts present"
+    # Facts render most-relevant-LAST, so the exact match (A101) appears after B101.
+    assert pos_a > pos_b, "exact-id match A101 should rank above lookalike B101"
+
+
+def test_exact_identifier_does_not_promote_offtopic_fact() -> None:
+    """A code mentioned in an otherwise-irrelevant fact must not be hoisted over
+    a genuinely relevant one (value tie-breaker is gated on base relevance)."""
+    engine = _make_engine()
+    ts = datetime(2024, 1, 1)
+    engine.ingest_fact(
+        fact_id="F-REL",
+        key="deploy_runbook",
+        value="deploy rollback steps for the service",
+        source=_make_source(),
+        ts=ts,
+    )
+    engine.ingest_fact(
+        fact_id="F-OFF",
+        key="lunch",
+        value="ordered A101 sandwiches for the offsite",
+        source=_make_source(),
+        ts=ts,
+    )
+
+    result = engine.build_context("deploy rollback steps A101")
+    ctx = result.context
+    pos_rel = ctx.find("rollback steps for the service")
+    pos_off = ctx.find("sandwiches")
+    if pos_rel != -1 and pos_off != -1:
+        assert pos_rel > pos_off, "relevant fact must outrank an off-topic code mention"
