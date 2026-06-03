@@ -887,14 +887,36 @@ class MemgineEngine:
         return sorted(entries, key=lambda e: e.ts, reverse=True)
 
     def _query_relevance(self, entry: StoreEntry, query_tokens: set[str]) -> float:
-        """Score fact relevance to query (0.0 = irrelevant, 1.0 = highly relevant)."""
+        """Score fact relevance to query (0.0 = irrelevant, ~1.0 = highly relevant).
+
+        Exact-identifier boost (mirrors car-memgine): a query token that looks
+        like an identifier (contains both a letter and a digit, e.g. ``a101``,
+        ``issue123``) and exactly matches a fact's key/fact_id wins decisively;
+        a match in the value is a smaller tie-breaker gated on base relevance, so
+        a code mentioned incidentally in an off-topic fact can't dominate. Keeps
+        ``a101`` from losing to a fuzzy ``b101`` on shared surrounding words.
+        """
         if not query_tokens:
             return 0.0
-        fact_tokens = self._extract_keywords(f"{entry.key} {entry.value}")
-        overlap = query_tokens & fact_tokens
-        if not overlap:
-            return 0.0
-        return len(overlap) / len(query_tokens)
+        key_tokens = self._extract_keywords(entry.key)
+        value_tokens = self._extract_keywords(entry.value)
+        overlap = query_tokens & (key_tokens | value_tokens)
+        base = len(overlap) / len(query_tokens) if overlap else 0.0
+
+        query_ids = {
+            t
+            for t in query_tokens
+            if len(t) >= 3
+            and any(c.isdigit() for c in t)
+            and any(c.isalpha() for c in t)
+        }
+        if query_ids:
+            id_index = key_tokens | self._extract_keywords(entry.fact_id or "")
+            if query_ids & id_index:
+                return base + 2.0  # fact is indexed by the requested id
+            if base > 0.0 and (query_ids & value_tokens):
+                return base + 0.15  # identifier appears in an already-relevant fact
+        return base
 
     # Common stop words to exclude from semantic overlap checks
     _STOP_WORDS = frozenset({
