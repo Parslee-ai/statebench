@@ -67,10 +67,11 @@ class _LazyMemgineSafeSupersession:
     def __call__(self, **kwargs: object) -> MemoryStrategy:
         cls = _get_memgine_strategy()
         kwargs.setdefault("show_superseded_values", False)
+        kwargs.setdefault("cascade_supersession_to_transcript", True)
         return cls(**kwargs)  # type: ignore[no-any-return]
 
     def __repr__(self) -> str:
-        return "<MemgineStrategy show_superseded_values=False (lazy)>"
+        return "<MemgineStrategy supersession-safe (lazy)>"
 
 
 class _LazyCarMemgine:

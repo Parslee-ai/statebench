@@ -596,6 +596,12 @@ class MemgineEngine:
                 if "[SCOPE:" not in e.value.upper() and "[scope:" not in e.value
             ]
 
+            # Supersession cascade: drop turns that restate a superseded fact's old
+            # value (the dominant residual leak channel — supersession otherwise
+            # only touches the fact layer, leaving the announcing turn verbatim).
+            if self._config.cascade_supersession_to_transcript:
+                ws_entries = self._filter_superseded_turns(ws_entries)
+
             ws_lines: list[str] = []
             for entry in ws_entries:
                 scope = infer_scope(entry.value)
@@ -755,6 +761,29 @@ class MemgineEngine:
         if len(entries) > self._config.working_set_max:
             entries = entries[-self._config.working_set_max:]
         return entries
+
+    def _filter_superseded_turns(
+        self, entries: list[StoreEntry]
+    ) -> list[StoreEntry]:
+        """Drop working-set turns that restate a superseded fact's old value.
+
+        Supersession otherwise only marks the *fact* dead; the conversation turn
+        that announced the old value stays verbatim in Recent Context and is the
+        dominant residual resurrection channel. A turn is dropped when it contains
+        a (sufficiently distinctive) superseded fact value as a substring.
+        """
+        superseded_values = []
+        for old_fid in self._layers.superseded_by:  # old_fid -> new_fid
+            old_entry = self._store.get_by_fact_id(old_fid)
+            if old_entry and old_entry.value and len(old_entry.value) >= 4:
+                superseded_values.append(old_entry.value.lower())
+        if not superseded_values:
+            return entries
+        return [
+            e
+            for e in entries
+            if not any(sv in e.value.lower() for sv in superseded_values)
+        ]
 
     def _filter_interruptions(self, entries: list[StoreEntry]) -> list[StoreEntry]:
         """Detect and suppress interruption turns from working set.

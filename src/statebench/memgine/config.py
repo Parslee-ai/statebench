@@ -55,6 +55,12 @@ class MemgineConfig:
     # to replace the old value with a value-free "(value updated)" marker.
     show_superseded_values: bool = True
 
+    # Supersession cascade to Layer 3: Memgine marks superseded *facts* dead, but
+    # the original conversation turn that announced the old value stays verbatim in
+    # the working set (the dominant residual leak channel). When True, working-set
+    # turns that restate a superseded fact's old value are dropped from context.
+    cascade_supersession_to_transcript: bool = False
+
     def layer_tokens(self, layer: int) -> int:
         """Get token budget for a layer."""
         budgets = {
@@ -82,6 +88,7 @@ class MemgineConfig:
             working_set_keep_recent=self.working_set_keep_recent,
             environment_max=self.environment_max,
             show_superseded_values=self.show_superseded_values,
+            cascade_supersession_to_transcript=self.cascade_supersession_to_transcript,
         )
 
     def validate(self) -> None:

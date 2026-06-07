@@ -54,15 +54,23 @@ class MemgineStrategy(MemoryStrategy):
         self,
         token_budget: int = 8000,
         show_superseded_values: bool | None = None,
+        cascade_supersession_to_transcript: bool | None = None,
         model: str | None = None,
         **kwargs: object,
     ) -> None:
         super().__init__(token_budget)
+        # Both supersession-safety behaviors key off model capability: weaker
+        # models both resurrect annotated old values AND parrot the old value
+        # left in the transcript, so hide the annotation and cascade to Layer 3.
+        frontier = frontier_capable(model)
         if show_superseded_values is None:
-            show_superseded_values = frontier_capable(model)
+            show_superseded_values = frontier
+        if cascade_supersession_to_transcript is None:
+            cascade_supersession_to_transcript = not frontier
         config = MemgineConfig(
             token_budget=token_budget,
             show_superseded_values=show_superseded_values,
+            cascade_supersession_to_transcript=cascade_supersession_to_transcript,
         )
         self._engine = MemgineEngine(config)
 
