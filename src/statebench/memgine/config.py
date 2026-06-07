@@ -49,6 +49,12 @@ class MemgineConfig:
     # Environment limits
     environment_max: int = 5
 
+    # Supersession rendering: when True, show "(changed from: <old value>)"
+    # annotations. These aid strong models but inject the superseded value into
+    # context, which weaker models tend to resurrect (raising SFRR). Set False
+    # to replace the old value with a value-free "(value updated)" marker.
+    show_superseded_values: bool = True
+
     def layer_tokens(self, layer: int) -> int:
         """Get token budget for a layer."""
         budgets = {
@@ -75,6 +81,7 @@ class MemgineConfig:
             working_set_max=self.working_set_max,
             working_set_keep_recent=self.working_set_keep_recent,
             environment_max=self.environment_max,
+            show_superseded_values=self.show_superseded_values,
         )
 
     def validate(self) -> None:

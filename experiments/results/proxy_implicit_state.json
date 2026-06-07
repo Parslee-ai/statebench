@@ -1,0 +1,54 @@
+{
+  "model": "mlx/qwen3-4b:4bit",
+  "provider": "car",
+  "results": {
+    "memgine": {
+      "supersession": {
+        "n": 27,
+        "decision_accuracy": 0.9629629629629629,
+        "sfrr": 0.3333333333333333,
+        "mnm_violation_rate": 0.5,
+        "avg_tokens": 645.1111111111111
+      },
+      "supersession_detection": {
+        "n": 15,
+        "decision_accuracy": 0.8666666666666667,
+        "sfrr": 0.4666666666666667,
+        "mnm_violation_rate": 0.4666666666666667,
+        "avg_tokens": 558.6666666666666
+      }
+    },
+    "state_based": {
+      "supersession": {
+        "n": 27,
+        "decision_accuracy": 0.9629629629629629,
+        "sfrr": 0.37037037037037035,
+        "mnm_violation_rate": 0.5555555555555556,
+        "avg_tokens": 459.3333333333333
+      },
+      "supersession_detection": {
+        "n": 15,
+        "decision_accuracy": 0.9333333333333333,
+        "sfrr": 0.5333333333333333,
+        "mnm_violation_rate": 0.5333333333333333,
+        "avg_tokens": 334.2
+      }
+    },
+    "transcript_replay": {
+      "supersession": {
+        "n": 27,
+        "decision_accuracy": 0.8148148148148148,
+        "sfrr": 0.18518518518518517,
+        "mnm_violation_rate": 0.2777777777777778,
+        "avg_tokens": 170.88888888888889
+      },
+      "supersession_detection": {
+        "n": 15,
+        "decision_accuracy": 1.0,
+        "sfrr": 0.2,
+        "mnm_violation_rate": 0.2,
+        "avg_tokens": 95.26666666666667
+      }
+    }
+  }
+}

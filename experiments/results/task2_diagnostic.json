@@ -1,0 +1,114 @@
+{
+  "model": "mlx/qwen3-4b:4bit",
+  "tracks": [
+    "causality",
+    "repair_propagation",
+    "commitment_durability"
+  ],
+  "regimes": [
+    {
+      "budget": 8000,
+      "pad": 0,
+      "overall": {
+        "n": 45,
+        "decision_accuracy": 0.37777777777777777,
+        "compaction_rate": 0.0
+      },
+      "per_track": {
+        "repair_propagation": {
+          "n": 15,
+          "decision_accuracy": 0.06666666666666667,
+          "compaction_rate": 0.0
+        },
+        "commitment_durability": {
+          "n": 15,
+          "decision_accuracy": 0.6,
+          "compaction_rate": 0.0
+        },
+        "causality": {
+          "n": 15,
+          "decision_accuracy": 0.4666666666666667,
+          "compaction_rate": 0.0
+        }
+      }
+    },
+    {
+      "budget": 8000,
+      "pad": 40,
+      "overall": {
+        "n": 45,
+        "decision_accuracy": 0.3111111111111111,
+        "compaction_rate": 0.0
+      },
+      "per_track": {
+        "repair_propagation": {
+          "n": 15,
+          "decision_accuracy": 0.0,
+          "compaction_rate": 0.0
+        },
+        "commitment_durability": {
+          "n": 15,
+          "decision_accuracy": 0.6666666666666666,
+          "compaction_rate": 0.0
+        },
+        "causality": {
+          "n": 15,
+          "decision_accuracy": 0.26666666666666666,
+          "compaction_rate": 0.0
+        }
+      }
+    },
+    {
+      "budget": 1500,
+      "pad": 0,
+      "overall": {
+        "n": 45,
+        "decision_accuracy": 0.35555555555555557,
+        "compaction_rate": 0.0
+      },
+      "per_track": {
+        "repair_propagation": {
+          "n": 15,
+          "decision_accuracy": 0.06666666666666667,
+          "compaction_rate": 0.0
+        },
+        "commitment_durability": {
+          "n": 15,
+          "decision_accuracy": 0.6,
+          "compaction_rate": 0.0
+        },
+        "causality": {
+          "n": 15,
+          "decision_accuracy": 0.4,
+          "compaction_rate": 0.0
+        }
+      }
+    },
+    {
+      "budget": 1500,
+      "pad": 40,
+      "overall": {
+        "n": 45,
+        "decision_accuracy": 0.3333333333333333,
+        "compaction_rate": 0.0
+      },
+      "per_track": {
+        "repair_propagation": {
+          "n": 15,
+          "decision_accuracy": 0.06666666666666667,
+          "compaction_rate": 0.0
+        },
+        "commitment_durability": {
+          "n": 15,
+          "decision_accuracy": 0.7333333333333333,
+          "compaction_rate": 0.0
+        },
+        "causality": {
+          "n": 15,
+          "decision_accuracy": 0.2,
+          "compaction_rate": 0.0
+        }
+      }
+    }
+  ]
+}

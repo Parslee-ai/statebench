@@ -1,0 +1,38 @@
+{
+  "model": "mlx/qwen3-4b:4bit",
+  "provider": "car",
+  "results": {
+    "memgine": {
+      "supersession": {
+        "n": 27,
+        "decision_accuracy": 1.0,
+        "sfrr": 0.2962962962962963,
+        "mnm_violation_rate": 0.4444444444444444,
+        "avg_tokens": 649.6666666666666
+      },
+      "supersession_detection": {
+        "n": 15,
+        "decision_accuracy": 1.0,
+        "sfrr": 0.5333333333333333,
+        "mnm_violation_rate": 0.5333333333333333,
+        "avg_tokens": 560.5333333333333
+      }
+    },
+    "memgine_safe_supersession": {
+      "supersession": {
+        "n": 27,
+        "decision_accuracy": 0.9629629629629629,
+        "sfrr": 0.14814814814814814,
+        "mnm_violation_rate": 0.2222222222222222,
+        "avg_tokens": 637.4444444444445
+      },
+      "supersession_detection": {
+        "n": 15,
+        "decision_accuracy": 1.0,
+        "sfrr": 0.6,
+        "mnm_violation_rate": 0.6,
+        "avg_tokens": 555.1333333333333
+      }
+    }
+  }
+}
