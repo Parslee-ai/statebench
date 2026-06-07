@@ -49,6 +49,30 @@ class _LazyMemgine:
         return "<MemgineStrategy (lazy)>"
 
 
+class _LazyMemgineDistill:
+    """Memgine + CAR NL-distillation front-end for conversational supersession."""
+
+    def __call__(self, **kwargs: object) -> MemoryStrategy:
+        from statebench.baselines.memgine_distill import MemgineDistillStrategy
+
+        return MemgineDistillStrategy(**kwargs)  # type: ignore[no-any-return]
+
+    def __repr__(self) -> str:
+        return "<MemgineDistillStrategy (lazy)>"
+
+
+class _LazyMemgineSafeSupersession:
+    """Memgine variant that hides superseded *values* (anti-resurrection)."""
+
+    def __call__(self, **kwargs: object) -> MemoryStrategy:
+        cls = _get_memgine_strategy()
+        kwargs.setdefault("show_superseded_values", False)
+        return cls(**kwargs)  # type: ignore[no-any-return]
+
+    def __repr__(self) -> str:
+        return "<MemgineStrategy show_superseded_values=False (lazy)>"
+
+
 class _LazyCarMemgine:
     """Lazy proxy for Rust car-memgine strategy."""
 
@@ -74,6 +98,8 @@ BASELINE_REGISTRY: dict[str, type | _LazyMemgine | _LazyCarMemgine] = {
     "transcript_latest_wins": TranscriptLatestWinsStrategy,
     # Engine baselines
     "memgine": _LazyMemgine(),
+    "memgine_safe_supersession": _LazyMemgineSafeSupersession(),
+    "memgine_distill": _LazyMemgineDistill(),
     # Dialectic memory engine (reasoning-first, inspired by Honcho)
     "dialectic": DialecticStrategy,
     # Rust car-memgine (graph-based)

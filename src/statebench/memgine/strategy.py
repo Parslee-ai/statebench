@@ -11,6 +11,36 @@ from statebench.memgine.engine import MemgineEngine
 from statebench.schema.timeline import Event, InitialState
 
 
+def frontier_capable(model: str | None) -> bool:
+    """Whether ``model`` is strong enough to use the verbose ``(changed from: X)``
+    supersession annotation without resurrecting the old value.
+
+    Empirically (StateBench supersession track, CAR-local models): a small model
+    (qwen3-4b) resurrects values shown in the annotation (SFRR 0.33 -> 0.15 when
+    hidden, no accuracy cost), while a stronger model (qwen3-30b) does not resurrect
+    (SFRR 0.15 baseline) and is *hurt* by hiding the value (accuracy 1.00 -> 0.89).
+    Frontier remote models (Opus/GPT-5.x, the leaderboard path) match the strong
+    behavior. Unknown -> True (frontier-safe; never silently regress that path).
+    """
+    if not model:
+        return True
+    m = model.lower()
+    if any(s in m for s in (
+        "gpt-4o", "gpt-5", "gpt-4.", "claude", "opus", "sonnet",
+        "gemini-2.", "gemini-3", "o1", "o3",
+    )):
+        return True
+    small_local = m.startswith(("mlx/", "ollama/", "apple/")) or any(
+        s in m for s in ("0.6b", "1.7b", "-3b", "-4b", "-7b", "-8b", "-9b", "-13b")
+    )
+    if small_local:
+        # Large local models behave like frontier on this annotation.
+        if any(s in m for s in ("30b", "32b", "70b", "72b", "a3b", "120b")):
+            return True
+        return False
+    return True
+
+
 class MemgineStrategy(MemoryStrategy):
     """State-aware deterministic memory engine baseline.
 
@@ -23,10 +53,17 @@ class MemgineStrategy(MemoryStrategy):
     def __init__(
         self,
         token_budget: int = 8000,
+        show_superseded_values: bool | None = None,
+        model: str | None = None,
         **kwargs: object,
     ) -> None:
         super().__init__(token_budget)
-        config = MemgineConfig(token_budget=token_budget)
+        if show_superseded_values is None:
+            show_superseded_values = frontier_capable(model)
+        config = MemgineConfig(
+            token_budget=token_budget,
+            show_superseded_values=show_superseded_values,
+        )
         self._engine = MemgineEngine(config)
 
     @property

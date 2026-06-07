@@ -507,7 +507,12 @@ class MemgineEngine:
                     if old_entry and self._has_semantic_overlap(
                         old_entry.value, entry.value
                     ):
-                        fact_lines.append(f"  (changed from: {old_entry.value})")
+                        if self._config.show_superseded_values:
+                            fact_lines.append(f"  (changed from: {old_entry.value})")
+                        else:
+                            # Signal the change without leaking the old value —
+                            # weaker models resurrect any superseded value shown.
+                            fact_lines.append("  (this value was updated)")
             # Inline invalidated dependents near their correcting parent
             if entry.fact_id and entry.fact_id in inline_map:
                 for inv_entry in inline_map[entry.fact_id]:

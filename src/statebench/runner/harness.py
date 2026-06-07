@@ -89,6 +89,12 @@ class EvaluationHarness:
                 if not HAS_GEMINI:
                     raise ImportError("google-genai package not installed. Run: pip install google-genai")
                 self._client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
+            elif self.provider == "car":
+                # CAR routes through the local car-server daemon; the module-level
+                # runtime is the "client". Use a sentinel so the lazy check passes.
+                from statebench.runner import car_provider
+
+                self._client = car_provider
             else:
                 raise ValueError(f"Unknown provider: {self.provider}")
         return self._client
@@ -107,6 +113,14 @@ class EvaluationHarness:
         start_time = time.time()
 
         completion_budget = max(200, min(1500, self.token_budget // 2))
+
+        if self.provider == "car":
+            # Local inference through the CAR daemon (MLX Qwen3, Apple Foundation, ...).
+            model = None if self.model in ("gpt-4o", "default") else self.model
+            text, tokens, latency_ms = client.car_generate(
+                system_prompt, user_prompt, model, completion_budget
+            )
+            return text, tokens, latency_ms
 
         if self.provider == "openai":
             # GPT-5.x models use max_completion_tokens, older models use max_tokens

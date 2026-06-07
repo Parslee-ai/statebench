@@ -35,15 +35,19 @@ class ResponseJudge:
         self,
         use_llm_judge: bool = True,
         provider: str = "openai",
+        car_model: str | None = None,
     ):
         """Initialize the judge.
 
         Args:
             use_llm_judge: Whether to use LLM for paraphrase detection
-            provider: LLM provider ("openai" or "anthropic")
+            provider: LLM provider ("openai", "anthropic", or "car")
+            car_model: Local CAR model id for judging (defaults to a small model)
         """
         self.use_llm_judge = use_llm_judge
         self.provider = provider
+        # A small fast local model is plenty for yes/no paraphrase + option pick.
+        self._car_model = car_model or "mlx/qwen3-1.7b:3bit"
         self._openai_client: OpenAI | None = None
         self._anthropic_client: Anthropic | None = None
 
@@ -72,7 +76,11 @@ Response: "{response}"
 
 Answer with just YES or NO."""
 
-        if self.provider == "openai":
+        if self.provider == "car":
+            from statebench.runner.car_provider import car_complete
+
+            answer = car_complete(prompt, model=self._car_model, max_tokens=10)
+        elif self.provider == "openai":
             openai_client = self._get_openai_client()
             openai_result = openai_client.chat.completions.create(
                 model="gpt-4o-mini",
@@ -155,7 +163,11 @@ Answer with just one of the options, nothing else."""
         max_option_tokens = max(len(o.split()) * 2 for o in options)
         judge_max_tokens = max(30, max_option_tokens)
 
-        if self.provider == "openai":
+        if self.provider == "car":
+            from statebench.runner.car_provider import car_complete
+
+            answer = car_complete(prompt, model=self._car_model, max_tokens=judge_max_tokens)
+        elif self.provider == "openai":
             openai_client = self._get_openai_client()
             openai_result = openai_client.chat.completions.create(
                 model="gpt-4o-mini",

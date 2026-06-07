@@ -1,0 +1,110 @@
+{
+  "A_regression_4b": {
+    "model": "mlx/qwen3-4b:4bit",
+    "tracks": [
+      "supersession",
+      "repair_propagation",
+      "causality"
+    ],
+    "results": {
+      "memgine": {
+        "supersession": {
+          "n": 27,
+          "decision_accuracy": 0.9629629629629629,
+          "sfrr": 0.3333333333333333,
+          "mnm_violation_rate": 0.5,
+          "avg_tokens": 646.5185185185185
+        },
+        "repair_propagation": {
+          "n": 15,
+          "decision_accuracy": 0.06666666666666667,
+          "sfrr": 0.7333333333333333,
+          "mnm_violation_rate": 0.7333333333333333,
+          "avg_tokens": 786.1333333333333
+        },
+        "causality": {
+          "n": 15,
+          "decision_accuracy": 0.4,
+          "sfrr": 0.06666666666666667,
+          "mnm_violation_rate": 0.16666666666666666,
+          "avg_tokens": 693.5333333333333
+        }
+      },
+      "memgine_safe_supersession": {
+        "supersession": {
+          "n": 27,
+          "decision_accuracy": 0.9629629629629629,
+          "sfrr": 0.14814814814814814,
+          "mnm_violation_rate": 0.2222222222222222,
+          "avg_tokens": 631.1851851851852
+        },
+        "repair_propagation": {
+          "n": 15,
+          "decision_accuracy": 0.06666666666666667,
+          "sfrr": 0.5333333333333333,
+          "mnm_violation_rate": 0.5333333333333333,
+          "avg_tokens": 804.0
+        },
+        "causality": {
+          "n": 15,
+          "decision_accuracy": 0.2,
+          "sfrr": 0.06666666666666667,
+          "mnm_violation_rate": 0.16666666666666666,
+          "avg_tokens": 713.3333333333334
+        }
+      }
+    }
+  },
+  "B_capability_30b": {
+    "model": "mlx/qwen3-30b-a3b:4bit",
+    "tracks": [
+      "supersession"
+    ],
+    "results": {
+      "memgine": {
+        "supersession": {
+          "n": 27,
+          "decision_accuracy": 1.0,
+          "sfrr": 0.14814814814814814,
+          "mnm_violation_rate": 0.2222222222222222,
+          "avg_tokens": 634.0
+        }
+      },
+      "memgine_safe_supersession": {
+        "supersession": {
+          "n": 27,
+          "decision_accuracy": 0.8888888888888888,
+          "sfrr": 0.1111111111111111,
+          "mnm_violation_rate": 0.16666666666666666,
+          "avg_tokens": 625.2592592592592
+        }
+      }
+    }
+  },
+  "C_distill_4b": {
+    "model": "mlx/qwen3-4b:4bit",
+    "tracks": [
+      "supersession_detection"
+    ],
+    "results": {
+      "memgine": {
+        "supersession_detection": {
+          "n": 15,
+          "decision_accuracy": 1.0,
+          "sfrr": 0.5333333333333333,
+          "mnm_violation_rate": 0.5333333333333333,
+          "avg_tokens": 556.4
+        }
+      },
+      "memgine_distill": {
+        "supersession_detection": {
+          "n": 15,
+          "decision_accuracy": 0.6,
+          "sfrr": 1.0,
+          "mnm_violation_rate": 1.0,
+          "avg_tokens": 546.5333333333333
+        }
+      }
+    }
+  }
+}

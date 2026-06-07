@@ -1,0 +1,24 @@
+{
+  "model": "mlx/qwen3-4b:4bit",
+  "provider": "car",
+  "results": {
+    "memgine": {
+      "supersession": {
+        "n": 180,
+        "decision_accuracy": 0.9555555555555556,
+        "sfrr": 0.2777777777777778,
+        "mnm_violation_rate": 0.390625,
+        "avg_tokens": 643.9444444444445
+      }
+    },
+    "memgine_safe_supersession": {
+      "supersession": {
+        "n": 180,
+        "decision_accuracy": 0.9611111111111111,
+        "sfrr": 0.18888888888888888,
+        "mnm_violation_rate": 0.265625,
+        "avg_tokens": 635.5888888888888
+      }
+    }
+  }
+}
