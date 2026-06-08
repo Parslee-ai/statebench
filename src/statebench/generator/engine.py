@@ -360,6 +360,139 @@ class TimelineGenerator:
             events=events,
         )
 
+    def _supersession_scaffold(self, template: SupersessionTemplate) -> dict:
+        """Shared setup for supersession/maintain timelines: entity, format context,
+        identity, optional policy fact, and the opening request turn + initial fact
+        StateWrite. Returns the pieces a caller extends with its own middle/query."""
+        entity = self.rng.choice(template.entity_names)
+        entity_id = entity.lower().replace(" ", "_").replace("-", "_")
+        org = self._random_org()
+        role = self._random_role(template.domain)
+        base_time = self._base_time()
+
+        fmt = {
+            "entity": entity,
+            "entity_id": entity_id,
+            "duration": self.rng.choice(DURATIONS),
+            "amount": self.rng.choice(AMOUNTS),
+            "discount_pct": self.rng.choice(DISCOUNT_PCTS),
+            "date": DATES[0],
+            "initial_terms": "net-30, standard pricing",
+            "initial_rule": "3 days per week maximum",
+            "initial_resolution": "resolved with workaround",
+            "project": "Project Phoenix",
+        }
+
+        initial_facts: list[PersistentFact] = []
+        if template.policy_key and template.policy_template:
+            initial_facts.append(PersistentFact(
+                id=f"F-POLICY-{template.name.upper()[:8]}",
+                key=template.policy_key,
+                value=template.policy_template.format(
+                    approver=self.rng.choice(APPROVERS),
+                    max_discount=self.rng.choice([10, 15, 20]),
+                ),
+                source=Source(type="policy", authority="policy"),
+                ts=base_time - timedelta(days=180),
+                is_valid=True,
+            ))
+
+        identity = IdentityRole(
+            user_name=self._random_name().split()[0],
+            authority=role,
+            department=template.domain.title(),
+            organization=org,
+        )
+        initial_state = InitialState(
+            identity_role=identity,
+            persistent_facts=initial_facts,
+            working_set=[],
+            environment={"now": base_time.isoformat()},
+        )
+
+        t = base_time + timedelta(minutes=2)
+        request = ConversationTurn(
+            ts=t,
+            speaker="user",
+            text=self._generate_initial_request(
+                template, entity, fmt["duration"], fmt["amount"], fmt["discount_pct"]
+            ),
+        )
+        t += timedelta(minutes=1)
+        fact_key = template.initial_fact_key.format(**fmt)
+        initial_write = StateWrite(
+            ts=t,
+            writes=[Write(
+                id=f"F-{template.name.upper()[:6]}-001",
+                layer="persistent_facts",
+                key=fact_key,
+                value=template.initial_fact_template.format(**fmt),
+                supersedes=None,
+            )],
+        )
+        return {
+            "entity": entity, "fmt": fmt, "role": role, "org": org,
+            "initial_state": initial_state, "fact_key": fact_key,
+            "events": [request, initial_write], "time": t,
+        }
+
+    def generate_maintain_timeline(self, template: SupersessionTemplate) -> Timeline:
+        """Generate a should-NOT-supersede ("maintain") timeline (Belief-R guardrail).
+
+        The initial fact is established, then an UPDATE-FLAVORED but NON-invalidating
+        event about the same entity occurs (no Supersession, and it does not state the
+        answer) — tempting a detector to over-supersede. The query asks about the
+        original fact, which remains valid. Scored behaviorally (decision must affirm
+        validity), this measures the inverse of SFRR: the False Supersession Rate.
+        """
+        if not template.maintain_event_template:
+            raise ValueError(f"template {template.name!r} has no maintain variant")
+
+        s = self._supersession_scaffold(template)
+        fmt = s["fmt"]
+        events = s["events"]
+        current_time = s["time"]
+
+        # Tempting, update-flavored, NON-invalidating conversation turn. No state
+        # write, no Supersession, and crucially no statement of the answer.
+        current_time += timedelta(minutes=self.rng.randint(5, 40))
+        update_text = template.maintain_event_template.format(**fmt)
+        events.append(ConversationTurn(
+            ts=current_time,
+            speaker="user",
+            text=f"{update_text[0].upper()}{update_text[1:]}.",
+        ))
+
+        current_time += timedelta(minutes=self.rng.randint(5, 30))
+        query_text = (template.maintain_query_template or template.query_template).format(**fmt)
+        # Single requirement satisfied if ANY pipe alternative appears (affirmation).
+        must_mention = (
+            [template.maintain_must_mention.format(**fmt)]
+            if template.maintain_must_mention else []
+        )
+        ground_truth = GroundTruth(
+            decision="yes",
+            must_mention=must_mention,  # type: ignore[arg-type]
+            must_not_mention=[],  # FSR is scored behaviorally, not by forbidden words
+            allowed_sources=["persistent_facts", "environment"],
+            reasoning="The later event is an update that does NOT invalidate the original "
+                      "fact, which remains valid. Failing to affirm it is a false "
+                      "supersession.",
+        )
+        events.append(Query(ts=current_time, prompt=query_text, ground_truth=ground_truth))
+
+        return Timeline(
+            id=self._next_id("SM"),
+            domain=template.domain,  # type: ignore[arg-type]
+            track="supersession_maintain",
+            actors=Actors(
+                user=Actor(id="u1", role=s["role"], org=s["org"].lower().replace(" ", "_")),
+                assistant_role="AI_Agent",
+            ),
+            initial_state=s["initial_state"],
+            events=events,
+        )
+
     def _generate_initial_request(
         self,
         template: SupersessionTemplate,
@@ -2371,6 +2504,13 @@ class TimelineGenerator:
                 template = self.rng.choice(templates)
                 adversarial = self.rng.random() < adversarial_ratio
                 yield self.generate_supersession_timeline(template, adversarial=adversarial)
+
+        elif track == "supersession_maintain":
+            # Belief-R guardrail: should-NOT-supersede cases (measures FSR).
+            templates = [t for t in SUPERSESSION_TEMPLATES if t.maintain_event_template]
+            for i in range(count):
+                template = self.rng.choice(templates)
+                yield self.generate_maintain_timeline(template)
 
         elif track == "commitment_durability":
             templates = COMMITMENT_TEMPLATES  # type: ignore[assignment]
