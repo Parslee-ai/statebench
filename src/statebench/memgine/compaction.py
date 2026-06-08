@@ -64,12 +64,25 @@ class CompactionEngine:
         total = self._effective_tokens()
         return total / max(1, self._config.token_budget)
 
+    # Per-entry overhead for the rendered scaffolding that token_estimate()
+    # (raw value chars/4) omits: "- [fact_id] [type] (conf) key: ... (deps)",
+    # plus section headers. Calibrated against real tiktoken context sizes across
+    # the dev set (median ~6 tokens/active entry), which brings the budget meter
+    # from a ~1.5x (up to ~3.5x with many entries) undercount toward parity, so
+    # the token budget is actually enforced. Approximate — query-dependent
+    # sections (argument chains) add scatter; an exact assemble-measure-compact
+    # pass is future work.
+    _RENDER_OVERHEAD_PER_ENTRY = 6
+
     def _effective_tokens(self) -> int:
         """Calculate effective token count (raw entries minus compacted/discarded + DAG summaries)."""
         raw = 0
+        active_entries = 0
         for entry in self._store.get_range(0, len(self._store)):
             if entry.id not in self._compacted_entries and entry.id not in self._discarded_entries:
                 raw += entry.token_estimate()
+                active_entries += 1
+        raw += active_entries * self._RENDER_OVERHEAD_PER_ENTRY
 
         dag_tokens = 0
         for layer in (1, 2, 3, 4):
