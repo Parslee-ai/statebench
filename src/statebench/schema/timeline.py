@@ -47,6 +47,8 @@ Track = Literal[
     "supersession_detection",     # NEW: Infer supersession from NL
     "authority_hierarchy",        # NEW: Respect authority levels
     "enterprise_privacy",         # NEW: Cross-tenant isolation
+    # v1.1 tracks
+    "supersession_maintain",      # NEW: should-NOT-supersede guardrail (FSR)
 ]
 
 Difficulty = Literal["easy", "medium", "hard", "adversarial"]

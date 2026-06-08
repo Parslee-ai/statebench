@@ -58,7 +58,11 @@ class TrackMetrics:
     total_queries: int = 0
 
     # Primary metrics
-    sfrr: float = 0.0  # Superseded Fact Resurrection Rate
+    sfrr: float = 0.0  # Superseded Fact Resurrection Rate (should-supersede tracks)
+    # False Supersession Rate: inverse failure on should-NOT-supersede ("maintain")
+    # tracks — fraction of queries where a still-valid fact was wrongly retired.
+    # Never aggregated with SFRR; a fix must keep BOTH low.
+    false_supersession_rate: float = 0.0
     decision_accuracy: float = 0.0
     must_mention_rate: float = 0.0
     must_not_mention_violation_rate: float = 0.0
@@ -91,6 +95,7 @@ class BenchmarkMetrics:
 
     # Aggregate metrics
     overall_sfrr: float = 0.0
+    overall_false_supersession_rate: float = 0.0  # over "maintain" tracks only
     overall_decision_accuracy: float = 0.0
     overall_must_mention_rate: float = 0.0
     overall_must_not_mention_violation_rate: float = 0.0
@@ -170,8 +175,18 @@ class MetricsAggregator:
                 metrics.must_not_mention_violations / metrics.total_must_not_mention
             )
 
-        # SFRR: percentage of queries that resurrected superseded facts
-        metrics.sfrr = metrics.resurrection_count / metrics.total_queries
+        # On "maintain" (should-NOT-supersede) tracks the correct behavior is to
+        # AFFIRM the still-valid fact (ground-truth decision = "yes"). FSR is the
+        # BEHAVIORAL failure to do so (decision != affirm) — not a lexical signal,
+        # since a correct denial of supersession ("nothing was cancelled") reuses
+        # the retirement vocabulary. SFRR and FSR are never aggregated.
+        if track.endswith("_maintain"):
+            metrics.false_supersession_rate = (
+                metrics.total_queries - metrics.correct_decisions
+            ) / metrics.total_queries
+        else:
+            # SFRR: percentage of queries that resurrected superseded facts
+            metrics.sfrr = metrics.resurrection_count / metrics.total_queries
 
         # Secondary metrics
         total_tokens = sum(r.tokens_used for r in track_results)
@@ -199,23 +214,42 @@ class MetricsAggregator:
             track_metrics = self.compute_track_metrics(track)
             metrics.tracks[track] = track_metrics
 
-        # Aggregate across tracks
+        # Aggregate across tracks. "maintain" (should-NOT-supersede) tracks measure
+        # a DISTINCT failure mode (false supersession) with inverted decision
+        # semantics (decision is always "yes"). They are quarantined from every
+        # should-supersede aggregate — SFRR, decision accuracy, must-mention, and
+        # must-not-mention — and surface only as FSR. A blended number would let a
+        # fix trade one failure for the other invisibly (the Belief-R trap).
+        ss = [t for k, t in metrics.tracks.items() if not k.endswith("_maintain")]
+        ns = [t for k, t in metrics.tracks.items() if k.endswith("_maintain")]
+        ss_q = sum(t.total_queries for t in ss)
+        ns_q = sum(t.total_queries for t in ns)
+
+        if ss_q:
+            metrics.overall_sfrr = sum(t.resurrection_count for t in ss) / ss_q
+            metrics.overall_decision_accuracy = (
+                sum(t.correct_decisions for t in ss) / ss_q
+            )
+            ss_mm = sum(t.total_must_mention for t in ss)
+            if ss_mm:
+                metrics.overall_must_mention_rate = (
+                    sum(t.must_mention_hits for t in ss) / ss_mm
+                )
+            ss_mnm = sum(t.total_must_not_mention for t in ss)
+            if ss_mnm:
+                metrics.overall_must_not_mention_violation_rate = (
+                    sum(t.must_not_mention_violations for t in ss) / ss_mnm
+                )
+        if ns_q:
+            # FSR: behavioral failure to affirm a still-valid fact.
+            metrics.overall_false_supersession_rate = (
+                sum(t.total_queries - t.correct_decisions for t in ns) / ns_q
+            )
+
         if metrics.total_queries > 0:
+            # Cost metrics use correct answers across all tracks (not the
+            # should-supersede-only accuracy above).
             total_correct = sum(t.correct_decisions for t in metrics.tracks.values())
-            total_resurrections = sum(t.resurrection_count for t in metrics.tracks.values())
-            total_must_mention = sum(t.total_must_mention for t in metrics.tracks.values())
-            total_mm_hits = sum(t.must_mention_hits for t in metrics.tracks.values())
-            total_mnm = sum(t.total_must_not_mention for t in metrics.tracks.values())
-            total_mnm_violations = sum(t.must_not_mention_violations for t in metrics.tracks.values())
-
-            metrics.overall_decision_accuracy = total_correct / metrics.total_queries
-            metrics.overall_sfrr = total_resurrections / metrics.total_queries
-
-            if total_must_mention > 0:
-                metrics.overall_must_mention_rate = total_mm_hits / total_must_mention
-
-            if total_mnm > 0:
-                metrics.overall_must_not_mention_violation_rate = total_mnm_violations / total_mnm
 
             # Token stats
             all_tokens = [r.tokens_used for r in self.results if r.tokens_used > 0]

@@ -5,7 +5,7 @@ Each template defines a scenario where a decision/fact becomes invalid
 and the system must not resurrect it.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass
@@ -44,6 +44,18 @@ class SupersessionTemplate:
     min_supersessions: int = 1
     max_supersessions: int = 2
 
+    # --- "Maintain" (should-NOT-supersede) variant (Belief-R guardrail) ---
+    # A later event that is UPDATE-FLAVORED and shares the same entity (tempting a
+    # supersession detector to misfire) but does NOT invalidate the original fact —
+    # and crucially does not state the answer. Measures False Supersession Rate
+    # (FSR): wrongly retiring a still-valid fact. Templates without these fields
+    # generate no maintain cases. FSR is scored behaviorally (did the system still
+    # affirm the fact? decision="yes"), not by forbidden vocabulary.
+    maintain_event_template: str | None = None  # update-flavored, non-invalidating NL, e.g. "finalized the {entity} renewal paperwork"
+    maintain_reasons: list[str] = field(default_factory=list)
+    maintain_query_template: str | None = None  # asks about the ORIGINAL (still-valid) fact
+    maintain_must_mention: str | None = None  # surviving value the system should still affirm
+
 
 # --- Procurement Domain Templates ---
 
@@ -72,6 +84,10 @@ VENDOR_RENEWAL = SupersessionTemplate(
     policy_template="No auto-renew without {approver} review",
     min_supersessions=1,
     max_supersessions=2,
+    maintain_event_template="finalized the {entity} renewal paperwork and filed it with procurement",
+    maintain_reasons=["paperwork filed", "logged in the system", "contact updated"],
+    maintain_query_template="Is the {entity} renewal still approved?",
+    maintain_must_mention="renewal|approved",
 )
 
 PURCHASE_APPROVAL = SupersessionTemplate(
@@ -96,6 +112,10 @@ PURCHASE_APPROVAL = SupersessionTemplate(
     must_not_mention_pattern="approved purchase|approved for \\$",
     min_supersessions=1,
     max_supersessions=3,
+    maintain_event_template="updated the {entity} request with the assigned PO number",
+    maintain_reasons=["PO number assigned", "logged in finance", "added to the queue"],
+    maintain_query_template="Can I still submit the PO for {entity}?",
+    maintain_must_mention="proceed|approved|yes",
 )
 
 
@@ -125,6 +145,10 @@ DISCOUNT_APPROVAL = SupersessionTemplate(
     policy_template="Max {max_discount}% discount without VP approval",
     min_supersessions=1,
     max_supersessions=2,
+    maintain_event_template="updated the {entity} account notes after a check-in call",
+    maintain_reasons=["notes updated", "check-in logged", "account reviewed"],
+    maintain_query_template="Can I still offer {entity} the {discount_pct}% discount?",
+    maintain_must_mention="{discount_pct}%|approved|yes",
 )
 
 DEAL_TERMS = SupersessionTemplate(
