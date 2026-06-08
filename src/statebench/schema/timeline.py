@@ -51,6 +51,7 @@ Track = Literal[
     "supersession_maintain",      # NEW: should-NOT-supersede guardrail (FSR)
     "authority_conflict",         # NEW: structured same-key authority conflicts
     "dependency_chain",           # NEW: structured depends_on chains (Type II repair)
+    "authority_maintain",         # NEW: should-NOT-override guardrail (FAOR)
 ]
 
 Difficulty = Literal["easy", "medium", "hard", "adversarial"]

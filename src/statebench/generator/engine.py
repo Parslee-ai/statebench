@@ -33,6 +33,7 @@ from statebench.generator.templates.causality import (
 from statebench.generator.templates.commitment import COMMITMENT_TEMPLATES, CommitmentTemplate
 from statebench.generator.templates.structured import (
     AUTHORITY_CONFLICTS,
+    AUTHORITY_MAINTAIN,
     DEPENDENCY_CHAINS,
 )
 
@@ -590,6 +591,53 @@ class TimelineGenerator:
         return Timeline(
             id=self._next_id("DC"), domain=scenario.domain,  # type: ignore[arg-type]
             track="dependency_chain",
+            actors=Actors(
+                user=Actor(id="u1", role=role, org=org.lower().replace(" ", "_")),
+                assistant_role="AI_Agent"),
+            initial_state=initial_state, events=events,
+        )
+
+    def generate_authority_maintain_timeline(self, scenario) -> Timeline:
+        """should-NOT-override guardrail (exercises the authority no-over-reach path).
+
+        A higher-authority general RULE and a lower-authority SPECIFIC decision that
+        complies with it are written to DIFFERENT keys. The specific decision must
+        remain valid (a correct engine does not retire it by authority across slots).
+        """
+        org = self._random_org()
+        role = self._random_role(scenario.domain)
+        t = self._base_time()
+        identity = IdentityRole(
+            user_name=self._random_name().split()[0], authority=role,
+            department=scenario.domain.title(), organization=org,
+        )
+        initial_state = InitialState(
+            identity_role=identity, persistent_facts=[], working_set=[],
+            environment={"now": t.isoformat()},
+        )
+        events: list[ConversationTurn | StateWrite | Supersession | Query] = []
+        t += timedelta(minutes=2)
+        events.append(StateWrite(ts=t, writes=[Write(
+            id="AM-RULE", layer="persistent_facts", key=scenario.rule_key,
+            value=scenario.rule_value,
+            source=Source(type="policy", authority=scenario.rule_authority))]))
+        t += timedelta(minutes=self.rng.randint(5, 40))
+        events.append(StateWrite(ts=t, writes=[Write(
+            id="AM-DECISION", layer="persistent_facts", key=scenario.decision_key,
+            value=scenario.decision_value,
+            source=Source(type="user", authority=scenario.decision_authority))]))
+        t += timedelta(minutes=self.rng.randint(5, 30))
+        events.append(Query(ts=t, prompt=scenario.query, ground_truth=GroundTruth(
+            decision=scenario.decision,
+            must_mention=scenario.must_mention,  # type: ignore[arg-type]
+            must_not_mention=[],
+            allowed_sources=["persistent_facts"],
+            reasoning="The specific decision complies with the general rule (different "
+                      "slot); it is NOT overridden and must remain usable.",
+        )))
+        return Timeline(
+            id=self._next_id("AM"), domain=scenario.domain,  # type: ignore[arg-type]
+            track="authority_maintain",
             actors=Actors(
                 user=Actor(id="u1", role=role, org=org.lower().replace(" ", "_")),
                 assistant_role="AI_Agent"),
@@ -2626,6 +2674,12 @@ class TimelineGenerator:
             for i in range(count):
                 yield self.generate_dependency_chain_timeline(
                     self.rng.choice(DEPENDENCY_CHAINS))
+
+        elif track == "authority_maintain":
+            # should-NOT-override guardrail (False Authority Override Rate).
+            for i in range(count):
+                yield self.generate_authority_maintain_timeline(
+                    self.rng.choice(AUTHORITY_MAINTAIN))
 
         elif track == "commitment_durability":
             templates = COMMITMENT_TEMPLATES  # type: ignore[assignment]

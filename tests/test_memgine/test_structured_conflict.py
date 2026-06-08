@@ -49,3 +49,18 @@ def test_dependency_chain_track_fires_type2_propagation() -> None:
         assert any(f.startswith("DC-TOP") for f in nr), f"{tl.id}: TOP not flagged (transitive)"
         # base itself is superseded
         assert "DC-BASE" in s._engine._layers.superseded_by
+
+
+def test_authority_maintain_track_does_not_over_override() -> None:
+    # should-NOT-override: a complying lower-authority decision (different slot)
+    # must remain valid; authority resolution must NOT fire across keys.
+    gen = TimelineGenerator(seed=3)
+    tls = list(gen.generate_track("authority_maintain", count=8))
+    assert all(t.track == "authority_maintain" for t in tls)
+    for tl in tls:
+        s, _ = _run_to_query(tl)
+        valid = s._engine._layers.get_valid_fact_ids()
+        assert "AM-RULE" in valid and "AM-DECISION" in valid, (
+            f"{tl.id}: a fact was wrongly retired, valid={valid}"
+        )
+        assert not any(c.get("reason") == "authority" for c in s._engine._corrections)
