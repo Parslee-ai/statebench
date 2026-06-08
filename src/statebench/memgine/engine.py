@@ -195,7 +195,64 @@ class MemgineEngine:
             depends_on=deps,
         )
 
+        # Authority-aware resolution of implicit same-key conflicts (no explicit
+        # supersedes). A clearly higher-authority source wins over recency alone.
+        if not supersedes and self._config.authority_resolution_gap > 0:
+            self._resolve_authority_conflict(fact_id, key, value, source.authority, scope, ts)
+
         return entry
+
+    # Authority precedence for resolving same-key conflicts (higher wins).
+    _AUTHORITY_RANK = {
+        "policy": 6, "executive": 5, "manager": 4, "peer": 3,
+        "subordinate": 2, "system": 1, "unverified": 0,
+    }
+
+    def _authority_rank(self, authority: str | None) -> int:
+        return self._AUTHORITY_RANK.get(authority or "unverified", 0)
+
+    def _resolve_authority_conflict(
+        self, new_fid: str, key: str, value: str, authority: str | None,
+        scope: str, ts: datetime,
+    ) -> None:
+        """Resolve an implicit same-key value conflict by source authority.
+
+        Gathers the newcomer plus all standing valid facts with the same key+scope
+        and a DIFFERENT value, picks a single winner = (highest authority, then
+        newest), and retires every contender the winner clearly outranks
+        (authority gap >= config.authority_resolution_gap), pointing each loser's
+        provenance directly at that one winner. Contenders within the threshold of
+        the winner stay valid (equal authority -> recency / the model decides).
+        This is the Whose-Facts-Win fix: a later low-authority note must not
+        silently override a standing high-authority directive.
+        """
+        gap = self._config.authority_resolution_gap
+        # (fact_id, rank, ts, value); newcomer first.
+        contenders = [(new_fid, self._authority_rank(authority), ts, value)]
+        for fid in list(self._layers.get_valid_fact_ids()):
+            if fid == new_fid:
+                continue
+            other = self._store.get_by_fact_id(fid)
+            if not other or other.key != key or other.scope != scope:
+                continue
+            if other.value == value:
+                continue  # same value: not a conflict
+            contenders.append((fid, self._authority_rank(other.authority), other.ts, other.value))
+
+        if len(contenders) < 2:
+            return
+        winner_fid, w_rank, _, w_val = max(contenders, key=lambda c: (c[1], c[2]))
+        for fid, rank, _, val in contenders:
+            if fid == winner_fid or w_rank - rank < gap:
+                continue  # the winner, or within-threshold -> leave valid
+            cascaded = self._layers.invalidate_fact(fid, winner_fid)
+            for inv_id in cascaded:
+                if inv_id != fid:
+                    self._needs_review.add(inv_id)  # parity with explicit-supersede path
+            self._corrections.append({
+                "old_fact_id": fid, "old_value": val,
+                "new_value": w_val, "ts": ts, "reason": "authority",
+            })
 
     def ingest_conversation(
         self, speaker: str, text: str, ts: datetime
@@ -696,21 +753,31 @@ class MemgineEngine:
                 e = self._store.get_by_fact_id(fid)
                 if e:
                     entries.append((fid, e))
-            entries.sort(key=lambda pair: pair[1].ts)
+            # Winner = highest authority, then newest (not recency alone).
+            entries.sort(key=lambda pair: (self._authority_rank(pair[1].authority), pair[1].ts))
+            winner_fid, winner = entries[-1]
 
-            # If values are identical, merge (keep newest, invalidate older)
             if len(set(e.value for _, e in entries)) == 1:
-                # All same value — keep the latest
+                # All same value — keep the winner, invalidate the rest. (Note:
+                # ingest keeps equal-authority *different*-value facts both valid;
+                # here, identical values are genuine duplicates, so collapsing to
+                # one — highest-authority, then newest — is always safe.)
                 for fid, _ in entries[:-1]:
-                    self._layers.invalidate_fact(fid, entries[-1][0])
+                    self._layers.invalidate_fact(fid, winner_fid)
                     ops["duplicates_merged"] += 1
             else:
-                # Different values for same key — the latest should win,
-                # but only mark as contradiction (don't auto-resolve — that's
-                # the LLM's job, we just detect)
+                # Different values. If the winner CLEARLY outranks a loser
+                # (authority gap), authority resolves it deterministically;
+                # otherwise (equal authority) only flag as a contradiction.
+                gap = self._config.authority_resolution_gap
+                w_rank = self._authority_rank(winner.authority)
                 for fid, e in entries[:-1]:
-                    self._needs_review.add(fid)
-                    ops["contradictions_found"] += 1
+                    if gap > 0 and w_rank - self._authority_rank(e.authority) >= gap:
+                        self._layers.invalidate_fact(fid, winner_fid)
+                        ops["contradictions_found"] += 1
+                    else:
+                        self._needs_review.add(fid)
+                        ops["contradictions_found"] += 1
 
         # 2. Resolve dangling dependencies: if a fact depends on a
         #    fact_id that doesn't exist, clean up the reference

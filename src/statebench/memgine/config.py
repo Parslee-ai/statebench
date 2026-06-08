@@ -61,6 +61,13 @@ class MemgineConfig:
     # turns that restate a superseded fact's old value are dropped from context.
     cascade_supersession_to_transcript: bool = False
 
+    # Authority-aware conflict resolution: when two same-key, same-scope facts
+    # conflict and one source clearly outranks the other (authority gap >= this
+    # many levels), the higher-authority fact wins — instead of recency alone
+    # ("latest wins"), which lets a later low-authority note override a standing
+    # high-authority directive. 0 disables authority resolution.
+    authority_resolution_gap: int = 1
+
     def layer_tokens(self, layer: int) -> int:
         """Get token budget for a layer."""
         budgets = {
@@ -89,6 +96,7 @@ class MemgineConfig:
             environment_max=self.environment_max,
             show_superseded_values=self.show_superseded_values,
             cascade_supersession_to_transcript=self.cascade_supersession_to_transcript,
+            authority_resolution_gap=self.authority_resolution_gap,
         )
 
     def validate(self) -> None:
@@ -103,3 +111,7 @@ class MemgineConfig:
             raise ValueError(f"Layer budget fractions must sum to 1.0, got {total}")
         if self.thresholds.soft >= self.thresholds.hard:
             raise ValueError("Soft threshold must be less than hard threshold")
+        if self.authority_resolution_gap < 0:
+            raise ValueError(
+                f"authority_resolution_gap must be >= 0, got {self.authority_resolution_gap}"
+            )
