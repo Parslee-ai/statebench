@@ -662,6 +662,11 @@ class MemgineEngine:
             if self._config.cascade_supersession_to_transcript:
                 ws_entries = self._filter_superseded_turns(ws_entries)
 
+            # Collapse repeated restatements to the most-recent instance so a value
+            # can't be out-voted by sheer repetition (Whose-Facts-Win).
+            if self._config.dedupe_repeated_turns:
+                ws_entries = self._dedupe_repeated_turns(ws_entries)
+
             ws_lines: list[str] = []
             for entry in ws_entries:
                 scope = infer_scope(entry.value)
@@ -854,6 +859,41 @@ class MemgineEngine:
             for e in entries
             if not any(sv in e.value.lower() for sv in superseded_values)
         ]
+
+    # Value-bearing symbols kept in the dedup key so e.g. "$10" and "10%" don't
+    # collapse to the same content; plain sentence punctuation/whitespace is dropped.
+    _CONTENT_KEEP_SYMBOLS = frozenset("$%€£¥")
+
+    def _turn_content_key(self, value: str) -> str:
+        """Normalized content of a working-set turn for repetition detection:
+        speaker-agnostic, lowercased, alphanumerics + value symbols only.
+
+        Depends on the ``"Speaker: text"`` format produced by ingest_conversation;
+        a turn with no leading ``":"`` is normalized whole.
+        """
+        text = value.split(":", 1)[1] if ":" in value else value
+        return "".join(
+            ch.lower() for ch in text
+            if ch.isalnum() or ch in self._CONTENT_KEEP_SYMBOLS
+        )
+
+    def _dedupe_repeated_turns(self, entries: list[StoreEntry]) -> list[StoreEntry]:
+        """Collapse turns that repeat the same content to the single most-recent
+        instance, preserving chronological order of what remains. Value-preserving
+        (the content survives as the newest copy); the repetition-as-emphasis signal
+        is intentionally discarded — that signal is the out-voting attack vector.
+        A turn with no content key (e.g. punctuation only) is never collapsed."""
+        seen: set[str] = set()
+        kept_rev: list[StoreEntry] = []
+        for entry in reversed(entries):  # newest first -> keep the most recent
+            key = self._turn_content_key(entry.value)
+            if key:
+                if key in seen:
+                    continue
+                seen.add(key)
+            kept_rev.append(entry)
+        kept_rev.reverse()
+        return kept_rev
 
     def _filter_interruptions(self, entries: list[StoreEntry]) -> list[StoreEntry]:
         """Detect and suppress interruption turns from working set.

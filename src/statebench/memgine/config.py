@@ -68,6 +68,13 @@ class MemgineConfig:
     # high-authority directive. 0 disables authority resolution.
     authority_resolution_gap: int = 1
 
+    # Collapse repeated working-set turns (same content) to the single most-recent
+    # instance. Repetition otherwise lets a value statistically out-vote the current
+    # fact (illusory-truth / repetition bias, Whose-Facts-Win). Value-preserving (the
+    # content survives as the newest copy); only the repetition-as-emphasis signal is
+    # discarded — and that signal is precisely the out-voting attack vector.
+    dedupe_repeated_turns: bool = True
+
     def layer_tokens(self, layer: int) -> int:
         """Get token budget for a layer."""
         budgets = {
@@ -97,6 +104,7 @@ class MemgineConfig:
             show_superseded_values=self.show_superseded_values,
             cascade_supersession_to_transcript=self.cascade_supersession_to_transcript,
             authority_resolution_gap=self.authority_resolution_gap,
+            dedupe_repeated_turns=self.dedupe_repeated_turns,
         )
 
     def validate(self) -> None:
