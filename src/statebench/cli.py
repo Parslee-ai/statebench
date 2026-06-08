@@ -3,6 +3,7 @@
 import json
 import statistics
 from pathlib import Path
+from typing import get_args
 
 import click
 from dotenv import load_dotenv
@@ -10,6 +11,7 @@ from rich.console import Console
 from rich.table import Table
 
 from statebench.baselines import BASELINE_REGISTRY
+from statebench.schema.timeline import Track
 from statebench.calibration import create_audit_template, run_calibration
 from statebench.evaluation import format_metrics_table
 from statebench.evaluation.metrics import BenchmarkMetrics
@@ -41,7 +43,18 @@ AVAILABLE_TRACKS = [
     "adversarial",
     "enterprise_privacy",
     "authority_hierarchy",
+    # v1.1 tracks
+    "supersession_maintain",   # should-NOT-supersede guardrail (FSR)
+    "authority_conflict",      # structured same-key authority conflicts
+    "dependency_chain",        # structured depends_on chains (Type II repair)
 ]
+
+# Guard against drift: every benchmark Track literal (the "adversarial" entry above
+# is a generation pseudo-mode, not a Track) must appear in AVAILABLE_TRACKS, so
+# `--tracks all` can never silently skip a defined track.
+assert set(get_args(Track)) <= set(AVAILABLE_TRACKS), (
+    f"AVAILABLE_TRACKS missing tracks: {set(get_args(Track)) - set(AVAILABLE_TRACKS)}"
+)
 
 
 def _aggregate_runs(

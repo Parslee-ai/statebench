@@ -195,7 +195,64 @@ class MemgineEngine:
             depends_on=deps,
         )
 
+        # Authority-aware resolution of implicit same-key conflicts (no explicit
+        # supersedes). A clearly higher-authority source wins over recency alone.
+        if not supersedes and self._config.authority_resolution_gap > 0:
+            self._resolve_authority_conflict(fact_id, key, value, source.authority, scope, ts)
+
         return entry
+
+    # Authority precedence for resolving same-key conflicts (higher wins).
+    _AUTHORITY_RANK = {
+        "policy": 6, "executive": 5, "manager": 4, "peer": 3,
+        "subordinate": 2, "system": 1, "unverified": 0,
+    }
+
+    def _authority_rank(self, authority: str | None) -> int:
+        return self._AUTHORITY_RANK.get(authority or "unverified", 0)
+
+    def _resolve_authority_conflict(
+        self, new_fid: str, key: str, value: str, authority: str | None,
+        scope: str, ts: datetime,
+    ) -> None:
+        """Resolve an implicit same-key value conflict by source authority.
+
+        Gathers the newcomer plus all standing valid facts with the same key+scope
+        and a DIFFERENT value, picks a single winner = (highest authority, then
+        newest), and retires every contender the winner clearly outranks
+        (authority gap >= config.authority_resolution_gap), pointing each loser's
+        provenance directly at that one winner. Contenders within the threshold of
+        the winner stay valid (equal authority -> recency / the model decides).
+        This is the Whose-Facts-Win fix: a later low-authority note must not
+        silently override a standing high-authority directive.
+        """
+        gap = self._config.authority_resolution_gap
+        # (fact_id, rank, ts, value); newcomer first.
+        contenders = [(new_fid, self._authority_rank(authority), ts, value)]
+        for fid in list(self._layers.get_valid_fact_ids()):
+            if fid == new_fid:
+                continue
+            other = self._store.get_by_fact_id(fid)
+            if not other or other.key != key or other.scope != scope:
+                continue
+            if other.value == value:
+                continue  # same value: not a conflict
+            contenders.append((fid, self._authority_rank(other.authority), other.ts, other.value))
+
+        if len(contenders) < 2:
+            return
+        winner_fid, w_rank, _, w_val = max(contenders, key=lambda c: (c[1], c[2]))
+        for fid, rank, _, val in contenders:
+            if fid == winner_fid or w_rank - rank < gap:
+                continue  # the winner, or within-threshold -> leave valid
+            cascaded = self._layers.invalidate_fact(fid, winner_fid)
+            for inv_id in cascaded:
+                if inv_id != fid:
+                    self._needs_review.add(inv_id)  # parity with explicit-supersede path
+            self._corrections.append({
+                "old_fact_id": fid, "old_value": val,
+                "new_value": w_val, "ts": ts, "reason": "authority",
+            })
 
     def ingest_conversation(
         self, speaker: str, text: str, ts: datetime
@@ -416,6 +473,9 @@ class MemgineEngine:
                     fact_id=e.fact_id or "", key=e.key or "", value=e.value
                 )
                 for e in valid_non_constraints
+                # Don't feed recalc-pending (Type-II-flagged) facts into constraint
+                # checks as live values — their premise moved and they're stale.
+                if e.fact_id not in self._needs_review
             ]
             check_results = check_constraints(c_fvs, f_fvs)
             checklist = format_constraint_checklist(check_results)
@@ -602,6 +662,11 @@ class MemgineEngine:
             if self._config.cascade_supersession_to_transcript:
                 ws_entries = self._filter_superseded_turns(ws_entries)
 
+            # Collapse repeated restatements to the most-recent instance so a value
+            # can't be out-voted by sheer repetition (Whose-Facts-Win).
+            if self._config.dedupe_repeated_turns:
+                ws_entries = self._dedupe_repeated_turns(ws_entries)
+
             ws_lines: list[str] = []
             for entry in ws_entries:
                 scope = infer_scope(entry.value)
@@ -696,21 +761,31 @@ class MemgineEngine:
                 e = self._store.get_by_fact_id(fid)
                 if e:
                     entries.append((fid, e))
-            entries.sort(key=lambda pair: pair[1].ts)
+            # Winner = highest authority, then newest (not recency alone).
+            entries.sort(key=lambda pair: (self._authority_rank(pair[1].authority), pair[1].ts))
+            winner_fid, winner = entries[-1]
 
-            # If values are identical, merge (keep newest, invalidate older)
             if len(set(e.value for _, e in entries)) == 1:
-                # All same value — keep the latest
+                # All same value — keep the winner, invalidate the rest. (Note:
+                # ingest keeps equal-authority *different*-value facts both valid;
+                # here, identical values are genuine duplicates, so collapsing to
+                # one — highest-authority, then newest — is always safe.)
                 for fid, _ in entries[:-1]:
-                    self._layers.invalidate_fact(fid, entries[-1][0])
+                    self._layers.invalidate_fact(fid, winner_fid)
                     ops["duplicates_merged"] += 1
             else:
-                # Different values for same key — the latest should win,
-                # but only mark as contradiction (don't auto-resolve — that's
-                # the LLM's job, we just detect)
+                # Different values. If the winner CLEARLY outranks a loser
+                # (authority gap), authority resolves it deterministically;
+                # otherwise (equal authority) only flag as a contradiction.
+                gap = self._config.authority_resolution_gap
+                w_rank = self._authority_rank(winner.authority)
                 for fid, e in entries[:-1]:
-                    self._needs_review.add(fid)
-                    ops["contradictions_found"] += 1
+                    if gap > 0 and w_rank - self._authority_rank(e.authority) >= gap:
+                        self._layers.invalidate_fact(fid, winner_fid)
+                        ops["contradictions_found"] += 1
+                    else:
+                        self._needs_review.add(fid)
+                        ops["contradictions_found"] += 1
 
         # 2. Resolve dangling dependencies: if a fact depends on a
         #    fact_id that doesn't exist, clean up the reference
@@ -784,6 +859,41 @@ class MemgineEngine:
             for e in entries
             if not any(sv in e.value.lower() for sv in superseded_values)
         ]
+
+    # Value-bearing symbols kept in the dedup key so e.g. "$10" and "10%" don't
+    # collapse to the same content; plain sentence punctuation/whitespace is dropped.
+    _CONTENT_KEEP_SYMBOLS = frozenset("$%€£¥")
+
+    def _turn_content_key(self, value: str) -> str:
+        """Normalized content of a working-set turn for repetition detection:
+        speaker-agnostic, lowercased, alphanumerics + value symbols only.
+
+        Depends on the ``"Speaker: text"`` format produced by ingest_conversation;
+        a turn with no leading ``":"`` is normalized whole.
+        """
+        text = value.split(":", 1)[1] if ":" in value else value
+        return "".join(
+            ch.lower() for ch in text
+            if ch.isalnum() or ch in self._CONTENT_KEEP_SYMBOLS
+        )
+
+    def _dedupe_repeated_turns(self, entries: list[StoreEntry]) -> list[StoreEntry]:
+        """Collapse turns that repeat the same content to the single most-recent
+        instance, preserving chronological order of what remains. Value-preserving
+        (the content survives as the newest copy); the repetition-as-emphasis signal
+        is intentionally discarded — that signal is the out-voting attack vector.
+        A turn with no content key (e.g. punctuation only) is never collapsed."""
+        seen: set[str] = set()
+        kept_rev: list[StoreEntry] = []
+        for entry in reversed(entries):  # newest first -> keep the most recent
+            key = self._turn_content_key(entry.value)
+            if key:
+                if key in seen:
+                    continue
+                seen.add(key)
+            kept_rev.append(entry)
+        kept_rev.reverse()
+        return kept_rev
 
     def _filter_interruptions(self, entries: list[StoreEntry]) -> list[StoreEntry]:
         """Detect and suppress interruption turns from working set.
@@ -1050,7 +1160,12 @@ class MemgineEngine:
             premises = []
             for dep_id in entry.depends_on:
                 dep_entry = by_fid.get(dep_id)
-                if dep_entry and self._layers.is_fact_valid(dep_id):
+                # Recalc-pending (Type-II-flagged) facts are not sound premises.
+                if (
+                    dep_entry
+                    and self._layers.is_fact_valid(dep_id)
+                    and dep_id not in self._needs_review
+                ):
                     premises.append(dep_entry)
                     used_as_premise.add(dep_id)
             if premises:

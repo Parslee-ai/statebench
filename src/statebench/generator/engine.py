@@ -31,6 +31,10 @@ from statebench.generator.templates.causality import (
     MultiConstraintTemplate,
 )
 from statebench.generator.templates.commitment import COMMITMENT_TEMPLATES, CommitmentTemplate
+from statebench.generator.templates.structured import (
+    AUTHORITY_CONFLICTS,
+    DEPENDENCY_CHAINS,
+)
 
 # v1.0: Detection Track
 from statebench.generator.templates.detection import (
@@ -491,6 +495,105 @@ class TimelineGenerator:
             ),
             initial_state=s["initial_state"],
             events=events,
+        )
+
+    def generate_structured_authority_timeline(self, scenario) -> Timeline:
+        """Structured same-key authority conflict (exercises authority resolution).
+
+        Two persistent_facts are written to the SAME key from different authority
+        levels with NO explicit supersedes. A correct engine resolves by authority
+        (higher wins), not recency.
+        """
+        org = self._random_org()
+        role = self._random_role(scenario.domain)
+        t = self._base_time()
+        identity = IdentityRole(
+            user_name=self._random_name().split()[0], authority=role,
+            department=scenario.domain.title(), organization=org,
+        )
+        initial_state = InitialState(
+            identity_role=identity, persistent_facts=[], working_set=[],
+            environment={"now": t.isoformat()},
+        )
+        events: list[ConversationTurn | StateWrite | Supersession | Query] = []
+        t += timedelta(minutes=2)
+        events.append(StateWrite(ts=t, writes=[Write(
+            id="AC-LOW", layer="persistent_facts", key=scenario.key,
+            value=scenario.low_value,
+            source=Source(type="user", authority=scenario.low_authority),
+        )]))
+        t += timedelta(minutes=self.rng.randint(5, 40))
+        events.append(StateWrite(ts=t, writes=[Write(
+            id="AC-HIGH", layer="persistent_facts", key=scenario.key,
+            value=scenario.high_value,
+            source=Source(type="user", authority=scenario.high_authority),
+        )]))
+        t += timedelta(minutes=self.rng.randint(5, 30))
+        events.append(Query(ts=t, prompt=scenario.query, ground_truth=GroundTruth(
+            decision=scenario.decision,
+            must_mention=scenario.must_mention,  # type: ignore[arg-type]
+            must_not_mention=scenario.must_not_mention,  # type: ignore[arg-type]
+            allowed_sources=["persistent_facts"],
+            reasoning="The higher-authority source overrides the lower one regardless "
+                      "of order; the lower-authority value must not be presented as current.",
+        )))
+        return Timeline(
+            id=self._next_id("AC"), domain=scenario.domain,  # type: ignore[arg-type]
+            track="authority_conflict",
+            actors=Actors(
+                user=Actor(id="u1", role=role, org=org.lower().replace(" ", "_")),
+                assistant_role="AI_Agent"),
+            initial_state=initial_state, events=events,
+        )
+
+    def generate_dependency_chain_timeline(self, scenario) -> Timeline:
+        """Structured depends_on chain base<-mid<-top, then base superseded
+        (exercises Type II transitive propagation: mid AND top go recalc-pending)."""
+        org = self._random_org()
+        role = self._random_role(scenario.domain)
+        t = self._base_time()
+        identity = IdentityRole(
+            user_name=self._random_name().split()[0], authority=role,
+            department=scenario.domain.title(), organization=org,
+        )
+        initial_state = InitialState(
+            identity_role=identity, persistent_facts=[], working_set=[],
+            environment={"now": t.isoformat()},
+        )
+        events: list[ConversationTurn | StateWrite | Supersession | Query] = []
+        src = Source(type="user", authority="manager")
+        t += timedelta(minutes=2)
+        events.append(StateWrite(ts=t, writes=[Write(
+            id="DC-BASE", layer="persistent_facts", key=scenario.base_key,
+            value=scenario.base_value, source=src)]))
+        t += timedelta(minutes=2)
+        events.append(StateWrite(ts=t, writes=[Write(
+            id="DC-MID", layer="persistent_facts", key=scenario.mid_key,
+            value=scenario.mid_value, source=src, depends_on=["DC-BASE"])]))
+        t += timedelta(minutes=2)
+        events.append(StateWrite(ts=t, writes=[Write(
+            id="DC-TOP", layer="persistent_facts", key=scenario.top_key,
+            value=scenario.top_value, source=src, depends_on=["DC-MID"])]))
+        t += timedelta(minutes=self.rng.randint(10, 60))
+        events.append(Supersession(ts=t, writes=[Write(
+            id="DC-BASE2", layer="persistent_facts", key=scenario.base_key,
+            value=scenario.new_base_value, source=src, supersedes="DC-BASE")]))
+        t += timedelta(minutes=self.rng.randint(5, 30))
+        events.append(Query(ts=t, prompt=scenario.query, ground_truth=GroundTruth(
+            decision=scenario.decision,
+            must_mention=scenario.must_mention,  # type: ignore[arg-type]
+            must_not_mention=scenario.must_not_mention,  # type: ignore[arg-type]
+            allowed_sources=["persistent_facts"],
+            reasoning="The base fact was superseded; values derived from it (directly and "
+                      "transitively) are stale and must be recalculated, not asserted as current.",
+        )))
+        return Timeline(
+            id=self._next_id("DC"), domain=scenario.domain,  # type: ignore[arg-type]
+            track="dependency_chain",
+            actors=Actors(
+                user=Actor(id="u1", role=role, org=org.lower().replace(" ", "_")),
+                assistant_role="AI_Agent"),
+            initial_state=initial_state, events=events,
         )
 
     def _generate_initial_request(
@@ -2511,6 +2614,18 @@ class TimelineGenerator:
             for i in range(count):
                 template = self.rng.choice(templates)
                 yield self.generate_maintain_timeline(template)
+
+        elif track == "authority_conflict":
+            # Structured same-key authority conflicts (exercises authority resolution).
+            for i in range(count):
+                yield self.generate_structured_authority_timeline(
+                    self.rng.choice(AUTHORITY_CONFLICTS))
+
+        elif track == "dependency_chain":
+            # Structured depends_on chains + supersession (exercises Type II propagation).
+            for i in range(count):
+                yield self.generate_dependency_chain_timeline(
+                    self.rng.choice(DEPENDENCY_CHAINS))
 
         elif track == "commitment_durability":
             templates = COMMITMENT_TEMPLATES  # type: ignore[assignment]

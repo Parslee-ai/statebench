@@ -55,6 +55,7 @@ class MemgineStrategy(MemoryStrategy):
         token_budget: int = 8000,
         show_superseded_values: bool | None = None,
         cascade_supersession_to_transcript: bool | None = None,
+        authority_resolution_gap: int = 1,
         model: str | None = None,
         **kwargs: object,
     ) -> None:
@@ -71,6 +72,7 @@ class MemgineStrategy(MemoryStrategy):
             token_budget=token_budget,
             show_superseded_values=show_superseded_values,
             cascade_supersession_to_transcript=cascade_supersession_to_transcript,
+            authority_resolution_gap=authority_resolution_gap,
         )
         self._engine = MemgineEngine(config)
 
