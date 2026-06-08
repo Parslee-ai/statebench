@@ -61,6 +61,16 @@ def test_independent_fact_not_flagged() -> None:
     assert "X" in eng._layers.get_valid_fact_ids()
 
 
+def test_no_supersession_no_flag() -> None:
+    # Over-propagation guard: a derived fact whose base was NOT superseded must NOT
+    # be flagged recalc-pending.
+    eng = _engine()
+    _fact(eng, "F", "base", "10")
+    _fact(eng, "D", "derived", "20", depends_on=["F"])
+    assert "D" not in eng._needs_review
+    assert "D" in eng._layers.get_valid_fact_ids()
+
+
 def test_cyclic_dependency_terminates() -> None:
     # Pathological cycle must not infinite-loop.
     layers = LayerState()

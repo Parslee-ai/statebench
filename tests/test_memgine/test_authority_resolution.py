@@ -49,6 +49,15 @@ def test_equal_authority_keeps_both() -> None:
     assert _valid(eng) == {"f1", "f2"}
 
 
+def test_authority_does_not_reach_across_keys() -> None:
+    # Over-aggression guard: a high-authority fact must NOT retire a lower-authority
+    # fact on a DIFFERENT key (different state slot — not a conflict).
+    eng = _engine()
+    _ingest(eng, "f1", "budget_cap", "cap at $100k", "policy", ts=T0)
+    _ingest(eng, "f2", "vendor_choice", "use VendorX", "peer", ts=T0 + timedelta(hours=1))
+    assert _valid(eng) == {"f1", "f2"}
+
+
 def test_different_scope_not_resolved() -> None:
     eng = _engine()
     _ingest(eng, "f1", "x", "A", "manager", scope="global", ts=T0)
