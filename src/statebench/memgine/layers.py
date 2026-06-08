@@ -99,12 +99,32 @@ class LayerState:
         self.superseded_by[fact_id] = superseded_by_id
         invalidated.add(fact_id)
 
-        # Cascade to dependents (mark them as needing review, not full invalidation)
-        for dependent_id in self.dependents.get(fact_id, set()):
-            if dependent_id in self.valid_facts:
-                # Don't fully invalidate dependents - just mark needs_review
-                # The engine will handle this via the needs_review tracking
-                invalidated.add(dependent_id)
+        # Type II propagation (CUPMem): a fact whose premise just died is stale —
+        # and so is anything derived from IT, transitively. Dependents are NOT
+        # hard-invalidated (their value needs RECALCULATION from the new base, not
+        # deletion); they're flagged (returned -> engine needs_review). We walk the
+        # full transitive dependent closure so multi-hop derived chains
+        # (D2 <- D1 <- F) all get flagged, not just the direct dependent D1.
+        #
+        # Direct (1-hop) dependents whose base was replaced render inline as
+        # "RECALCULATE" under the correcting parent; deeper hops (whose immediate
+        # premise was flagged, not superseded) surface in the orphan-invalidated
+        # section instead. Either way they are visible, not silently dropped.
+        self._propagate_stale(fact_id, invalidated)
+
+    def _propagate_stale(self, fact_id: str, invalidated: set[str]) -> None:
+        """Flag the transitive dependent closure of ``fact_id`` as recalc-pending.
+
+        Iterative (worklist) rather than recursive: ``invalidate_fact`` is the
+        shared cascade for ALL supersession, and a pathologically deep derived
+        chain must not blow the Python recursion limit.
+        """
+        stack = [fact_id]
+        while stack:
+            for dependent_id in self.dependents.get(stack.pop(), set()):
+                if dependent_id in self.valid_facts and dependent_id not in invalidated:
+                    invalidated.add(dependent_id)
+                    stack.append(dependent_id)
 
     def register_working_set(self, entry_id: EntryId) -> None:
         """Register a working set entry."""

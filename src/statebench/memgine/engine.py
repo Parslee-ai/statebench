@@ -473,6 +473,9 @@ class MemgineEngine:
                     fact_id=e.fact_id or "", key=e.key or "", value=e.value
                 )
                 for e in valid_non_constraints
+                # Don't feed recalc-pending (Type-II-flagged) facts into constraint
+                # checks as live values — their premise moved and they're stale.
+                if e.fact_id not in self._needs_review
             ]
             check_results = check_constraints(c_fvs, f_fvs)
             checklist = format_constraint_checklist(check_results)
@@ -1117,7 +1120,12 @@ class MemgineEngine:
             premises = []
             for dep_id in entry.depends_on:
                 dep_entry = by_fid.get(dep_id)
-                if dep_entry and self._layers.is_fact_valid(dep_id):
+                # Recalc-pending (Type-II-flagged) facts are not sound premises.
+                if (
+                    dep_entry
+                    and self._layers.is_fact_valid(dep_id)
+                    and dep_id not in self._needs_review
+                ):
                     premises.append(dep_entry)
                     used_as_premise.add(dep_id)
             if premises:
