@@ -250,6 +250,18 @@ class EvaluationHarness:
 
         return results
 
+    def _make_strategy(self, baseline_name: str) -> MemoryStrategy:
+        """Instantiate a baseline, passing the generation model so capability-
+        adaptive strategies (Memgine supersession handling) can tune to it.
+        Strategies that don't accept ``model`` fall back transparently.
+        """
+        try:
+            return get_baseline(
+                baseline_name, token_budget=self.token_budget, model=self.model
+            )
+        except TypeError:
+            return get_baseline(baseline_name, token_budget=self.token_budget)
+
     def evaluate(
         self,
         dataset_path: Path,
@@ -266,7 +278,7 @@ class EvaluationHarness:
         Returns:
             BenchmarkMetrics with results
         """
-        strategy = get_baseline(baseline_name, token_budget=self.token_budget)
+        strategy = self._make_strategy(baseline_name)
         aggregator = MetricsAggregator(baseline=baseline_name, model=self.model)
 
         timelines = list(load_timelines(dataset_path))

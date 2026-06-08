@@ -1,0 +1,162 @@
+{
+  "frontier": {
+    "repair_propagation": {
+      "n": 15,
+      "acc": 0.0,
+      "sfrr": 0.6666666666666666,
+      "mnmv": 0.6666666666666666
+    },
+    "interruption_resumption": {
+      "n": 15,
+      "acc": 0.6,
+      "sfrr": 0.0,
+      "mnmv": 0.0
+    },
+    "supersession_detection": {
+      "n": 15,
+      "acc": 1.0,
+      "sfrr": 0.4666666666666667,
+      "mnmv": 0.4666666666666667
+    },
+    "supersession": {
+      "n": 27,
+      "acc": 0.9629629629629629,
+      "sfrr": 0.25925925925925924,
+      "mnmv": 0.3888888888888889
+    },
+    "environmental_freshness": {
+      "n": 16,
+      "acc": 0.9375,
+      "sfrr": 0.125,
+      "mnmv": 0.125
+    },
+    "enterprise_privacy": {
+      "n": 15,
+      "acc": 0.6,
+      "sfrr": 0.2,
+      "mnmv": 0.2
+    },
+    "scope_leak": {
+      "n": 15,
+      "acc": 0.7333333333333333,
+      "sfrr": 0.0,
+      "mnmv": 0.0
+    },
+    "brutal_realistic": {
+      "n": 54,
+      "acc": 0.8148148148148148,
+      "sfrr": 0.018518518518518517,
+      "mnmv": 0.018518518518518517
+    },
+    "commitment_durability": {
+      "n": 15,
+      "acc": 0.6,
+      "sfrr": 0.0,
+      "mnmv": 0.0
+    },
+    "causality": {
+      "n": 15,
+      "acc": 0.2,
+      "sfrr": 0.06666666666666667,
+      "mnmv": 0.16666666666666666
+    },
+    "scope_permission": {
+      "n": 16,
+      "acc": 0.625,
+      "sfrr": 0.125,
+      "mnmv": 0.125
+    },
+    "hallucination_resistance": {
+      "n": 15,
+      "acc": 0.8,
+      "sfrr": 0.5333333333333333,
+      "mnmv": 0.5333333333333333
+    },
+    "authority_hierarchy": {
+      "n": 15,
+      "acc": 0.6666666666666666,
+      "sfrr": 0.6666666666666666,
+      "mnmv": 0.6666666666666666
+    }
+  },
+  "safe": {
+    "repair_propagation": {
+      "n": 15,
+      "acc": 0.06666666666666667,
+      "sfrr": 0.5333333333333333,
+      "mnmv": 0.5333333333333333
+    },
+    "interruption_resumption": {
+      "n": 15,
+      "acc": 0.8,
+      "sfrr": 0.0,
+      "mnmv": 0.0
+    },
+    "supersession_detection": {
+      "n": 15,
+      "acc": 0.9333333333333333,
+      "sfrr": 0.5333333333333333,
+      "mnmv": 0.5333333333333333
+    },
+    "supersession": {
+      "n": 27,
+      "acc": 0.9629629629629629,
+      "sfrr": 0.14814814814814814,
+      "mnmv": 0.2222222222222222
+    },
+    "environmental_freshness": {
+      "n": 16,
+      "acc": 1.0,
+      "sfrr": 0.1875,
+      "mnmv": 0.1875
+    },
+    "enterprise_privacy": {
+      "n": 15,
+      "acc": 0.7333333333333333,
+      "sfrr": 0.26666666666666666,
+      "mnmv": 0.26666666666666666
+    },
+    "scope_leak": {
+      "n": 15,
+      "acc": 0.8666666666666667,
+      "sfrr": 0.0,
+      "mnmv": 0.0
+    },
+    "brutal_realistic": {
+      "n": 54,
+      "acc": 0.8333333333333334,
+      "sfrr": 0.09259259259259259,
+      "mnmv": 0.09259259259259259
+    },
+    "commitment_durability": {
+      "n": 15,
+      "acc": 0.5333333333333333,
+      "sfrr": 0.0,
+      "mnmv": 0.0
+    },
+    "causality": {
+      "n": 15,
+      "acc": 0.4,
+      "sfrr": 0.06666666666666667,
+      "mnmv": 0.16666666666666666
+    },
+    "scope_permission": {
+      "n": 16,
+      "acc": 0.5625,
+      "sfrr": 0.125,
+      "mnmv": 0.125
+    },
+    "hallucination_resistance": {
+      "n": 15,
+      "acc": 0.8,
+      "sfrr": 0.6,
+      "mnmv": 0.6
+    },
+    "authority_hierarchy": {
+      "n": 15,
+      "acc": 0.6,
+      "sfrr": 0.6666666666666666,
+      "mnmv": 0.6666666666666666
+    }
+  }
+}
