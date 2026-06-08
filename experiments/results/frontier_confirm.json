@@ -1,0 +1,24 @@
+{
+  "model": "openai/gpt-5.4:latest",
+  "provider": "car",
+  "results": {
+    "memgine": {
+      "supersession": {
+        "n": 27,
+        "decision_accuracy": 0.9629629629629629,
+        "sfrr": 0.25925925925925924,
+        "mnm_violation_rate": 0.3888888888888889,
+        "avg_tokens": 0.0
+      }
+    },
+    "memgine_safe_supersession": {
+      "supersession": {
+        "n": 27,
+        "decision_accuracy": 1.0,
+        "sfrr": 0.14814814814814814,
+        "mnm_violation_rate": 0.2222222222222222,
+        "avg_tokens": 0.0
+      }
+    }
+  }
+}
