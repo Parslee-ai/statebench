@@ -12,20 +12,23 @@ supersession detection -- "which existing fact does this invalidate?"), and feed
 them into a MemgineEngine as structured facts. The engine's normal machinery
 (with the anti-resurrection `show_superseded_values` fix) then handles the rest.
 
-EMPIRICAL RESULT (StateBench supersession_detection, dev n=15, CAR-local):
-this UNDERPERFORMS plain memgine. With a qwen3-4b extractor + same-key matching:
-SFRR 0.47 -> 1.00. With a qwen3-8b extractor + reasoning-based supersession
-detection: acc 0.93 -> 0.60, SFRR 0.47 -> 0.87. The cause is information loss:
-replacing the raw transcript (which a capable reader parses correctly) with lossy
-local-model extraction discards the correct value and presents mis-extracted or
-un-superseded facts as current. Implicit supersessions here are often semantic /
-authority-based across *different* attributes (a CEO directive overriding a team
-decision), which neither key-matching nor a weak local reasoner reliably catches.
+EMPIRICAL RESULT (StateBench supersession_detection, dev n=15, gen=qwen3-4b):
+extraction quality is the whole game.
+  - qwen3-4b extractor, same-key matching:  SFRR 0.47 -> 1.00 (broken).
+  - qwen3-8b extractor, reasoning-based:     acc 0.93 -> 0.60, SFRR 0.47 -> 0.87.
+  - gpt-5.4 extractor,  reasoning-based:     acc 0.93 -> 0.93 (no regression),
+                                             SFRR 0.60 -> 0.47 (net positive).
+Weak local extractors produce inconsistent keys and miss semantic / authority-based
+supersession (e.g. a CEO directive overriding a team decision across differently
+named attributes), so they discard correct transcript info and present
+un-superseded facts as current -> worse than the raw transcript. A frontier
+extractor detects supersession correctly and the front-end becomes net-positive on
+implicit/conversational state (matches baseline accuracy, lowers resurrection).
 
-Conclusion: eager structured distillation needs a frontier-grade extractor to beat
-simply preserving the transcript and reasoning over it at query time. Kept as a
-documented baseline + a harness for future frontier-extractor experiments; NOT a
-recommended default. See [[memgine-supersession-annotation-leak]] notes.
+Conclusion: NL-distillation for conversational supersession is viable, but ONLY
+with a frontier-grade extractor; with a weak local one it actively harms. Still not
+a full solution (SFRR 0.47 remains high at n=15). Configure via `extract_model`.
+See [[memgine-supersession-annotation-leak]] notes.
 
 All inference routes through CAR (local models).
 """
