@@ -175,11 +175,13 @@ class MetricsAggregator:
                 metrics.must_not_mention_violations / metrics.total_must_not_mention
             )
 
-        # On "maintain" (should-NOT-supersede) tracks the correct behavior is to
-        # AFFIRM the still-valid fact (ground-truth decision = "yes"). FSR is the
-        # BEHAVIORAL failure to do so (decision != affirm) — not a lexical signal,
-        # since a correct denial of supersession ("nothing was cancelled") reuses
-        # the retirement vocabulary. SFRR and FSR are never aggregated.
+        # On "maintain" (should-NOT-*) tracks the correct behavior is to AFFIRM the
+        # still-valid fact (ground-truth decision = "yes"). false_supersession_rate
+        # is the BEHAVIORAL failure to do so (decision != affirm) — not a lexical
+        # signal, since a correct denial reuses the retirement vocabulary. It is the
+        # generic "wrongly retired a valid fact" rate: it is FSR on supersession_*
+        # maintain tracks and the False Authority Override Rate (FAOR) on
+        # authority_maintain. Never aggregated with the should-supersede metrics.
         if track.endswith("_maintain"):
             metrics.false_supersession_rate = (
                 metrics.total_queries - metrics.correct_decisions

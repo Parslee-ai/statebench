@@ -47,6 +47,7 @@ AVAILABLE_TRACKS = [
     "supersession_maintain",   # should-NOT-supersede guardrail (FSR)
     "authority_conflict",      # structured same-key authority conflicts
     "dependency_chain",        # structured depends_on chains (Type II repair)
+    "authority_maintain",      # should-NOT-override guardrail (FAOR)
 ]
 
 # Guard against drift: every benchmark Track literal (the "adversarial" entry above

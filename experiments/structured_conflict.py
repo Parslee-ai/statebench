@@ -53,7 +53,15 @@ def main():
     dep = list(gen.generate_track("dependency_chain", count=args.n))
     d = evaluate(harness, MemgineStrategy(token_budget=8000, model=args.model), dep)
     print("dependency_chain (does it avoid asserting the stale derived value?)")
-    print(f"  memgine: acc={d[0]:.3f}  stale-value-asserted(MNMv)={d[1]:.3f}  n={d[2]}")
+    print(f"  memgine: acc={d[0]:.3f}  stale-value-asserted(MNMv)={d[1]:.3f}  n={d[2]}\n")
+
+    am = list(gen.generate_track("authority_maintain", count=args.n))
+    a = evaluate(harness, MemgineStrategy(token_budget=8000, model=args.model), am)
+    # FAOR = behavioral failure to affirm the complying decision = 1 - decision_accuracy.
+    print("authority_maintain — should-NOT-override (False Authority Override Rate):")
+    print(f"  memgine: FAOR={1 - a[0]:.3f}  n={a[2]}  "
+          "(FAOR=0 is STRUCTURAL: authority resolution can't reach across keys, so "
+          "this is a conformance/regression guarantee, not a behavioral discriminator)")
 
 
 if __name__ == "__main__":

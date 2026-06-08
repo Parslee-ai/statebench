@@ -82,6 +82,76 @@ AUTHORITY_CONFLICTS = [
 
 
 @dataclass(frozen=True)
+class AuthorityMaintain:
+    """should-NOT-override (FSR-analog for authority): a lower-authority SPECIFIC
+    decision that COMPLIES with a higher-authority general rule (a DIFFERENT slot)
+    must remain valid — an over-aggressive authority resolver that retires it is
+    wrong. Scored via the _maintain behavioral metric (False Authority Override Rate)."""
+    domain: str
+    rule_key: str
+    rule_value: str
+    rule_authority: str       # higher (e.g. policy)
+    decision_key: str         # DIFFERENT key from rule_key (different slot)
+    decision_value: str
+    decision_authority: str   # lower (e.g. manager); complies with the rule
+    query: str
+    decision: str             # affirms the specific decision still stands
+    must_mention: list[str]
+
+
+AUTHORITY_MAINTAIN = [
+    AuthorityMaintain(
+        domain="procurement",
+        rule_key="travel_policy",
+        rule_value="all travel must be booked at least 14 days in advance",
+        rule_authority="policy",
+        decision_key="sarah_trip_approval",
+        decision_value="approved Sarah's conference trip, booked 3 weeks out",
+        decision_authority="manager",
+        query="Is Sarah's conference trip approved?",
+        decision="yes",
+        must_mention=["approved|yes"],
+    ),
+    AuthorityMaintain(
+        domain="procurement",
+        rule_key="purchase_policy",
+        rule_value="purchases over $25k require VP sign-off",
+        rule_authority="policy",
+        decision_key="monitor_order_approval",
+        decision_value="approved the $8k monitor order",
+        decision_authority="manager",
+        query="Can I place the $8k monitor order?",
+        decision="yes",
+        must_mention=["approved|yes|$8k"],
+    ),
+    AuthorityMaintain(
+        domain="sales",
+        rule_key="discount_policy",
+        rule_value="discounts are capped at 10%",
+        rule_authority="policy",
+        decision_key="acme_discount_approval",
+        decision_value="approved an 8% discount for Acme",
+        decision_authority="manager",
+        query="Is the 8% discount for Acme approved?",
+        decision="yes",
+        must_mention=["8%|approved|yes"],
+    ),
+    AuthorityMaintain(
+        domain="project",
+        rule_key="release_policy",
+        rule_value="releases ship only after a full QA pass",
+        rule_authority="policy",
+        decision_key="hotfix_approval",
+        decision_value="approved the hotfix release, which passed full QA",
+        decision_authority="manager",
+        query="Is the hotfix release approved to ship?",
+        decision="yes",
+        must_mention=["approved|yes"],
+    ),
+]
+
+
+@dataclass(frozen=True)
 class DependencyChain:
     """A derived chain base <- mid <- top. The base is superseded; the derived
     values (mid, top) are stale and must be recalculated, not asserted as current."""
