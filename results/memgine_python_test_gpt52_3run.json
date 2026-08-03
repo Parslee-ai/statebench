@@ -1,0 +1,366 @@
+{
+  "baseline": "memgine",
+  "model": "gpt-5.2",
+  "n_runs": 3,
+  "aggregate": {
+    "decision_accuracy": {
+      "mean": 0.9415670650730411,
+      "std": 0.010456849766283988
+    },
+    "sfrr": {
+      "mean": 0.250996015936255,
+      "std": 0.006505948852013748
+    },
+    "must_mention_rate": {
+      "mean": 0.7883705206220419,
+      "std": 0.0041679607863211515
+    },
+    "must_not_mention_violation_rate": {
+      "mean": 0.11716171617161716,
+      "std": 0.0058729803366508815
+    }
+  },
+  "tracks": {
+    "authority_hierarchy": {
+      "decision_accuracy": {
+        "mean": 0.9333333333333333,
+        "std": 0.05443310539518172
+      }
+    },
+    "brutal_realistic": {
+      "decision_accuracy": {
+        "mean": 0.9473684210526315,
+        "std": 0.028649002839569334
+      }
+    },
+    "causality": {
+      "decision_accuracy": {
+        "mean": 0.9555555555555556,
+        "std": 0.03142696805273544
+      }
+    },
+    "commitment_durability": {
+      "decision_accuracy": {
+        "mean": 0.7333333333333333,
+        "std": 0.0
+      }
+    },
+    "enterprise_privacy": {
+      "decision_accuracy": {
+        "mean": 1.0,
+        "std": 0.0
+      }
+    },
+    "environmental_freshness": {
+      "decision_accuracy": {
+        "mean": 0.9166666666666666,
+        "std": 0.02946278254943948
+      }
+    },
+    "hallucination_resistance": {
+      "decision_accuracy": {
+        "mean": 0.9333333333333333,
+        "std": 0.05443310539518172
+      }
+    },
+    "interruption_resumption": {
+      "decision_accuracy": {
+        "mean": 1.0,
+        "std": 0.0
+      }
+    },
+    "repair_propagation": {
+      "decision_accuracy": {
+        "mean": 0.9777777777777777,
+        "std": 0.03142696805273544
+      }
+    },
+    "scope_leak": {
+      "decision_accuracy": {
+        "mean": 0.9333333333333333,
+        "std": 0.0
+      }
+    },
+    "scope_permission": {
+      "decision_accuracy": {
+        "mean": 0.875,
+        "std": 0.05103103630798288
+      }
+    },
+    "supersession": {
+      "decision_accuracy": {
+        "mean": 0.9876543209876543,
+        "std": 0.01745942669596416
+      }
+    },
+    "supersession_detection": {
+      "decision_accuracy": {
+        "mean": 1.0,
+        "std": 0.0
+      }
+    }
+  },
+  "per_run": [
+    {
+      "decision_accuracy": 0.9322709163346613,
+      "sfrr": 0.24302788844621515,
+      "must_mention_rate": 0.7890466531440162,
+      "must_not_mention_violation_rate": 0.11386138613861387,
+      "total_queries": 251,
+      "tracks": {
+        "interruption_resumption": {
+          "decision_accuracy": 1.0,
+          "sfrr": 0.0,
+          "must_mention_rate": 0.6333333333333333,
+          "must_not_mention_violation_rate": 0.0
+        },
+        "supersession": {
+          "decision_accuracy": 1.0,
+          "sfrr": 0.07407407407407407,
+          "must_mention_rate": 0.9705882352941176,
+          "must_not_mention_violation_rate": 0.05714285714285714
+        },
+        "brutal_realistic": {
+          "decision_accuracy": 0.9473684210526315,
+          "sfrr": 0.14035087719298245,
+          "must_mention_rate": 0.7169811320754716,
+          "must_not_mention_violation_rate": 0.07017543859649122
+        },
+        "scope_leak": {
+          "decision_accuracy": 0.9333333333333333,
+          "sfrr": 0.6666666666666666,
+          "must_mention_rate": 0.8666666666666667,
+          "must_not_mention_violation_rate": 0.16666666666666666
+        },
+        "repair_propagation": {
+          "decision_accuracy": 0.9333333333333333,
+          "sfrr": 0.3333333333333333,
+          "must_mention_rate": 0.6666666666666666,
+          "must_not_mention_violation_rate": 0.17073170731707318
+        },
+        "hallucination_resistance": {
+          "decision_accuracy": 0.8666666666666667,
+          "sfrr": 0.5333333333333333,
+          "must_mention_rate": 0.9523809523809523,
+          "must_not_mention_violation_rate": 0.1
+        },
+        "scope_permission": {
+          "decision_accuracy": 0.875,
+          "sfrr": 0.0,
+          "must_mention_rate": 0.71875,
+          "must_not_mention_violation_rate": 0.0
+        },
+        "enterprise_privacy": {
+          "decision_accuracy": 1.0,
+          "sfrr": 0.4,
+          "must_mention_rate": 0.0,
+          "must_not_mention_violation_rate": 0.09333333333333334
+        },
+        "causality": {
+          "decision_accuracy": 0.9333333333333333,
+          "sfrr": 0.06666666666666667,
+          "must_mention_rate": 0.8571428571428571,
+          "must_not_mention_violation_rate": 0.25
+        },
+        "authority_hierarchy": {
+          "decision_accuracy": 0.9333333333333333,
+          "sfrr": 0.4666666666666667,
+          "must_mention_rate": 0.7777777777777778,
+          "must_not_mention_violation_rate": 0.22580645161290322
+        },
+        "environmental_freshness": {
+          "decision_accuracy": 0.875,
+          "sfrr": 0.0625,
+          "must_mention_rate": 0.90625,
+          "must_not_mention_violation_rate": 0.034482758620689655
+        },
+        "supersession_detection": {
+          "decision_accuracy": 1.0,
+          "sfrr": 0.8666666666666667,
+          "must_mention_rate": 1.0,
+          "must_not_mention_violation_rate": 0.8666666666666667
+        },
+        "commitment_durability": {
+          "decision_accuracy": 0.7333333333333333,
+          "sfrr": 0.0,
+          "must_mention_rate": 1.0,
+          "must_not_mention_violation_rate": 0.0
+        }
+      }
+    },
+    {
+      "decision_accuracy": 0.9561752988047809,
+      "sfrr": 0.250996015936255,
+      "must_mention_rate": 0.7931034482758621,
+      "must_not_mention_violation_rate": 0.11221122112211221,
+      "total_queries": 251,
+      "tracks": {
+        "interruption_resumption": {
+          "decision_accuracy": 1.0,
+          "sfrr": 0.0,
+          "must_mention_rate": 0.5666666666666667,
+          "must_not_mention_violation_rate": 0.0
+        },
+        "supersession": {
+          "decision_accuracy": 0.9629629629629629,
+          "sfrr": 0.07407407407407407,
+          "must_mention_rate": 0.9705882352941176,
+          "must_not_mention_violation_rate": 0.05714285714285714
+        },
+        "brutal_realistic": {
+          "decision_accuracy": 0.9824561403508771,
+          "sfrr": 0.14035087719298245,
+          "must_mention_rate": 0.7358490566037735,
+          "must_not_mention_violation_rate": 0.07017543859649122
+        },
+        "scope_leak": {
+          "decision_accuracy": 0.9333333333333333,
+          "sfrr": 0.7333333333333333,
+          "must_mention_rate": 0.8333333333333334,
+          "must_not_mention_violation_rate": 0.18333333333333332
+        },
+        "repair_propagation": {
+          "decision_accuracy": 1.0,
+          "sfrr": 0.3333333333333333,
+          "must_mention_rate": 0.7111111111111111,
+          "must_not_mention_violation_rate": 0.1951219512195122
+        },
+        "hallucination_resistance": {
+          "decision_accuracy": 0.9333333333333333,
+          "sfrr": 0.6666666666666666,
+          "must_mention_rate": 0.9523809523809523,
+          "must_not_mention_violation_rate": 0.09166666666666666
+        },
+        "scope_permission": {
+          "decision_accuracy": 0.9375,
+          "sfrr": 0.0,
+          "must_mention_rate": 0.75,
+          "must_not_mention_violation_rate": 0.0
+        },
+        "enterprise_privacy": {
+          "decision_accuracy": 1.0,
+          "sfrr": 0.3333333333333333,
+          "must_mention_rate": 0.0,
+          "must_not_mention_violation_rate": 0.06666666666666667
+        },
+        "causality": {
+          "decision_accuracy": 0.9333333333333333,
+          "sfrr": 0.06666666666666667,
+          "must_mention_rate": 0.8285714285714286,
+          "must_not_mention_violation_rate": 0.25
+        },
+        "authority_hierarchy": {
+          "decision_accuracy": 1.0,
+          "sfrr": 0.4,
+          "must_mention_rate": 0.8,
+          "must_not_mention_violation_rate": 0.1935483870967742
+        },
+        "environmental_freshness": {
+          "decision_accuracy": 0.9375,
+          "sfrr": 0.1875,
+          "must_mention_rate": 0.875,
+          "must_not_mention_violation_rate": 0.10344827586206896
+        },
+        "supersession_detection": {
+          "decision_accuracy": 1.0,
+          "sfrr": 0.8,
+          "must_mention_rate": 1.0,
+          "must_not_mention_violation_rate": 0.8
+        },
+        "commitment_durability": {
+          "decision_accuracy": 0.7333333333333333,
+          "sfrr": 0.0,
+          "must_mention_rate": 1.0,
+          "must_not_mention_violation_rate": 0.0
+        }
+      }
+    },
+    {
+      "decision_accuracy": 0.9362549800796812,
+      "sfrr": 0.2589641434262948,
+      "must_mention_rate": 0.7829614604462475,
+      "must_not_mention_violation_rate": 0.1254125412541254,
+      "total_queries": 251,
+      "tracks": {
+        "interruption_resumption": {
+          "decision_accuracy": 1.0,
+          "sfrr": 0.0,
+          "must_mention_rate": 0.5666666666666667,
+          "must_not_mention_violation_rate": 0.0
+        },
+        "supersession": {
+          "decision_accuracy": 1.0,
+          "sfrr": 0.07407407407407407,
+          "must_mention_rate": 1.0,
+          "must_not_mention_violation_rate": 0.05714285714285714
+        },
+        "brutal_realistic": {
+          "decision_accuracy": 0.9122807017543859,
+          "sfrr": 0.10526315789473684,
+          "must_mention_rate": 0.710691823899371,
+          "must_not_mention_violation_rate": 0.05263157894736842
+        },
+        "scope_leak": {
+          "decision_accuracy": 0.9333333333333333,
+          "sfrr": 0.6666666666666666,
+          "must_mention_rate": 0.9333333333333333,
+          "must_not_mention_violation_rate": 0.16666666666666666
+        },
+        "repair_propagation": {
+          "decision_accuracy": 1.0,
+          "sfrr": 0.4,
+          "must_mention_rate": 0.7111111111111111,
+          "must_not_mention_violation_rate": 0.24390243902439024
+        },
+        "hallucination_resistance": {
+          "decision_accuracy": 1.0,
+          "sfrr": 0.8,
+          "must_mention_rate": 0.9523809523809523,
+          "must_not_mention_violation_rate": 0.14166666666666666
+        },
+        "scope_permission": {
+          "decision_accuracy": 0.8125,
+          "sfrr": 0.0,
+          "must_mention_rate": 0.71875,
+          "must_not_mention_violation_rate": 0.0
+        },
+        "enterprise_privacy": {
+          "decision_accuracy": 1.0,
+          "sfrr": 0.4,
+          "must_mention_rate": 0.0,
+          "must_not_mention_violation_rate": 0.09333333333333334
+        },
+        "causality": {
+          "decision_accuracy": 1.0,
+          "sfrr": 0.06666666666666667,
+          "must_mention_rate": 0.8,
+          "must_not_mention_violation_rate": 0.25
+        },
+        "authority_hierarchy": {
+          "decision_accuracy": 0.8666666666666667,
+          "sfrr": 0.4666666666666667,
+          "must_mention_rate": 0.7555555555555555,
+          "must_not_mention_violation_rate": 0.22580645161290322
+        },
+        "environmental_freshness": {
+          "decision_accuracy": 0.9375,
+          "sfrr": 0.125,
+          "must_mention_rate": 0.84375,
+          "must_not_mention_violation_rate": 0.06896551724137931
+        },
+        "supersession_detection": {
+          "decision_accuracy": 1.0,
+          "sfrr": 0.8666666666666667,
+          "must_mention_rate": 1.0,
+          "must_not_mention_violation_rate": 0.8666666666666667
+        },
+        "commitment_durability": {
+          "decision_accuracy": 0.7333333333333333,
+          "sfrr": 0.0,
+          "must_mention_rate": 1.0,
+          "must_not_mention_violation_rate": 0.0
+        }
+      }
+    }
+  ]
+}
