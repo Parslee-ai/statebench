@@ -52,6 +52,20 @@ Track = Literal[
     "authority_conflict",         # NEW: structured same-key authority conflicts
     "dependency_chain",           # NEW: structured depends_on chains (Type II repair)
     "authority_maintain",         # NEW: should-NOT-override guardrail (FAOR)
+    # v2.0 paired-counterfactual tracks. Each holds entity, wording, event count
+    # and query constant and moves exactly one governance variable, so the
+    # measured quantity is the behavioral delta between the pair rather than
+    # accuracy on either side. Engine-decidable axes (access_control,
+    # scope_binding, actor_isolation) remove the discriminating fact from
+    # context; model-decidable axes leave it visible. See generator.counterfactual.
+    "cf_access_control",
+    "cf_scope_binding",
+    "cf_actor_isolation",
+    "cf_temporal_validity",
+    "cf_supersession",
+    "cf_commitment_status",
+    "cf_dependency_validity",
+    "applicability",
 ]
 
 Difficulty = Literal["easy", "medium", "hard", "adversarial"]
@@ -213,6 +227,15 @@ class MentionRequirement(BaseModel):
         default=None,
         description="Why this is required/forbidden"
     )
+    kind: Literal["superseded", "restricted", "fabricated", "other"] = Field(
+        default="other",
+        description=(
+            "What class of failure this phrase detects. SFRR counts only "
+            "'superseded' violations; lumping restricted-data leaks and "
+            "fabrications into it makes SFRR a synonym for 'any violation' "
+            "rather than a resurrection measure."
+        ),
+    )
 
 
 class FactRequirement(BaseModel):
@@ -315,6 +338,23 @@ class GroundTruth(BaseModel):
     supersession_detection: SupersessionDetection | None = Field(
         default=None,
         description="Ground truth for supersession detection scoring"
+    )
+
+    # v2.0: Applicability ground truth. A retrieved experience can be correct to
+    # reuse, correct to adapt, or correct to refuse — and "refuse" is a correct
+    # outcome, not a failure, so it needs its own label rather than being scored
+    # as a missed answer.
+    expected_applicability: Literal["KEEP", "ADAPT", "REJECT"] | None = Field(
+        default=None,
+        description="Correct disposition of the retrieved past experience"
+    )
+    transferable_principle: str | None = Field(
+        default=None,
+        description="The abstract lesson that survives adaptation, if any"
+    )
+    obsolete_details: list[str] = Field(
+        default_factory=list,
+        description="Source-state specifics that must NOT survive adaptation"
     )
 
     # v1.0: Business impact for cost-weighted scoring
