@@ -483,7 +483,18 @@ class MemgineEngine:
                 parts.append(checklist)
 
         # --- Layer 2b: Valid non-constraint facts ---
-        valid_entries = self._get_valid_non_constraint_entries()
+        valid_entries, scope_excluded_entries = (
+            self._partition_valid_non_constraint_entries()
+        )
+        # Record scope-based exclusions in the audit trail, the same way
+        # access-control exclusions are recorded below. These facts were already
+        # kept out of context; what was missing was the evidence of it.
+        for entry in scope_excluded_entries:
+            if entry.fact_id:
+                facts_excluded.append(self._entry_to_fact_metadata(entry, valid=True))
+                inclusion_reasons[entry.fact_id] = (
+                    f"excluded: {entry.scope} scope (architectural enforcement)"
+                )
         dag_layer2 = self._dag.get_by_layer(2)
         compacted_entry_ids = self._compactor.compacted_entries
 
@@ -814,7 +825,23 @@ class MemgineEngine:
 
     def _get_valid_non_constraint_entries(self) -> list[StoreEntry]:
         """Get store entries for valid non-constraint facts."""
-        entries = []
+        entries, _ = self._partition_valid_non_constraint_entries()
+        return entries
+
+    def _partition_valid_non_constraint_entries(
+        self,
+    ) -> tuple[list[StoreEntry], list[StoreEntry]]:
+        """Split valid non-constraint facts into (admitted, scope-excluded).
+
+        Scope filtering previously dropped hypothetical/draft facts with a bare
+        ``continue``, so they never reached the model — correct — but also never
+        appeared in ``facts_excluded``. That left the audit record complete for
+        access-control exclusions and silently empty for scope exclusions, which
+        is the one place a reader would look to verify scope containment
+        actually happened.
+        """
+        entries: list[StoreEntry] = []
+        scope_excluded: list[StoreEntry] = []
         for fact_id in self._layers.get_valid_fact_ids():
             if fact_id not in self._layers.constraints:
                 entry = self._store.get_by_fact_id(fact_id)
@@ -822,9 +849,10 @@ class MemgineEngine:
                     # Architectural enforcement: exclude hypothetical/draft facts
                     # so the LLM cannot leak scoped content it never sees.
                     if entry.scope in ("hypothetical", "draft"):
+                        scope_excluded.append(entry)
                         continue
                     entries.append(entry)
-        return entries
+        return entries, scope_excluded
 
     def _get_working_set_entries(self) -> list[StoreEntry]:
         """Get active working set entries (not discarded), capped at max."""

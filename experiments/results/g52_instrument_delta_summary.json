@@ -1,0 +1,222 @@
+{
+ "fact_extraction_with_supersession": {
+  "n_queries": 125,
+  "n_blocked_by_provider": 0,
+  "legacy": {
+   "decision_accuracy": 0.76,
+   "sfrr": 0.224,
+   "must_mention_rate": 0.6437246963562753,
+   "mnm_violation_rate": 0.134375
+  },
+  "current": {
+   "decision_accuracy": 0.784,
+   "sfrr": 0.12,
+   "must_mention_rate": 0.6437246963562753,
+   "mnm_violation_rate": 0.09507042253521127
+  },
+  "delta": {
+   "decision_accuracy": 0.02400000000000002,
+   "sfrr": -0.10400000000000001,
+   "must_mention_rate": 0.0,
+   "mnm_violation_rate": -0.03930457746478873
+  }
+ },
+ "rolling_summary": {
+  "n_queries": 125,
+  "n_blocked_by_provider": 0,
+  "legacy": {
+   "decision_accuracy": 0.8,
+   "sfrr": 0.256,
+   "must_mention_rate": 0.6477732793522267,
+   "mnm_violation_rate": 0.128125
+  },
+  "current": {
+   "decision_accuracy": 0.824,
+   "sfrr": 0.104,
+   "must_mention_rate": 0.6437246963562753,
+   "mnm_violation_rate": 0.09859154929577464
+  },
+  "delta": {
+   "decision_accuracy": 0.02399999999999991,
+   "sfrr": -0.15200000000000002,
+   "must_mention_rate": -0.004048582995951455,
+   "mnm_violation_rate": -0.029533450704225347
+  }
+ },
+ "rag_transcript": {
+  "n_queries": 125,
+  "n_blocked_by_provider": 0,
+  "legacy": {
+   "decision_accuracy": 0.848,
+   "sfrr": 0.288,
+   "must_mention_rate": 0.6842105263157895,
+   "mnm_violation_rate": 0.14375
+  },
+  "current": {
+   "decision_accuracy": 0.832,
+   "sfrr": 0.128,
+   "must_mention_rate": 0.6842105263157895,
+   "mnm_violation_rate": 0.11619718309859155
+  },
+  "delta": {
+   "decision_accuracy": -0.016000000000000014,
+   "sfrr": -0.15999999999999998,
+   "must_mention_rate": 0.0,
+   "mnm_violation_rate": -0.027552816901408442
+  }
+ },
+ "fact_extraction": {
+  "n_queries": 125,
+  "n_blocked_by_provider": 0,
+  "legacy": {
+   "decision_accuracy": 0.736,
+   "sfrr": 0.28,
+   "must_mention_rate": 0.6032388663967612,
+   "mnm_violation_rate": 0.15
+  },
+  "current": {
+   "decision_accuracy": 0.792,
+   "sfrr": 0.16,
+   "must_mention_rate": 0.5991902834008097,
+   "mnm_violation_rate": 0.1267605633802817
+  },
+  "delta": {
+   "decision_accuracy": 0.05600000000000005,
+   "sfrr": -0.12000000000000002,
+   "must_mention_rate": -0.004048582995951455,
+   "mnm_violation_rate": -0.023239436619718307
+  }
+ },
+ "no_memory": {
+  "n_queries": 125,
+  "n_blocked_by_provider": 0,
+  "legacy": {
+   "decision_accuracy": 0.264,
+   "sfrr": 0.112,
+   "must_mention_rate": 0.11336032388663968,
+   "mnm_violation_rate": 0.075
+  },
+  "current": {
+   "decision_accuracy": 0.312,
+   "sfrr": 0.016,
+   "must_mention_rate": 0.10931174089068826,
+   "mnm_violation_rate": 0.04225352112676056
+  },
+  "delta": {
+   "decision_accuracy": 0.04799999999999999,
+   "sfrr": -0.096,
+   "must_mention_rate": -0.004048582995951414,
+   "mnm_violation_rate": -0.032746478873239435
+  }
+ },
+ "transcript_latest_wins": {
+  "n_queries": 125,
+  "n_blocked_by_provider": 0,
+  "legacy": {
+   "decision_accuracy": 0.68,
+   "sfrr": 0.192,
+   "must_mention_rate": 0.4089068825910931,
+   "mnm_violation_rate": 0.084375
+  },
+  "current": {
+   "decision_accuracy": 0.688,
+   "sfrr": 0.064,
+   "must_mention_rate": 0.41295546558704455,
+   "mnm_violation_rate": 0.0528169014084507
+  },
+  "delta": {
+   "decision_accuracy": 0.007999999999999896,
+   "sfrr": -0.128,
+   "must_mention_rate": 0.004048582995951455,
+   "mnm_violation_rate": -0.0315580985915493
+  }
+ },
+ "state_based_no_supersession": {
+  "n_queries": 125,
+  "n_blocked_by_provider": 0,
+  "legacy": {
+   "decision_accuracy": 0.872,
+   "sfrr": 0.264,
+   "must_mention_rate": 0.8137651821862348,
+   "mnm_violation_rate": 0.146875
+  },
+  "current": {
+   "decision_accuracy": 0.864,
+   "sfrr": 0.088,
+   "must_mention_rate": 0.8097165991902834,
+   "mnm_violation_rate": 0.11619718309859155
+  },
+  "delta": {
+   "decision_accuracy": -0.008000000000000007,
+   "sfrr": -0.17600000000000002,
+   "must_mention_rate": -0.004048582995951455,
+   "mnm_violation_rate": -0.03067781690140846
+  }
+ },
+ "memgine": {
+  "n_queries": 125,
+  "n_blocked_by_provider": 0,
+  "legacy": {
+   "decision_accuracy": 0.936,
+   "sfrr": 0.224,
+   "must_mention_rate": 0.7651821862348178,
+   "mnm_violation_rate": 0.11875
+  },
+  "current": {
+   "decision_accuracy": 0.928,
+   "sfrr": 0.136,
+   "must_mention_rate": 0.7651821862348178,
+   "mnm_violation_rate": 0.09507042253521127
+  },
+  "delta": {
+   "decision_accuracy": -0.008000000000000007,
+   "sfrr": -0.088,
+   "must_mention_rate": 0.0,
+   "mnm_violation_rate": -0.02367957746478873
+  }
+ },
+ "state_based": {
+  "n_queries": 125,
+  "n_blocked_by_provider": 0,
+  "legacy": {
+   "decision_accuracy": 0.88,
+   "sfrr": 0.248,
+   "must_mention_rate": 0.7449392712550608,
+   "mnm_violation_rate": 0.1625
+  },
+  "current": {
+   "decision_accuracy": 0.872,
+   "sfrr": 0.088,
+   "must_mention_rate": 0.7368421052631579,
+   "mnm_violation_rate": 0.11971830985915492
+  },
+  "delta": {
+   "decision_accuracy": -0.008000000000000007,
+   "sfrr": -0.16,
+   "must_mention_rate": -0.00809716599190291,
+   "mnm_violation_rate": -0.04278169014084508
+  }
+ },
+ "transcript_replay": {
+  "n_queries": 125,
+  "n_blocked_by_provider": 0,
+  "legacy": {
+   "decision_accuracy": 0.784,
+   "sfrr": 0.248,
+   "must_mention_rate": 0.6882591093117408,
+   "mnm_violation_rate": 0.11875
+  },
+  "current": {
+   "decision_accuracy": 0.848,
+   "sfrr": 0.08,
+   "must_mention_rate": 0.6680161943319838,
+   "mnm_violation_rate": 0.08098591549295775
+  },
+  "delta": {
+   "decision_accuracy": 0.06399999999999995,
+   "sfrr": -0.16799999999999998,
+   "must_mention_rate": -0.020242914979757054,
+   "mnm_violation_rate": -0.037764084507042245
+  }
+ }
+}

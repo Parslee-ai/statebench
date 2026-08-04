@@ -11,13 +11,13 @@ from rich.console import Console
 from rich.table import Table
 
 from statebench.baselines import BASELINE_REGISTRY
-from statebench.schema.timeline import Track
 from statebench.calibration import create_audit_template, run_calibration
 from statebench.evaluation import format_metrics_table
 from statebench.evaluation.metrics import BenchmarkMetrics
 from statebench.generator.engine import generate_dataset
 from statebench.release import RELEASE_CONFIG, generate_release, verify_release
 from statebench.runner.harness import EvaluationHarness, load_timelines
+from statebench.schema.timeline import Track
 
 # Load environment variables from .env file (after imports to satisfy E402)
 load_dotenv()
@@ -48,6 +48,16 @@ AVAILABLE_TRACKS = [
     "authority_conflict",      # structured same-key authority conflicts
     "dependency_chain",        # structured depends_on chains (Type II repair)
     "authority_maintain",      # should-NOT-override guardrail (FAOR)
+    # v2.0 tracks: paired counterfactuals (one governance variable moves per
+    # pair) plus the governance x applicability factorial.
+    "cf_access_control",
+    "cf_scope_binding",
+    "cf_actor_isolation",
+    "cf_temporal_validity",
+    "cf_supersession",
+    "cf_commitment_status",
+    "cf_dependency_validity",
+    "applicability",
 ]
 
 # Guard against drift: every benchmark Track literal (the "adversarial" entry above

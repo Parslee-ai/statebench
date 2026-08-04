@@ -31,6 +31,10 @@ from statebench.evaluation import (
     QueryResult,
     create_judge,
 )
+from statebench.evaluation.governance_metrics import (
+    find_governance_bypass,
+    find_unsupported_reconstruction,
+)
 from statebench.runner.fact_padding import generate_filler_facts
 from statebench.schema.timeline import ConversationTurn, Query, StateWrite, Supersession, Timeline
 
@@ -59,24 +63,35 @@ class EvaluationHarness:
         use_llm_judge: bool = True,
         token_budget: int = 8000,
         pad_facts: int = 0,
+        judge_provider: str | None = None,
+        judge_model: str | None = None,
     ):
         """Initialize the harness.
 
         Args:
             model: Model to use for generating responses
-            provider: LLM provider ("openai", "anthropic", or "google")
+            provider: LLM provider ("openai", "anthropic", "google", or "car")
             use_llm_judge: Whether to use LLM for judging
             token_budget: Token budget for context
             pad_facts: Number of filler facts to inject per timeline (0 = disabled)
+            judge_provider: Judge provider. Deliberately independent of
+                ``provider`` — see below. Defaults to $STATEBENCH_JUDGE or the
+                pinned default.
+            judge_model: Judge model id; defaults per judge provider.
         """
         self.model = model
         self.provider = provider
         self.token_budget = token_budget
         self.pad_facts = pad_facts
         self._client: Any = None
-        # Use OpenAI for judging by default (most reliable)
-        judge_provider = "openai" if provider == "google" else provider
-        self.judge = create_judge(use_llm=use_llm_judge, provider=judge_provider)
+        # The judge is NEVER derived from the provider under test. Doing so
+        # graded each model family with a judge from its own family, so any
+        # cross-model comparison mixed two graders. Pin one judge for the whole
+        # comparison; its identity is exposed via ``judge.descriptor`` and must
+        # be recorded with the results.
+        self.judge = create_judge(
+            use_llm=use_llm_judge, provider=judge_provider, model=judge_model
+        )
 
     def _get_client(self) -> Any:
         """Get or create the LLM client."""
@@ -200,6 +215,17 @@ class EvaluationHarness:
         """
         strategy.reset()
 
+        # Reference resolver, run alongside the strategy under test. Governance
+        # Bypass must be scored against what state resolution WOULD exclude, not
+        # against what the baseline itself excluded — otherwise a system that
+        # filters nothing (the prompted reconstruction arm) trivially scores 0%,
+        # which is exactly backwards. Deterministic and LLM-free, so it costs
+        # nothing to run for every baseline.
+        from statebench.memgine.engine import MemgineEngine
+
+        reference = MemgineEngine()
+        reference.ingest_initial_state(timeline.initial_state)
+
         # Initialize strategies that explicitly request the initial snapshot
         if getattr(strategy, "expects_initial_state", False):
             init_fn = getattr(strategy, "initialize_from_state", None)
@@ -241,14 +267,76 @@ class EvaluationHarness:
                 result.compaction_tokens_before = ctx_result.compaction_tokens_before
                 result.compaction_tokens_after = ctx_result.compaction_tokens_after
 
+                # Governance metrics: scored against what the engine actually
+                # excluded, so they need no author-written phrase list.
+                self._score_governance(
+                    result,
+                    response,
+                    event.prompt,
+                    ctx_result,
+                    strategy,
+                    reference.build_context(event.prompt),
+                )
+
                 results.append(result)
                 query_idx += 1
 
             elif isinstance(event, (ConversationTurn, StateWrite, Supersession)):
                 # Process the event through the strategy
                 strategy.process_event(event)
+                reference.ingest_statebench_event(event)
 
         return results
+
+    @staticmethod
+    def _score_governance(
+        result: QueryResult,
+        response: str,
+        query: str,
+        ctx_result: Any,
+        strategy: MemoryStrategy,
+        reference: Any,
+    ) -> None:
+        """Attach Governance Bypass and Unsupported Reconstruction evidence.
+
+        Bypass is scored against the REFERENCE resolver's exclusions, so the
+        same standard applies to every baseline: "did the response assert
+        something a correct state layer would have withheld?" Scoring against
+        the baseline's own exclusions would make the metric vacuous for systems
+        that exclude nothing.
+
+        Unsupported values are scored against the baseline's own admitted facts
+        plus any bindings its reconstruction stage declared — there the question
+        is whether the system invented state beyond what IT was working from.
+        """
+        result.facts_excluded_count = len(reference.facts_excluded)
+
+        findings = find_governance_bypass(
+            response,
+            reference.facts_excluded,
+            reference.facts_included,
+            reference.inclusion_reasons,
+            query=query,
+        )
+        result.governance_bypass = bool(findings)
+        result.bypassed_fact_ids = [f.fact_id for f in findings]
+
+        # Reconstruction baselines expose the bindings they committed to; other
+        # strategies have none, and every asserted value must then trace to an
+        # admitted fact.
+        bindings: dict[str, str] = {}
+        for verdict in getattr(strategy, "last_verdicts", []) or []:
+            bindings.update(getattr(verdict, "bindings", {}) or {})
+
+        result.unsupported_values = find_unsupported_reconstruction(
+            response,
+            query,
+            ctx_result.facts_included,
+            bindings,
+            # The full assembled context, not just the fact list: identity and
+            # environment layers are legitimately quotable but are not facts.
+            context=ctx_result.context,
+        )
 
     def _make_strategy(self, baseline_name: str) -> MemoryStrategy:
         """Instantiate a baseline, passing the generation model so capability-

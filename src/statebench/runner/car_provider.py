@@ -45,17 +45,47 @@ def _reset_runtime() -> None:
     _runtime = None
 
 
+# Gateway-side failures that are worth retrying. Hosted (parslee/*) routes
+# return "managed inference failed" intermittently under sustained load — a
+# single call succeeds while a long evaluation run dies partway. The harness
+# already backs off on Anthropic 529s; local inference had no equivalent, so a
+# transient blip killed a whole baseline.
+_TRANSIENT = (
+    "managed inference failed",
+    "503",
+    "service unavailable",
+    "timed out",
+    "temporarily",
+    "rate limit",
+    "too many requests",
+)
+_CHANNEL_LOST = ("channel closed", "closed connection", "timed out", "rpc")
+
+MAX_RETRIES = int(os.environ.get("CAR_MAX_RETRIES", "5"))
+RETRY_BASE_DELAY = float(os.environ.get("CAR_RETRY_BASE_DELAY", "3.0"))
+
+
 def _infer_with_reconnect(prompt: str, model: str, max_tokens: int) -> Any:
-    """Call infer_tracked, reconnecting once if the RPC channel was dropped."""
-    rt = get_runtime()
-    try:
-        return rt.infer_tracked(prompt, model=model, max_tokens=max_tokens)
-    except RuntimeError as e:
-        msg = str(e).lower()
-        if any(s in msg for s in ("channel closed", "closed connection", "timed out", "rpc")):
-            _reset_runtime()
-        rt = get_runtime()
-        return rt.infer_tracked(prompt, model=model, max_tokens=max_tokens)
+    """Call infer_tracked, reconnecting and backing off on transient failures."""
+    last: Exception | None = None
+    for attempt in range(MAX_RETRIES):
+        try:
+            return get_runtime().infer_tracked(
+                prompt, model=model, max_tokens=max_tokens
+            )
+        except RuntimeError as e:
+            last = e
+            msg = str(e).lower()
+            if any(s in msg for s in _CHANNEL_LOST):
+                _reset_runtime()
+            if not any(s in msg for s in _TRANSIENT) and not any(
+                s in msg for s in _CHANNEL_LOST
+            ):
+                raise  # a real error (bad model, no credential) — fail fast
+            if attempt < MAX_RETRIES - 1:
+                time.sleep(RETRY_BASE_DELAY * (2**attempt))
+    assert last is not None
+    raise last
 
 
 def _strip_think(text: str) -> str:

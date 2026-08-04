@@ -11,6 +11,11 @@ from statebench.baselines.fact_extract import FactExtractionStrategy
 from statebench.baselines.flat_file import FlatFileStrategy
 from statebench.baselines.no_memory import NoMemoryStrategy
 from statebench.baselines.rag import RAGTranscriptStrategy
+from statebench.baselines.reconstructive import (
+    ReconstructiveRagEngineFiltered,
+    ReconstructiveRagPrompted,
+    ReconstructiveRagValidated,
+)
 from statebench.baselines.state_based import StateBasedStrategy
 from statebench.baselines.summary import RollingSummaryStrategy
 from statebench.baselines.transcript import TranscriptReplayStrategy
@@ -107,6 +112,13 @@ BASELINE_REGISTRY: dict[str, type | _LazyMemgine | _LazyCarMemgine] = {
     "car_memgine": _LazyCarMemgine(),
     # OpenClaw flat-file baseline
     "flat_file": FlatFileStrategy,
+    # Reconstructive-memory baselines (Paper 3). Named for the mechanism, not
+    # for MemHarness: that system is GRPO-trained for action selection, while
+    # these run the critique/reconstruct step untrained over StateBench's
+    # single-turn responses.
+    "reconstructive_rag_prompted": ReconstructiveRagPrompted,
+    "reconstructive_rag_engine_filtered": ReconstructiveRagEngineFiltered,
+    "reconstructive_rag_validated": ReconstructiveRagValidated,
 }
 
 

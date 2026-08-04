@@ -103,14 +103,16 @@ def calculate_cohens_kappa(confusion: dict[str, dict[str, int]]) -> float:
 def run_calibration(
     audit_set_path: Path,
     use_llm_judge: bool = True,
-    provider: str = "openai",
+    provider: str | None = None,
 ) -> CalibrationResult:
     """Run calibration comparing judge to human labels.
 
     Args:
         audit_set_path: Path to audit set JSONL
         use_llm_judge: Whether to use LLM judge
-        provider: LLM provider
+        provider: Judge provider to calibrate. Unlike the harness, this IS the
+            judge under examination. None resolves the globally pinned judge —
+            calibrate the same judge the results were graded with.
 
     Returns:
         CalibrationResult with agreement metrics

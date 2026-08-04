@@ -1,0 +1,215 @@
+{
+ "lengths": [
+  1,
+  2,
+  4,
+  8,
+  16,
+  32
+ ],
+ "overall": {
+  "1": {
+   "avg_words": 10.083333333333334,
+   "legacy_fpr": 0.0,
+   "corrected_fpr": 0.0
+  },
+  "2": {
+   "avg_words": 19.756666666666668,
+   "legacy_fpr": 0.0033333333333333335,
+   "corrected_fpr": 0.0
+  },
+  "4": {
+   "avg_words": 39.82,
+   "legacy_fpr": 0.0,
+   "corrected_fpr": 0.0
+  },
+  "8": {
+   "avg_words": 79.64333333333333,
+   "legacy_fpr": 0.0033333333333333335,
+   "corrected_fpr": 0.0
+  },
+  "16": {
+   "avg_words": 159.57,
+   "legacy_fpr": 0.006666666666666667,
+   "corrected_fpr": 0.0
+  },
+  "32": {
+   "avg_words": 318.53,
+   "legacy_fpr": 0.0033333333333333335,
+   "corrected_fpr": 0.0
+  }
+ },
+ "by_track": {
+  "authority_hierarchy": {
+   "legacy_fpr": 0.0,
+   "corrected_fpr": 0.0,
+   "n_phrases": 23,
+   "n_inadmissible": 1
+  },
+  "brutal_realistic": {
+   "legacy_fpr": 0.0,
+   "corrected_fpr": 0.0,
+   "n_phrases": 23,
+   "n_inadmissible": 0
+  },
+  "causality": {
+   "legacy_fpr": 0.0,
+   "corrected_fpr": 0.0,
+   "n_phrases": 18,
+   "n_inadmissible": 0
+  },
+  "enterprise_privacy": {
+   "legacy_fpr": 0.0,
+   "corrected_fpr": 0.0,
+   "n_phrases": 39,
+   "n_inadmissible": 1
+  },
+  "environmental_freshness": {
+   "legacy_fpr": 0.0,
+   "corrected_fpr": 0.0,
+   "n_phrases": 22,
+   "n_inadmissible": 0
+  },
+  "hallucination_resistance": {
+   "legacy_fpr": 0.06333333333333334,
+   "corrected_fpr": 0.0,
+   "n_phrases": 68,
+   "n_inadmissible": 27
+  },
+  "interruption_resumption": {
+   "legacy_fpr": 0.0,
+   "corrected_fpr": 0.0,
+   "n_phrases": 14,
+   "n_inadmissible": 0
+  },
+  "repair_propagation": {
+   "legacy_fpr": 0.0,
+   "corrected_fpr": 0.0,
+   "n_phrases": 18,
+   "n_inadmissible": 0
+  },
+  "scope_leak": {
+   "legacy_fpr": 0.0,
+   "corrected_fpr": 0.0,
+   "n_phrases": 32,
+   "n_inadmissible": 1
+  },
+  "scope_permission": {
+   "legacy_fpr": 0.0,
+   "corrected_fpr": 0.0,
+   "n_phrases": 30,
+   "n_inadmissible": 1
+  },
+  "supersession": {
+   "legacy_fpr": 0.0,
+   "corrected_fpr": 0.0,
+   "n_phrases": 18,
+   "n_inadmissible": 1
+  },
+  "supersession_detection": {
+   "legacy_fpr": 0.0,
+   "corrected_fpr": 0.0,
+   "n_phrases": 36,
+   "n_inadmissible": 0
+  }
+ },
+ "correct_answer": {
+  "n": 400,
+  "by_track": {
+   "repair_propagation": {
+    "n": 15,
+    "plain_legacy": 0.0,
+    "plain_corrected": 0.0,
+    "negating_legacy": 1.0,
+    "negating_corrected": 0.0
+   },
+   "interruption_resumption": {
+    "n": 115,
+    "plain_legacy": 0.0,
+    "plain_corrected": 0.0,
+    "negating_legacy": 1.0,
+    "negating_corrected": 0.0
+   },
+   "supersession_detection": {
+    "n": 15,
+    "plain_legacy": 0.06666666666666667,
+    "plain_corrected": 0.0,
+    "negating_legacy": 1.0,
+    "negating_corrected": 0.0
+   },
+   "supersession": {
+    "n": 66,
+    "plain_legacy": 0.045454545454545456,
+    "plain_corrected": 0.045454545454545456,
+    "negating_legacy": 1.0,
+    "negating_corrected": 0.0
+   },
+   "environmental_freshness": {
+    "n": 16,
+    "plain_legacy": 0.0,
+    "plain_corrected": 0.0,
+    "negating_legacy": 1.0,
+    "negating_corrected": 0.0
+   },
+   "enterprise_privacy": {
+    "n": 15,
+    "plain_legacy": 0.0,
+    "plain_corrected": 0.0,
+    "negating_legacy": 1.0,
+    "negating_corrected": 0.0
+   },
+   "scope_leak": {
+    "n": 15,
+    "plain_legacy": 0.06666666666666667,
+    "plain_corrected": 0.0,
+    "negating_legacy": 1.0,
+    "negating_corrected": 0.0
+   },
+   "brutal_realistic": {
+    "n": 54,
+    "plain_legacy": 0.0,
+    "plain_corrected": 0.0,
+    "negating_legacy": 1.0,
+    "negating_corrected": 0.0
+   },
+   "scope_permission": {
+    "n": 53,
+    "plain_legacy": 0.03773584905660377,
+    "plain_corrected": 0.03773584905660377,
+    "negating_legacy": 1.0,
+    "negating_corrected": 0.0
+   },
+   "hallucination_resistance": {
+    "n": 15,
+    "plain_legacy": 0.6666666666666666,
+    "plain_corrected": 0.5333333333333333,
+    "negating_legacy": 1.0,
+    "negating_corrected": 0.0
+   },
+   "causality": {
+    "n": 6,
+    "plain_legacy": 0.0,
+    "plain_corrected": 0.0,
+    "negating_legacy": 1.0,
+    "negating_corrected": 0.0
+   },
+   "authority_hierarchy": {
+    "n": 15,
+    "plain_legacy": 0.06666666666666667,
+    "plain_corrected": 0.06666666666666667,
+    "negating_legacy": 1.0,
+    "negating_corrected": 0.0
+   }
+  },
+  "overall": {
+   "plain": {
+    "legacy_false_violation_rate": 0.045,
+    "corrected_false_violation_rate": 0.035
+   },
+   "negating": {
+    "legacy_false_violation_rate": 1.0,
+    "corrected_false_violation_rate": 0.0
+   }
+  }
+ }
+}

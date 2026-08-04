@@ -1,0 +1,21 @@
+{
+ "model": "parslee/reasoning",
+ "cells": 18,
+ "baselines": {
+  "reconstructive_rag_prompted": {
+   "judge": "car:parslee/reasoning",
+   "applicability_classification_accuracy": 0.5185185185185185,
+   "always_refuse_baseline": 0.48148148148148145,
+   "beats_blanket_refusal": true,
+   "correct_rejection_rate": 0.0,
+   "reject_cells": 13,
+   "false_refusal_rate": 0.0,
+   "use_cells": 14,
+   "principle_transfer_rate": 0.0,
+   "historical_detail_carryover_rate": 1.0,
+   "adapt_cells": 10,
+   "conditional_bypass_rate": 0.75,
+   "unsupported_reconstruction_rate": 0.1111111111111111
+  }
+ }
+}

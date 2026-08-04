@@ -31,11 +31,6 @@ from statebench.generator.templates.causality import (
     MultiConstraintTemplate,
 )
 from statebench.generator.templates.commitment import COMMITMENT_TEMPLATES, CommitmentTemplate
-from statebench.generator.templates.structured import (
-    AUTHORITY_CONFLICTS,
-    AUTHORITY_MAINTAIN,
-    DEPENDENCY_CHAINS,
-)
 
 # v1.0: Detection Track
 from statebench.generator.templates.detection import (
@@ -60,6 +55,11 @@ from statebench.generator.templates.interruption import INTERRUPTION_TEMPLATES, 
 from statebench.generator.templates.permission import PERMISSION_TEMPLATES, PermissionTemplate
 from statebench.generator.templates.repair import REPAIR_CHAIN_TEMPLATES, RepairChain
 from statebench.generator.templates.scope_leak import SCOPE_LEAK_TEMPLATES, ScopeLeakTemplate
+from statebench.generator.templates.structured import (
+    AUTHORITY_CONFLICTS,
+    AUTHORITY_MAINTAIN,
+    DEPENDENCY_CHAINS,
+)
 from statebench.generator.templates.supersession import SUPERSESSION_TEMPLATES, SupersessionTemplate
 from statebench.schema.state import IdentityRole, PersistentFact, Source, WorkingSetItem
 from statebench.schema.timeline import (
@@ -2818,6 +2818,33 @@ class TimelineGenerator:
             for i in range(count):
                 template = self.rng.choice(templates)
                 yield self.generate_authority_conflict_timeline(template)  # type: ignore[arg-type]
+
+        elif track.startswith("cf_"):
+            # Paired counterfactuals are emitted two timelines at a time: the
+            # positive case and its minimal counterfactual. `count` is the
+            # number of PAIRS, so the caller gets 2*count timelines and the
+            # sides always stay balanced.
+            from statebench.generator.counterfactual import AXES, CounterfactualGenerator
+
+            axis = next(a for a in AXES.values() if a.track == track)
+            cf_gen = CounterfactualGenerator(seed=self.rng.randint(0, 2**31 - 1))
+            emitted = 0
+            while emitted < count:
+                for pair in cf_gen.generate_pairs(axis_names=[axis.name]):
+                    for timeline in pair.as_timelines():
+                        yield timeline
+                    emitted += 1
+                    if emitted >= count:
+                        break
+
+        elif track == "applicability":
+            from statebench.generator.applicability import MATRIX, ApplicabilityGenerator
+
+            appl = ApplicabilityGenerator(seed=self.rng.randint(0, 2**31 - 1))
+            # `count` is a target timeline count; the suite emits one timeline
+            # per (cell, scenario), with the governance=valid row oversampled
+            # so the KEEP/ADAPT cells have usable n.
+            yield from appl.generate(per_cell=max(1, count // len(MATRIX)))
 
         else:
             raise ValueError(

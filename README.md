@@ -46,6 +46,39 @@ Passing is rare. Most transcript-replay systems fail Track 1 (Causality) at mean
 
 ## Leaderboard (v1.1)
 
+> **⚠️ These numbers predate the v2.0 scoring changes and are not reproducible
+> with current code.** The evaluation instrument was corrected after these runs:
+> forbidden phrases are now matched on word boundaries, non-discriminative
+> phrases are excluded from scoring (979 of 8,299 in the v1.0 release, chiefly
+> on `hallucination_resistance`), a phrase appearing only under negation no
+> longer counts as a violation, SFRR now counts resurrection only (privacy leaks
+> and fabrications are reported separately), and the decision extractor no
+> longer reads a bare "no" inside words like "now" and "know". The judge is also
+> now pinned globally rather than inherited from the model under test.
+>
+> The leaderboard has been **re-derived** under corrected scoring on
+> `gpt-5.2-2025-12-11` (the published configuration), full dev and test splits,
+> 3 runs — see `docs/PAPER3_SPEC.md` §10a-v for the new tables.
+>
+> Decision accuracy and must-mention reproduce within ~1–2pp, so those figures
+> below stand. **SFRR does not.** Every SFRR figure here is inflated roughly
+> 2×, and the ordering between baselines changes. Most consequentially,
+> Memgine's reported SFRR parity with `state_based_no_supersession`
+> (24.2% vs 24.1%) becomes **14.0% vs 9.5%** — a real gap, not noise — so the
+> claim that Memgine improves accuracy "without increasing leakage" does not
+> hold under corrected scoring. Memgine's accuracy advantage is unaffected and
+> is in fact slightly larger, and its *leakage* rate (1.9%) is the lowest of any
+> baseline, which the old blended SFRR concealed.
+>
+> A `gpt-5.6-sol` refresh under the same corrected scoring is in
+> `docs/PAPER3_SPEC.md` §10a-vi. Headline: the newer model resurrects
+> substantially less across the board (SFRR −0.8 to −7.5pp), and the
+> architecture premium narrows sharply — `memgine`'s dev-split lead over
+> `state_based` falls from 9.1pp to 0.7pp, and on the test split `state_based`
+> pulls level. Stronger models need less context curation.
+>
+> These tables are retained as the published record.
+
 ### Memgine Engine Results
 
 Memgine implements the full state-based specification with query-relevance sorting, engine-level access control, and adaptive inline repair. Results on the v1.0 development split (248 queries, 3-run mean ± std):

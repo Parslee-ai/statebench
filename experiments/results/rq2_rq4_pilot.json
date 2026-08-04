@@ -1,0 +1,248 @@
+{
+ "model": "mlx/qwen3-4b:4bit",
+ "provider": "car",
+ "dry_run": true,
+ "n_pairs": 14,
+ "baselines": {
+  "memgine": {
+   "judge": "deterministic-only",
+   "sensitivity": {
+    "access_control": {
+     "positive": 0.5,
+     "counterfactual": 0,
+     "delta": 0.5,
+     "decidable_by": "engine",
+     "n_pairs": 2
+    },
+    "scope_binding": {
+     "positive": 0.5,
+     "counterfactual": 0,
+     "delta": 0.5,
+     "decidable_by": "engine",
+     "n_pairs": 2
+    },
+    "actor_isolation": {
+     "positive": 0.5,
+     "counterfactual": 0,
+     "delta": 0.5,
+     "decidable_by": "engine",
+     "n_pairs": 2
+    },
+    "temporal_validity": {
+     "positive": 0.5,
+     "counterfactual": 0,
+     "delta": 0.5,
+     "decidable_by": "model",
+     "n_pairs": 2
+    },
+    "supersession": {
+     "positive": 0.5,
+     "counterfactual": 0,
+     "delta": 0.5,
+     "decidable_by": "model",
+     "n_pairs": 2
+    },
+    "commitment_status": {
+     "positive": 0.5,
+     "counterfactual": 0,
+     "delta": 0.5,
+     "decidable_by": "model",
+     "n_pairs": 2
+    },
+    "dependency_validity": {
+     "positive": 0.5,
+     "counterfactual": 0,
+     "delta": 0.5,
+     "decidable_by": "model",
+     "n_pairs": 2
+    }
+   },
+   "mean_delta_engine": 0.5,
+   "mean_delta_model": 0.5,
+   "governance_bypass_rate": 0.0,
+   "conditional_bypass_rate": 0.0,
+   "queries_with_exclusions": 8,
+   "unsupported_reconstruction_rate": 0.0
+  },
+  "reconstructive_rag_prompted": {
+   "judge": "deterministic-only",
+   "sensitivity": {
+    "access_control": {
+     "positive": 0.5,
+     "counterfactual": 0,
+     "delta": 0.5,
+     "decidable_by": "engine",
+     "n_pairs": 2
+    },
+    "scope_binding": {
+     "positive": 0.5,
+     "counterfactual": 0,
+     "delta": 0.5,
+     "decidable_by": "engine",
+     "n_pairs": 2
+    },
+    "actor_isolation": {
+     "positive": 0.5,
+     "counterfactual": 0,
+     "delta": 0.5,
+     "decidable_by": "engine",
+     "n_pairs": 2
+    },
+    "temporal_validity": {
+     "positive": 0.5,
+     "counterfactual": 0,
+     "delta": 0.5,
+     "decidable_by": "model",
+     "n_pairs": 2
+    },
+    "supersession": {
+     "positive": 0.5,
+     "counterfactual": 0,
+     "delta": 0.5,
+     "decidable_by": "model",
+     "n_pairs": 2
+    },
+    "commitment_status": {
+     "positive": 0.5,
+     "counterfactual": 0,
+     "delta": 0.5,
+     "decidable_by": "model",
+     "n_pairs": 2
+    },
+    "dependency_validity": {
+     "positive": 0.5,
+     "counterfactual": 0,
+     "delta": 0.5,
+     "decidable_by": "model",
+     "n_pairs": 2
+    }
+   },
+   "mean_delta_engine": 0.5,
+   "mean_delta_model": 0.5,
+   "governance_bypass_rate": 0.10714285714285714,
+   "conditional_bypass_rate": 0.375,
+   "queries_with_exclusions": 8,
+   "unsupported_reconstruction_rate": 0.0
+  },
+  "reconstructive_rag_engine_filtered": {
+   "judge": "deterministic-only",
+   "sensitivity": {
+    "access_control": {
+     "positive": 0.5,
+     "counterfactual": 0,
+     "delta": 0.5,
+     "decidable_by": "engine",
+     "n_pairs": 2
+    },
+    "scope_binding": {
+     "positive": 0.5,
+     "counterfactual": 0,
+     "delta": 0.5,
+     "decidable_by": "engine",
+     "n_pairs": 2
+    },
+    "actor_isolation": {
+     "positive": 0.5,
+     "counterfactual": 0,
+     "delta": 0.5,
+     "decidable_by": "engine",
+     "n_pairs": 2
+    },
+    "temporal_validity": {
+     "positive": 0.5,
+     "counterfactual": 0,
+     "delta": 0.5,
+     "decidable_by": "model",
+     "n_pairs": 2
+    },
+    "supersession": {
+     "positive": 0.5,
+     "counterfactual": 0,
+     "delta": 0.5,
+     "decidable_by": "model",
+     "n_pairs": 2
+    },
+    "commitment_status": {
+     "positive": 0.5,
+     "counterfactual": 0,
+     "delta": 0.5,
+     "decidable_by": "model",
+     "n_pairs": 2
+    },
+    "dependency_validity": {
+     "positive": 0.5,
+     "counterfactual": 0,
+     "delta": 0.5,
+     "decidable_by": "model",
+     "n_pairs": 2
+    }
+   },
+   "mean_delta_engine": 0.5,
+   "mean_delta_model": 0.5,
+   "governance_bypass_rate": 0.0,
+   "conditional_bypass_rate": 0.0,
+   "queries_with_exclusions": 8,
+   "unsupported_reconstruction_rate": 0.0
+  },
+  "reconstructive_rag_validated": {
+   "judge": "deterministic-only",
+   "sensitivity": {
+    "access_control": {
+     "positive": 0.5,
+     "counterfactual": 0,
+     "delta": 0.5,
+     "decidable_by": "engine",
+     "n_pairs": 2
+    },
+    "scope_binding": {
+     "positive": 0.5,
+     "counterfactual": 0,
+     "delta": 0.5,
+     "decidable_by": "engine",
+     "n_pairs": 2
+    },
+    "actor_isolation": {
+     "positive": 0.5,
+     "counterfactual": 0,
+     "delta": 0.5,
+     "decidable_by": "engine",
+     "n_pairs": 2
+    },
+    "temporal_validity": {
+     "positive": 0.5,
+     "counterfactual": 0,
+     "delta": 0.5,
+     "decidable_by": "model",
+     "n_pairs": 2
+    },
+    "supersession": {
+     "positive": 0.5,
+     "counterfactual": 0,
+     "delta": 0.5,
+     "decidable_by": "model",
+     "n_pairs": 2
+    },
+    "commitment_status": {
+     "positive": 0.5,
+     "counterfactual": 0,
+     "delta": 0.5,
+     "decidable_by": "model",
+     "n_pairs": 2
+    },
+    "dependency_validity": {
+     "positive": 0.5,
+     "counterfactual": 0,
+     "delta": 0.5,
+     "decidable_by": "model",
+     "n_pairs": 2
+    }
+   },
+   "mean_delta_engine": 0.5,
+   "mean_delta_model": 0.5,
+   "governance_bypass_rate": 0.0,
+   "conditional_bypass_rate": 0.0,
+   "queries_with_exclusions": 8,
+   "unsupported_reconstruction_rate": 0.0
+  }
+ }
+}
