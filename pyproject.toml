@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "statebench"
-version = "1.0.2"
-description = "A benchmark for measuring LLM state correctness over time"
+version = "2.0.0"
+description = "A conformance test for stateful AI systems"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.11"
