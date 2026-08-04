@@ -37,6 +37,18 @@ class QueryResult:
     must_mention_misses: list[str] = field(default_factory=list)
     must_not_mention_violations: list[str] = field(default_factory=list)
     source_violations: list[str] = field(default_factory=list)
+    # Forbidden phrases excluded from scoring as inadmissible (see
+    # evaluation.phrase_quality). Recorded so audits can see what was dropped;
+    # they are NOT counted in must_not_mention, so they neither create
+    # violations nor pad the denominator.
+    skipped_phrases: list[str] = field(default_factory=list)
+    # Forbidden phrases that appeared only under negation ("not Friday"). Not
+    # violations — the system was distinguishing dead state from live state —
+    # but recorded so the behavior stays auditable.
+    negated_mentions: list[str] = field(default_factory=list)
+    # Violations bucketed by failure class ("superseded" | "restricted" |
+    # "fabricated" | "other"). SFRR reads only the "superseded" bucket.
+    violations_by_kind: dict[str, list[str]] = field(default_factory=dict)
 
     # Derived
     resurrected_superseded: bool = False  # Did the response mention superseded facts?
@@ -49,6 +61,13 @@ class QueryResult:
     compaction_triggered: bool = False
     compaction_tokens_before: int = 0
     compaction_tokens_after: int = 0
+
+    # Governance metrics, scored against the engine's audit record rather than
+    # an author-written phrase list (see evaluation.governance_metrics).
+    governance_bypass: bool = False  # asserted something the engine excluded
+    bypassed_fact_ids: list[str] = field(default_factory=list)
+    facts_excluded_count: int = 0  # denominator for the conditional bypass rate
+    unsupported_values: list[str] = field(default_factory=list)  # URR evidence
 
 
 @dataclass
@@ -67,6 +86,11 @@ class TrackMetrics:
     must_mention_rate: float = 0.0
     must_not_mention_violation_rate: float = 0.0
     source_violation_rate: float = 0.0
+    # Sibling rates to SFRR, split out so each names one failure. Previously all
+    # three were folded into SFRR, which made it impossible to tell a
+    # resurrection from a privacy leak from a fabrication.
+    leakage_rate: float = 0.0  # restricted data reached the response
+    fabrication_rate: float = 0.0  # invented detail appeared in the response
 
     # Counts
     correct_decisions: int = 0
@@ -75,6 +99,8 @@ class TrackMetrics:
     total_must_not_mention: int = 0
     must_not_mention_violations: int = 0
     resurrection_count: int = 0
+    leakage_count: int = 0
+    fabrication_count: int = 0
 
     # Secondary
     avg_tokens: float = 0.0
@@ -94,7 +120,9 @@ class BenchmarkMetrics:
     tracks: dict[str, TrackMetrics] = field(default_factory=dict)
 
     # Aggregate metrics
-    overall_sfrr: float = 0.0
+    overall_sfrr: float = 0.0  # resurrection only — see TrackMetrics.sfrr
+    overall_leakage_rate: float = 0.0
+    overall_fabrication_rate: float = 0.0
     overall_false_supersession_rate: float = 0.0  # over "maintain" tracks only
     overall_decision_accuracy: float = 0.0
     overall_must_mention_rate: float = 0.0
@@ -160,9 +188,14 @@ class MetricsAggregator:
             metrics.total_must_not_mention += len(r.must_not_mention)
             metrics.must_not_mention_violations += len(r.must_not_mention_violations)
 
-            # Resurrection
+            # Resurrection and its siblings, counted per query (a query with
+            # two leaked phrases is one leaking query, matching SFRR's shape).
             if r.resurrected_superseded:
                 metrics.resurrection_count += 1
+            if r.violations_by_kind.get("restricted"):
+                metrics.leakage_count += 1
+            if r.violations_by_kind.get("fabricated"):
+                metrics.fabrication_count += 1
 
         # Compute rates
         metrics.decision_accuracy = metrics.correct_decisions / metrics.total_queries
@@ -187,8 +220,14 @@ class MetricsAggregator:
                 metrics.total_queries - metrics.correct_decisions
             ) / metrics.total_queries
         else:
-            # SFRR: percentage of queries that resurrected superseded facts
+            # SFRR: percentage of queries that resurrected superseded facts.
+            # Restricted-data leaks and fabrications are reported separately
+            # rather than folded in here.
             metrics.sfrr = metrics.resurrection_count / metrics.total_queries
+            metrics.leakage_rate = metrics.leakage_count / metrics.total_queries
+            metrics.fabrication_rate = (
+                metrics.fabrication_count / metrics.total_queries
+            )
 
         # Secondary metrics
         total_tokens = sum(r.tokens_used for r in track_results)
@@ -229,6 +268,10 @@ class MetricsAggregator:
 
         if ss_q:
             metrics.overall_sfrr = sum(t.resurrection_count for t in ss) / ss_q
+            metrics.overall_leakage_rate = sum(t.leakage_count for t in ss) / ss_q
+            metrics.overall_fabrication_rate = (
+                sum(t.fabrication_count for t in ss) / ss_q
+            )
             metrics.overall_decision_accuracy = (
                 sum(t.correct_decisions for t in ss) / ss_q
             )
