@@ -1,0 +1,27 @@
+{
+ "dataset": "data/releases/v1.0/dev.jsonl",
+ "model": "parslee/reasoning",
+ "baselines": {
+  "no_memory": {
+   "n_queries": 31,
+   "legacy": {
+    "decision_accuracy": 0.25806451612903225,
+    "sfrr": 0.0967741935483871,
+    "must_mention_rate": 0.10606060606060606,
+    "mnm_violation_rate": 0.047619047619047616
+   },
+   "current": {
+    "decision_accuracy": 0.2903225806451613,
+    "sfrr": 0.0,
+    "must_mention_rate": 0.10606060606060606,
+    "mnm_violation_rate": 0.027777777777777776
+   },
+   "delta": {
+    "decision_accuracy": 0.03225806451612906,
+    "sfrr": -0.0967741935483871,
+    "must_mention_rate": 0.0,
+    "mnm_violation_rate": -0.01984126984126984
+   }
+  }
+ }
+}

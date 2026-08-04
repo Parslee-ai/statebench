@@ -1,0 +1,77 @@
+{
+ "model": "parslee/reasoning",
+ "provider": "car",
+ "dry_run": false,
+ "n_pairs": 28,
+ "baselines": {
+  "reconstructive_rag_engine_filtered": {
+   "judge": "car:parslee/reasoning",
+   "sensitivity": {
+    "access_control": {
+     "positive": 1,
+     "counterfactual": 1,
+     "delta": 0,
+     "pair_accuracy": 1.0,
+     "decidable_by": "engine",
+     "n_pairs": 4
+    },
+    "scope_binding": {
+     "positive": 1,
+     "counterfactual": 1,
+     "delta": 0,
+     "pair_accuracy": 1.0,
+     "decidable_by": "engine",
+     "n_pairs": 4
+    },
+    "actor_isolation": {
+     "positive": 1,
+     "counterfactual": 1,
+     "delta": 0,
+     "pair_accuracy": 1.0,
+     "decidable_by": "engine",
+     "n_pairs": 4
+    },
+    "temporal_validity": {
+     "positive": 1,
+     "counterfactual": 0,
+     "delta": 1,
+     "pair_accuracy": 0.0,
+     "decidable_by": "model",
+     "n_pairs": 4
+    },
+    "supersession": {
+     "positive": 1,
+     "counterfactual": 1,
+     "delta": 0,
+     "pair_accuracy": 1.0,
+     "decidable_by": "model",
+     "n_pairs": 4
+    },
+    "commitment_status": {
+     "positive": 1,
+     "counterfactual": 0,
+     "delta": 1,
+     "pair_accuracy": 0.0,
+     "decidable_by": "model",
+     "n_pairs": 4
+    },
+    "dependency_validity": {
+     "positive": 1,
+     "counterfactual": 0,
+     "delta": 1,
+     "pair_accuracy": 0.0,
+     "decidable_by": "model",
+     "n_pairs": 4
+    }
+   },
+   "mean_delta_engine": 0.0,
+   "mean_pair_engine": 1.0,
+   "mean_delta_model": 0.75,
+   "mean_pair_model": 0.25,
+   "governance_bypass_rate": 0.07142857142857142,
+   "conditional_bypass_rate": 0.2,
+   "queries_with_exclusions": 20,
+   "unsupported_reconstruction_rate": 0.10714285714285714
+  }
+ }
+}

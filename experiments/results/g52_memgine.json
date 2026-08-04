@@ -1,0 +1,28 @@
+{
+ "dataset": "data/releases/v1.0/dev.jsonl",
+ "model": "gpt-5.2-2025-12-11",
+ "baselines": {
+  "memgine": {
+   "n_queries": 125,
+   "n_blocked_by_provider": 0,
+   "legacy": {
+    "decision_accuracy": 0.936,
+    "sfrr": 0.224,
+    "must_mention_rate": 0.7651821862348178,
+    "mnm_violation_rate": 0.11875
+   },
+   "current": {
+    "decision_accuracy": 0.928,
+    "sfrr": 0.136,
+    "must_mention_rate": 0.7651821862348178,
+    "mnm_violation_rate": 0.09507042253521127
+   },
+   "delta": {
+    "decision_accuracy": -0.008000000000000007,
+    "sfrr": -0.088,
+    "must_mention_rate": 0.0,
+    "mnm_violation_rate": -0.02367957746478873
+   }
+  }
+ }
+}

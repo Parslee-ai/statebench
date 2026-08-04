@@ -1,0 +1,53 @@
+{
+ "track": "supersession",
+ "weak_model": "mlx/qwen3-4b:4bit",
+ "frontier_model": "gpt-5.6-sol",
+ "distill_model": "gpt-5.6-sol",
+ "n_skills": 1,
+ "n_rejected": 1,
+ "skills": [
+  {
+   "skill_id": "SK-supersession-002",
+   "task_family": "supersession",
+   "principle": "When a later valid instruction explicitly replaces an earlier state for the same subject, use the latest instruction in the supersession chain as the current authoritative state.",
+   "procedure": [
+    "Identify the subject and decision or status being queried.",
+    "Locate the original recorded state and every later update concerning that same subject.",
+    "Follow explicit supersession links in order, treating each superseded state as inactive.",
+    "Use the terminal, non-superseded state as authoritative, even if the earlier state was repeated or strongly emphasized.",
+    "Answer the question directly from that authoritative state and include any stated reason when relevant."
+   ],
+   "preconditions": [
+    "Multiple states or instructions concern the same underlying subject and attribute.",
+    "A later state explicitly cancels, replaces, reverses, or reallocates an earlier state.",
+    "The ordering or supersession relationship between the states is identifiable.",
+    "The question asks for the current status, action, assignment, or decision."
+   ],
+   "counter_indications": [
+    "The later statement concerns a different subject or a different independent attribute.",
+    "The later statement supplements rather than replaces the earlier state.",
+    "The purported update is hypothetical, conditional, quoted, rejected, or not yet effective.",
+    "There is no clear supersession relationship or the latest state is materially ambiguous."
+   ],
+   "source_episodes": [
+    "S1-000039",
+    "ADV-ADV-0079",
+    "S1-000065"
+   ],
+   "source_scope": {},
+   "derived_by": "gpt-5.6-sol",
+   "confidence": 0.8
+  }
+ ],
+ "arms": {
+  "weak_alone": {
+   "arm": "weak_alone",
+   "model": "mlx/qwen3-4b:4bit",
+   "n_queries": 6,
+   "decision_accuracy": 1.0,
+   "sfrr": 0.16666666666666666,
+   "must_mention_rate": 0.8,
+   "skill_firing_rate": 0.0
+  }
+ }
+}
