@@ -64,11 +64,84 @@ PAPERS = [
     "paper4-worked-examples.md",
 ]
 
+# Keywords are editorial, so they live here rather than being scraped out of
+# the prose. Every paper also gets BASE_KEYWORDS.
+BASE_KEYWORDS = ["LLM agents", "agent memory", "StateBench", "Parslee"]
+KEYWORDS = {
+    "paper-measurement-validity.md": [
+        "benchmark validity", "measurement error", "phrase-list scoring",
+        "LLM-as-judge", "construct validity",
+    ],
+    "paper3-retrieval-reconstruction-governance.md": [
+        "retrieval-augmented generation", "governance", "access control",
+        "state resolution", "counterfactual evaluation",
+    ],
+    "paper4-worked-examples.md": [
+        "skill distillation", "worked examples", "in-context learning",
+        "procedure synthesis", "evaluation variance",
+    ],
+    "memgine-deterministic-memory-engine.md": [
+        "deterministic memory", "context assembly", "supersession tracking",
+        "memory engine", "state correctness",
+    ],
+    "state-based-context-architecture.md": [
+        "context architecture", "state-based memory", "enterprise AI",
+        "supersession", "conversation transcripts",
+    ],
+}
+
+# Historical PDFs. Their rendering is the published record, so these are never
+# re-rendered -- only their document metadata is corrected in place. Before
+# this, `memgine` carried its filename slug as the PDF Title and the 2025
+# paper carried no Title at all and an author of "Un-named", which is what
+# search engines and reference managers read.
+PUBLISHED = {
+    "memgine-deterministic-memory-engine.pdf": {
+        "title": "Memgine: A Deterministic Memory Engine for Stateful AI Agents",
+        "author": "Matt Liotta",
+        "date": "2026-02-01",
+        "keywords_from": "memgine-deterministic-memory-engine.md",
+    },
+    "state-based-context-architecture.pdf": {
+        "title": ("Beyond Conversation: A State-Based Context Architecture "
+                  "for Enterprise AI Agents"),
+        "author": "Matt Liotta",
+        "date": "2025-12-01",
+        "keywords_from": "state-based-context-architecture.md",
+        # This paper has no markdown source anywhere -- it was produced in
+        # LibreOffice and only the PDF survives -- so the abstract cannot be
+        # read back out of a source file. Transcribed from page 1 of the PDF.
+        "subject": (
+            "Current approaches to LLM agent memory treat conversation history "
+            "as the source of truth, replaying message transcripts to establish "
+            "context. This paradigm fails at scale: transcripts grow unbounded, "
+            "old context pollutes current reasoning, and mining conversations "
+            "for facts is computationally expensive. We propose a fundamental "
+            "reframing: context is structured state assembled fresh on every "
+            "turn, not a transcript replay."
+        ),
+    },
+}
+
+MONTHS = {m: i for i, m in enumerate(
+    ["January", "February", "March", "April", "May", "June", "July",
+     "August", "September", "October", "November", "December"], start=1)}
+
+# WeasyPrint maps these to the PDF document information dictionary: title,
+# author, subject, keywords, creator, and the creation/modification dates.
+# Verified against `pdfinfo` output -- without them a reader, a reference
+# manager, or Google Scholar has only the filename to go on.
 TEMPLATE = """<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <title>$title$</title>
+$if(author-meta)$<meta name="author" content="$author-meta$">
+$endif$$if(subject-meta)$<meta name="description" content="$subject-meta$">
+$endif$$if(keywords-meta)$<meta name="keywords" content="$keywords-meta$">
+$endif$$if(created-meta)$<meta name="dcterms.created" content="$created-meta$">
+<meta name="dcterms.modified" content="$created-meta$">
+$endif$<meta name="generator" content="statebench docs/build_papers.py">
 </head>
 <body>
 $body$
@@ -101,11 +174,49 @@ def parse_title_block(md: str) -> tuple[str, str, str, str]:
     return title, subtitle, author, "\n".join(lines[idx:])
 
 
+def split_author_line(author_line: str) -> tuple[str, str]:
+    """Split "Matt Liotta · August 2026" into (name, ISO date).
+
+    The date half is optional; papers that predate the convention carry only a
+    name. Returns ("", "") for anything unparseable rather than guessing, so a
+    malformed byline yields no metadata instead of wrong metadata.
+    """
+    if not author_line:
+        return "", ""
+    name, _, date_part = author_line.partition("·")
+    name = name.strip()
+    m = re.search(r"([A-Z][a-z]+)\s+(\d{4})", date_part)
+    if not m or m.group(1) not in MONTHS:
+        return name, ""
+    return name, f"{m.group(2)}-{MONTHS[m.group(1)]:02d}-01"
+
+
+def extract_subject(body: str) -> str:
+    """First sentences of the abstract, for the PDF Subject field.
+
+    This is what a reference manager shows under the title and what Scholar
+    reads as the description, so it has to stand alone as one line.
+    """
+    m = re.search(r"##\s+Abstract\s*\n+(.+?)(?=\n##\s|\Z)", body, re.S)
+    if not m:
+        return ""
+    text = re.sub(r"[*_`]", "", m.group(1)).strip()
+    text = re.sub(r"\s+", " ", text)
+    if len(text) <= 500:
+        return text
+    cut = text[:500].rsplit(". ", 1)[0]
+    return (cut + ".") if cut else text[:500]
+
+
 def build(md_path: Path) -> Path:
     md = md_path.read_text()
     title, subtitle, author, body = parse_title_block(md)
     if not title:
         raise SystemExit(f"{md_path.name}: no '# Title' found")
+
+    author_name, created = split_author_line(author)
+    subject = extract_subject(body)
+    keywords = ", ".join(KEYWORDS.get(md_path.name, []) + BASE_KEYWORDS)
 
     pdf_path = md_path.with_suffix(".pdf")
 
@@ -115,6 +226,8 @@ def build(md_path: Path) -> Path:
         (tmp / "tpl.html").write_text(TEMPLATE)
 
         # gfm for the table and fenced-code syntax the sources actually use.
+        # Metadata goes through pandoc rather than being spliced in afterwards
+        # so the values are HTML-escaped for the attribute context.
         html = subprocess.run(
             [
                 "pandoc", str(tmp / "body.md"),
@@ -122,6 +235,10 @@ def build(md_path: Path) -> Path:
                 "--to", "html5",
                 "--template", str(tmp / "tpl.html"),
                 "--metadata", f"title={title}",
+                "--metadata", f"author-meta={author_name}",
+                "--metadata", f"subject-meta={subject}",
+                "--metadata", f"keywords-meta={keywords}",
+                "--metadata", f"created-meta={created}",
                 "--wrap", "none",
             ],
             capture_output=True, text=True, check=True,
@@ -167,26 +284,95 @@ def build(md_path: Path) -> Path:
     return pdf_path
 
 
+def stamp_published(pdf_name: str, spec: dict) -> Path:
+    """Correct the metadata on a published PDF without re-rendering it.
+
+    The published rendering is the citable record, and its markdown is not the
+    source it was produced from, so regenerating would silently replace a
+    published artifact. Rewriting only the document information dictionary
+    leaves every page byte-identical.
+    """
+    try:
+        import fitz  # PyMuPDF
+    except ImportError:
+        raise SystemExit(
+            "stamping published PDFs needs PyMuPDF:  pip install pymupdf\n"
+            "(or skip it: python docs/build_papers.py --drafts-only)"
+        )
+
+    pdf_path = DOCS / pdf_name
+    if not pdf_path.is_file():
+        raise SystemExit(f"{pdf_name}: not found")
+
+    md_name = spec["keywords_from"]
+    keywords = ", ".join(KEYWORDS.get(md_name, []) + BASE_KEYWORDS)
+
+    # Prefer the abstract in the markdown; fall back to a transcribed one for
+    # papers whose source no longer exists.
+    subject = spec.get("subject", "")
+    md_path = DOCS / md_name
+    if md_path.is_file():
+        subject = extract_subject(md_path.read_text()) or subject
+    if not subject:
+        raise SystemExit(f"{pdf_name}: no subject available")
+
+    doc = fitz.open(pdf_path)
+    # PDF date strings are D:YYYYMMDDHHmmSS with an offset.
+    stamp = f"D:{spec['date'].replace('-', '')}000000Z"
+    wanted = {
+        "title": spec["title"],
+        "author": spec["author"],
+        "subject": subject,
+        "keywords": keywords,
+        "creator": "statebench docs/build_papers.py",
+        "producer": doc.metadata.get("producer", ""),
+        "creationDate": stamp,
+        "modDate": stamp,
+    }
+
+    # An incremental save appends a revision, so re-stamping an already-correct
+    # PDF on every build would grow the file without changing anything.
+    if all(doc.metadata.get(k) == v for k, v in wanted.items()):
+        doc.close()
+        return pdf_path
+
+    doc.set_metadata(wanted)
+    doc.saveIncr()
+    doc.close()
+    return pdf_path
+
+
+def describe(pdf: Path) -> str:
+    size = pdf.stat().st_size // 1024
+    try:
+        info = subprocess.run(
+            ["pdfinfo", str(pdf)], capture_output=True, text=True
+        ).stdout
+        m = re.search(r"Pages:\s+(\d+)", info)
+        if m:
+            return f"{size} KB, {m.group(1)} pages"
+    except FileNotFoundError:
+        pass
+    return f"{size} KB"
+
+
 def main() -> None:
-    targets = sys.argv[1:] or PAPERS
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    flags = {a for a in sys.argv[1:] if a.startswith("--")}
+
+    targets = args or PAPERS
     for name in targets:
         p = Path(name)
         if not p.is_absolute() and not p.exists():
             p = DOCS / Path(name).name
         pdf = build(p)
-        size = pdf.stat().st_size // 1024
-        pages = ""
-        try:
-            info = subprocess.run(
-                ["pdfinfo", str(pdf)], capture_output=True, text=True
-            ).stdout
-            m = re.search(r"Pages:\s+(\d+)", info)
-            if m:
-                pages = f", {m.group(1)} pages"
+        print(f"  {pdf.name}  ({describe(pdf)})")
 
-        except FileNotFoundError:
-            pass
-        print(f"  {pdf.name}  ({size} KB{pages})")
+    # Published PDFs get their metadata corrected but are never re-rendered.
+    if not args and "--drafts-only" not in flags:
+        for pdf_name, spec in PUBLISHED.items():
+            pdf = stamp_published(pdf_name, spec)
+            print(f"  {pdf.name}  (metadata stamped; {describe(pdf)})")
 
 
 if __name__ == "__main__":
