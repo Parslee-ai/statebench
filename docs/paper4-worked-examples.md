@@ -8,10 +8,15 @@
 
 ## Abstract
 
-A frontier model can write a procedure that lifts a small model's accuracy substantially.
-The practical question is what that procedure needs to be *derived from*: worked episodes
-of the task, or merely a description of it. Episodes are ~12× more expensive to distil
-from, so if a one-line description suffices, distillation is not worth doing.
+Retrieving teacher-authored procedures at inference time is an established way to lift a
+small model: prior work builds a corpus of step-by-step guides from clustered training
+questions and retrieves them per query, reporting 5–9% gains across three domains
+(arXiv:2510.13935). We do not propose that architecture. We ablate it.
+
+Those corpora are generated from *worked instances of the task*, and whether the instances
+are load-bearing has not been tested. Episodes are roughly 12× more expensive to distil
+from than a one-line task description, so if the description suffices, the examples are
+ceremony.
 
 We find episodes are worth **+18.7pp** over the best description-only alternative
 (64.0% ± 3.3% vs 45.3% ± 7.8%, against a 38.7% ± 5.0% floor), a gap **3.1× the pooled
@@ -29,22 +34,25 @@ properly — N independent generations, one evaluation each — artifact-generat
 artifacts that repeats evaluation over a fixed artifact is measuring the smaller of two
 noise sources and reporting confident intervals about the wrong quantity.
 
-Three secondary results. A *generic* procedure actively harms (−8.9pp), so the benefit
-requires task-appropriateness rather than mere structure. Governance bypass rises from 0%
-to 13.3% for **both** artifact conditions equally, so the safety cost attaches to having a
-procedure at all, not to distillation. And a capability-gradient hypothesis — that curation
-helps small models more — **failed**: of five models across three families, only one
-showed any premium.
+Three secondary results, two of which qualify the prior work. A *generic* procedure
+actively harms (−8.9pp), so the benefit requires task-appropriateness rather than mere
+structure. Governance bypass rises from 0% to 13.3% for **both** artifact conditions
+equally — a real safety cost of the technique that attaches to having a procedure at all,
+and which the instruction-retrieval literature does not measure. And a capability-gradient
+hypothesis — that curation helps small models more, which the prior work's ">= 3B
+parameters" result invites — **failed**: of five models across three families, only one
+showed any premium, with no gradient.
 
-Scope is narrow and we do not overstate it: one weak model, one task family, 15 evaluation
-timelines.
+Scope is narrow and load-bearing: one weak model, one task family, 15 evaluation timelines.
+We demonstrate that the episodes-versus-description gap **can** be large; we do not estimate
+how large it typically is, and §6.3 is our own evidence against extrapolating.
 
 ---
 
 ## 1. The question
 
-Give a small model a procedure and it does better. That much is uncontroversial and easy
-to demonstrate. The question with economic content is *where the procedure comes from*.
+Give a small model a procedure and it does better. That much is established (§2). The
+question with economic content is *where the procedure comes from*.
 
 Two sources, differing by an order of magnitude in cost:
 
@@ -54,13 +62,66 @@ Two sources, differing by an order of magnitude in cost:
 - **Description-only authoring.** Show the same frontier model a one-line description of
   the task and ask for the same thing. Cost: one short call.
 
-If these produce equivalent procedures, distillation is theatre. Nobody should pay 12×
-for it, and the framing of memory-as-transferable-experience loses its empirical support.
+If these produce equivalent procedures, the episode-gathering step in existing
+instruction-retrieval pipelines is theatre — nobody should pay 12× for it — and the framing
+of memory-as-transferable-experience loses its empirical support.
 
-We set out to test the first and found — twice, with confident-looking error bars — that
-it added nothing. Both results were artifacts of a sampling error described in §3.
+We found — twice, with confident-looking error bars — that episodes added nothing. Both
+results were artifacts of a sampling error described in §4, and both were wrong.
 
-## 2. Setup
+## 2. Related work
+
+**Instruction retrieval is not ours.** Prior work already proposes the architecture this
+paper evaluates. *Big Reasoning with Small Models* (arXiv:2510.13935) constructs an
+"Instruction Corpus by clustering similar training questions and using a teacher model to
+generate generalizable guides that pair domain background with explicit step-by-step
+procedures", which the small model retrieves at inference "without any additional
+fine-tuning". It reports gains of 9.4%, 7.9% and 5.1% in medicine, law and mathematics for
+models of at least 3B parameters. That is the same mechanism we implement.
+
+**We are not proposing it; we are ablating it.** Their corpus is built from clustered
+*training questions* — worked instances of the task. The question of whether the instances
+are load-bearing is not asked: there is no arm in which the teacher writes the same
+procedures from a task description alone. That ablation is this paper. Our answer (+18.7pp
+for episodes, §4) supports their design choice, and supplies the evidence for it that the
+original does not.
+
+Two further gaps we address. Their gains hold "for models with at least 3B parameters",
+which invites a scale reading; we test five models across three families and find the
+benefit concentrated in a single 4B model with no gradient (§6.3). And neither that work
+nor the surrounding literature measures what the intervention costs in governance terms —
+we find a real one (§6.2).
+
+**Distillation.** *Distilling Step-by-Step* (Hsieh et al., 2023) extracts natural-language
+rationales from a large model and trains a small one on them, and the broader
+rationale-distillation line follows that shape. The difference is where the transferred
+capability lives: in weights, versus in an inspectable artifact retrieved at inference. The
+artifact form is revocable, attributable, and scopeable — properties a weight update cannot
+offer — which is what makes the governance question in §6.2 askable at all.
+
+**Evaluation variance.** Our §4 correction has a direct precedent. *ReliableEval*
+(arXiv:2505.22169) argues that "standard benchmarks typically report performance using a
+single prompt, raising concerns about the reliability of such evaluations", and proposes
+estimating how many prompt resamplings are needed for a meaningful result. Related work on
+reproducibility in reasoning evaluation makes the parallel point for random seeds, finding
+single-seed results on small datasets unstable.
+
+Our case is a specific and sharper instance. ReliableEval resamples *meaning-preserving
+perturbations of a human-written prompt*: the perturbations are constructed, and the
+variation is introduced deliberately. When the artifact is **authored by a model**, the
+variation is not introduced — it is inherent, unavoidable, and easy to miss, because there
+is exactly one artifact and it looks like a fixed object. We show that treating it as fixed
+inverts a result (§3), and that its variance exceeds the model-sampling variance that
+evaluations do typically report (6.0pp vs 5.0pp).
+
+**Memory-evaluation confounds.** *MemDelta* (arXiv:2606.29914) finds that reported gains in
+agent memory "often mix changes in the memory method with changes in the language model,
+embedding model, or retrieval pipeline", and that varying one component at a time can flip
+a conclusion. That is a confound in the *pipeline*; ours is a confound in the *artifact*.
+Both produce the same failure — a comparison whose sign depends on an uncontrolled
+variable — and a system can be exposed to both independently.
+
+## 3. Setup
 
 **Task.** `repair_propagation` from StateBench: a value is corrected, and conclusions
 derived from the old value must be recomputed rather than reused. Chosen because the weak
@@ -83,10 +144,10 @@ Without this, "transfer" could be answer leakage.
 | `weak_alone` | none |
 | `distilled` | frontier model, 12 worked episodes |
 | `description_only` | frontier model, one-line task description, no episodes |
-| `generic` (§5.1) | hand-written, task-agnostic |
-| `targeted` (§5.1) | hand-written, task-specific |
+| `generic` (§6.1) | hand-written, task-agnostic |
+| `targeted` (§6.1) | hand-written, task-specific |
 
-## 3. The methodological correction
+## 4. The methodological correction
 
 Our first two experiments each ran **three evaluation passes over one generated artifact**
 and reported the spread as an error bar. Results:
@@ -114,7 +175,7 @@ quantity, and here that quantity was the *smaller* of the two (5.0pp evaluation 
 generation). Confident intervals over the smaller source, applied to a comparison driven by
 the larger, is how both of our early passes reached the wrong answer with narrow bars.
 
-## 4. Result
+## 5. Result
 
 Five independent generations per condition, one evaluation each, 15 dev timelines.
 
@@ -133,12 +194,12 @@ roughly twice the variance. For a deployment this matters more than the mean: yo
 generation, not a distribution, and the description-only condition's 20pp range means the
 procedure you happen to receive may be barely better than nothing.
 
-That stability result is only visible under the §3 design. The naive design cannot see it
+That stability result is only visible under the §4 design. The naive design cannot see it
 at all, because it never generates a second artifact.
 
-## 5. Secondary results
+## 6. Secondary results
 
-### 5.1 Structure is not enough; task-appropriateness is required
+### 6.1 Structure is not enough; task-appropriateness is required
 
 Two hand-written controls, three evaluation runs each:
 
@@ -156,7 +217,7 @@ The targeted control scores well, but we authored it *after* seeing the distille
 artifacts and treat it as contaminated in its own favour. It bounds what a domain expert
 might achieve; it does not establish it.
 
-### 5.2 The governance cost is not distillation-specific
+### 6.2 The governance cost is not distillation-specific
 
 Governance Bypass Rate — asserting content the state layer excluded, scored against the
 engine's audit record with no judge — is **0.0% unaided and 13.3% for both artifact
@@ -168,7 +229,7 @@ also induces it to reach for state it should not have. This is a cost of the tec
 of distillation, and it is worth stating plainly: the accuracy gain comes with a real
 governance regression.
 
-### 5.3 A failed hypothesis: no capability gradient
+### 6.3 A failed hypothesis: no capability gradient
 
 We predicted curation would help in inverse proportion to model capability, which would
 have given artifact transfer an economic motivation. Across five models and three families,
@@ -197,11 +258,27 @@ were uniformly more encouraging than replicated ones.
 We report this because the hypothesis motivated the work, and because a single supporting
 datapoint would have been easy to present as a trend.
 
-## 6. Limitations
+## 7. Limitations
 
-**One model, one task, small n.** `qwen3-4b` on `repair_propagation` over 15 timelines.
-Whether +18.7pp generalises across tasks or models is untested. Given §5.3, we would not
-assume it.
+These are the paper's boundaries, not a research agenda. The two most consequential —
+a second task family and an uncontaminated expert control — were considered and
+deliberately not run. We state them as open rather than forthcoming.
+
+**A single task family. This is the binding limitation.** Every headline number comes from
+`repair_propagation` on `qwen3-4b` over 15 timelines. We claim episodes beat descriptions
+*on this task*, and nothing wider. §6.3 is our own evidence against extrapolating: a
+capability hypothesis that looked reasonable held for one model out of five. A reader
+should treat +18.7pp as a demonstration that the gap **can** be large, not an estimate of
+how large it typically is.
+
+**The expert-authored baseline is unresolved.** §6.1's targeted control scores 60.0% —
+*above* distillation — but we wrote it after seeing the distilled artifacts, so it cannot
+be treated as independent. The question it was meant to answer, *could a domain expert
+match distillation without episodes?*, is therefore open. We consider this the strongest
+surviving deflationary account of our result: if the answer is yes, the contribution
+narrows from "episodes are necessary" to "episodes are a cheap substitute for expertise".
+Resolving it requires an author with no exposure to the distilled artifacts, and we did
+not run that.
 
 **Description quality is a confound we could not fully remove.** `repair_propagation`'s
 description — "corrections cascade to derived conclusions" — nearly *is* the procedure. We
@@ -210,9 +287,12 @@ anyway, producing guidance about "treating corrections as superseding earlier in
 from a description that only said information changes over time. A task whose method cannot
 be inferred from any honest description would be a cleaner test; we did not find one.
 
-**Over-generalization is untested.** The intended control — applying skills to a family
-whose correct behavior conflicts — was degenerate: the weak model scores 0.0% on that
-family with or without skills, so there is no headroom for harm to appear.
+**Over-generalization is untested, and the attempt failed rather than being skipped.** The
+intended control — applying skills to a family whose correct behavior conflicts — was
+degenerate: the weak model scores 0.0% on that family with or without skills, leaving no
+headroom for harm to appear. So we cannot say whether these artifacts misfire when applied
+where they should not. Given §6.1's finding that a *wrong* procedure is worse than none
+(−8.9pp), the potential for harm is real and unmeasured.
 
 **No cost measurement.** The local inference path reports `usage: null`, so token
 accounting for the weak arm reads zero and the cost ratio is unavailable. The 12×
@@ -221,10 +301,12 @@ generation-cost difference is by construction, not measured end-to-end.
 **Judge and distiller share a provider family**, though not a model. A cross-family judge
 control was not run.
 
-## 7. Conclusion
+## 8. Conclusion
 
-Worked examples are worth paying for. They produce procedures that are ~19 points better
-and about twice as stable as what the same model writes from a task description alone.
+Worked examples are worth paying for. They produce procedures ~19 points better and about
+twice as stable as what the same model writes from a task description alone. Existing
+instruction-retrieval systems build their corpora from worked instances; this is the
+evidence that the choice matters, which those systems assert rather than demonstrate.
 
 The methodological result may be the more portable one: when the thing under test is
 generated by a model, the generation is the experiment. We measured the wrong variance
@@ -236,6 +318,30 @@ Finally, the technique carries a governance cost that its accuracy numbers conce
 procedure that helps a weak model reason also helps it reach for state it was not given.
 That cost is identical whether the procedure came from episodes or a description, and it
 should be measured with an instrument the procedure cannot talk its way past.
+
+---
+
+## References
+
+Hsieh, C.-Y., et al. (2023). *Distilling Step-by-Step! Outperforming Larger Language Models
+with Less Training Data and Smaller Model Sizes.* arXiv:2305.02301.
+
+*Big Reasoning with Small Models: Instruction Retrieval at Inference Time.* (2025).
+arXiv:2510.13935.
+
+*ReliableEval: A Recipe for Stochastic LLM Evaluation.* (2025). arXiv:2505.22169.
+
+*A Sober Look at Progress in Language Model Reasoning: Pitfalls and Paths to
+Reproducibility.* (2025). arXiv:2504.07086.
+
+Wang, K. (2026). *MemDelta: Controlled Baselines and Hidden Confounds in Agent Memory
+Evaluation.* arXiv:2606.29914.
+
+Wu, R., et al. (2026). *MemHarness: Memory Is Reconstructed, Not Replayed.*
+arXiv:2607.28272.
+
+Liotta, M. (2026). *The Correct Answer Violates: Measurement Validity in Agent-Memory
+Evaluation.*
 
 ---
 
