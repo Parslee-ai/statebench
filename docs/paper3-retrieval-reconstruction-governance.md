@@ -337,6 +337,11 @@ instruction is the thing under test.
 | `reconstructive_rag_engine_filtered` (`Γ∘C`) | **100%** | 25% | 20% | 10.7% |
 | `reconstructive_rag_validated` (`Γ∘C∘V`) | **100%** | 25% | 20% | 10.7% |
 
+GBR is the **conditional** rate throughout — the fraction of leaks among queries where the
+reference resolver actually withheld something. The unconditional rate over all 28 pairs is
+proportionally lower (5.4% / 21.4% / 7.1% / 7.1%) and is the wrong denominator here, since
+a query with nothing withheld cannot bypass anything.
+
 Every arm scores 100% on the positive side. The entire split is on the counterfactual.
 
 Prompt-governed reconstruction scores 0% across all 12 engine-decidable pairs: it answers
@@ -350,8 +355,16 @@ this cannot be closed by training on these axes: the discriminating fact never e
 model's context.
 
 A separate, judge-free replication on a weaker model (3 engine axes, 6 pairs, subject
-`mlx/qwen3-4b:4bit`) gives the prompted arm 100% conditional GBR — it leaked on *every*
-query where the resolver withheld anything — against 0% for `Γ∘C`.
+`mlx/qwen3-4b:4bit`) was run three times. The prompted arm gives **100% conditional GBR in
+all three** — it leaked on *every* query where the resolver withheld anything. `Γ∘C` gives
+**0%, 25% and 16.7%**.
+
+We report all three because the first is the one we would have quoted. Scoring is
+deterministic here — no judge — so the spread is the subject model's own sampling, and a
+single run of `Γ∘C` would have read as perfect enforcement when the three-run mean is
+13.9%. The separation is not in doubt at 100% versus 13.9%; the zero was a draw, not a
+property. `Γ` bounds what can leak, it does not drive the rate to zero on a model that
+paraphrases what it was given.
 
 ### 7.2 The applicability factorial — reconstruction does not decline
 
@@ -420,16 +433,18 @@ refer to the companion audit (Liotta, 2026b) for the defect analysis, the paired
 method, and the corrected leaderboard.
 
 **What was corrected.** Six defects: judges inherited from the system under test;
-unbounded substring matching; forbidden phrases a *correct* answer must contain (979 of
-8,299 in the release, and on one track the correct answer violated by construction);
+unbounded substring matching; forbidden phrases a *correct* answer must contain (444 of
+4,163 in the release, and on one track the correct answer violated by construction);
 blindness to negation; SFRR computed from any forbidden-phrase violation rather than from
 resurrection specifically; and a decision extractor matching a bare "no" inside "now".
 
 **Impact.** Scoring identical responses under both semantics on the published
 configuration, SFRR falls on all ten baselines by 8.8–17.6pp, and the between-baseline
-ordering does not survive. The mechanism is verbosity: substring matching gives longer
-responses more spurious hits. Decision accuracy and must-mention reproduce within 1–2pp
-and serve as controls.
+ordering does not survive. The mechanism is *engagement*, not verbosity: the companion's
+decoy sweep shows generic filler of 319 words trips the scorer 0.3% of the time, while a
+response that names the dead value in order to reject it is flagged 100% of the time. The
+judge-scored metrics behave as controls — must-mention within 2pp, decision accuracy
+within 6.4pp in no consistent direction.
 
 **Why it matters here.** This paper's own results depend on the corrected instrument.
 Governance Bypass Rate and Unsupported Reconstruction Rate are scored against the state
@@ -513,11 +528,16 @@ output schema does not add the disposition to refuse.
 ### 9.4 The architecture premium is model-dependent
 
 Refreshing the leaderboard on a current-generation model (`gpt-5.6-sol`, same corrected
-scoring, same judge, 59 of 60 units) shows SFRR falling 0.8–7.5pp across baselines — the
-newer model resurrects substantially less under identical context. More consequentially,
+scoring, same judge, 59 of 60 units) shows SFRR falling 0.8–7.5pp on nine of ten
+baselines — the newer model resurrects substantially less under identical context.
+`transcript_latest_wins` is the lone exception, rising 1.7pp. More consequentially,
 Memgine's dev-split accuracy lead over `state_based` collapses from **9.1pp to 0.7pp**
-(and on test from 7.3pp to 0.1pp). Memgine is the only baseline whose accuracy materially
-*declines* (−5.8pp dev, −2.8pp test) while mid-table baselines hold or improve.
+(and on test from 7.3pp to 0.1pp). The gap closes from both ends: Memgine *declines*
+(−5.8pp dev, −2.8pp test) while `state_based` *improves* (+2.7pp dev, +4.4pp test). Three
+baselines decline materially on both splits — Memgine, `transcript_latest_wins` (−8.7 /
+−4.5) and `no_memory` (−6.9 / −6.1) — so decline is not unique to Memgine. What is
+particular to Memgine is that it is the only one of the three that led the leaderboard,
+so its decline is the one that changes a published conclusion.
 
 We do not have an attribution. Two candidates: filtering that removes context a stronger
 model could have used, or prompt and marker conventions tuned to the older model. A
@@ -535,8 +555,13 @@ not accuracy.
 ## 10. Limitations
 
 **Statistical power.** RQ2's decisive result is 12 pairs on three axes, single run. The
-effect is maximal (0% vs 100%) and replicated judge-free on a second model, but the sample
-is small.
+pair-accuracy effect is maximal (0% vs 100%) and the governance separation is replicated
+judge-free on a second model across three runs, but the sample is small. The weak-model
+replication also shows why the single run should not be trusted on its own: the same
+configuration returned 0%, 25% and 16.7% for `Γ∘C` under deterministic scoring, so the
+subject model's sampling alone spans that range. Pair accuracy on the engine axes is the
+robust part — it was 0% for the prompted arm in every run — and the leak *rate* is the
+part that needs replication.
 
 **Judge design.** The RQ2 experiment used the same model as subject and judge, risking
 self-preference on meta-label classification. The judge-free metrics (GBR, URR) are
@@ -595,8 +620,8 @@ AI Agents.*
 
 Liotta, M. (2026). *Memgine: A Deterministic Memory Engine for Stateful AI Agents.*
 
-Liotta, M. (2026b). *Your Memory Benchmark May Be Measuring Verbosity: Measurement
-Validity in Agent-Memory Evaluation.* Companion paper.
+Liotta, M. (2026b). *The Correct Answer Violates: Measurement Validity in Agent-Memory
+Evaluation.* Companion paper.
 
 Liu, N. F., et al. (2023). *Lost in the Middle: How Language Models Use Long Contexts.*
 arXiv:2307.03172.

@@ -30,13 +30,14 @@ metric rewards evasion.
 
 We audit StateBench, a conformance benchmark for stateful agents, and find six defects:
 judges inherited from the system under test, unbounded substring matching, forbidden
-phrases a correct answer must contain (979 of 8,299 in the release), blindness to
+phrases a correct answer must contain (444 of 4,163 in the release), blindness to
 negation, one metric computed from another's signal, and a decision extractor reading a
 bare "no" inside "now". To quantify the impact without confounding it with sampling, we
 generate each response once and score it twice. On `gpt-5.2-2025-12-11`, the exact
 published configuration, the resurrection metric falls on **all ten baselines** by 8.8 to
-17.6 percentage points, and the between-baseline ordering does not survive. Decision
-accuracy and must-mention reproduce within 1–2pp and serve as controls.
+17.6 percentage points, and the between-baseline ordering does not survive. The
+judge-scored metrics serve as controls and behave as controls should: must-mention holds
+within 2pp, and decision accuracy moves by at most 6.4pp in no consistent direction.
 
 Re-deriving the full leaderboard (two splits, three runs, 60 units) removes a claim from
 our own prior work: a reported leakage parity of 24.2% vs 24.1% ("within noise") becomes
@@ -200,8 +201,8 @@ that begin or end with punctuation.
 
 Some forbidden phrases carry no information about correctness. Three classes:
 
-1. **No content.** `"$"` appears as a forbidden phrase in 5 test-split queries and `"#"`
-   in others. Any response quoting any dollar amount violates.
+1. **No content.** `"$"` appears as a forbidden phrase in 5 test-split queries, and `"#"`
+   in one. Any response quoting any dollar amount violates.
 2. **Ordinary English.** `"by"`, `"to"`, `"from"`, `"using"` match nearly any sentence.
 3. **The vocabulary of the correct answer.** This is the damaging one.
 
@@ -210,12 +211,17 @@ detail*. One template's query is:
 
 > "What's our agreed timeline and budget for this CRM implementation?"
 
-and its forbidden list contains `"budget"`, `"deadline"`, `"timeline"`, `"approved"`,
-`"week"`, `"month"`. A correct response — "no timeline or budget was discussed" — **violates
-by construction.** The track penalized the behavior it existed to test.
+and its forbidden list is, in full: `"$"`, `"week"`, `"month"`, `"quarter"`, `"deadline"`,
+`"budget"`, `"by"`, `"before"`, `"approved"`, `"allocated"`. A correct response — "no
+timeline or budget was discussed" — **violates by construction**, on `budget` alone.
+The track penalized the behavior it existed to test.
 
-Across the v1.0 release, **979 of 8,299 forbidden phrases (11.8%)** fail an
-admissibility test; 675 of those are on `hallucination_resistance` alone.
+Across the v1.0 release — 1,410 unique timelines, deduplicated by timeline id because
+`full.jsonl` is the union of the splits plus 143 held-out items — **444 of 4,163 forbidden
+phrases (10.7%)** fail an admissibility test. They are heavily concentrated: 340 are on
+`hallucination_resistance`, where they account for **40.1%** of that track's entire
+forbidden list, and 69 more (25.6%) are on `supersession`. Six tracks have none.
+`experiments/phrase_admissibility_audit.py` regenerates this.
 
 **Fix:** an admissibility gate. A phrase is admissible only if a correct response could
 not plausibly contain it. Inadmissible phrases are excluded from scoring *and* from the
@@ -340,9 +346,14 @@ containing no scenario entity, amount, or date — against the same phrase lists
 | Decoy length (words) | Legacy FPR | Corrected FPR |
 |---|---|---|
 | 10 | 0.0% | 0.0% |
+| 20 | 0.3% | 0.0% |
 | 40 | 0.0% | 0.0% |
+| 80 | 0.3% | 0.0% |
 | 160 | 0.7% | 0.0% |
 | 319 | 0.3% | 0.0% |
+
+Every length is reported; the sequence is non-monotonic and never exceeds 0.7%, which is
+the point — a 32× increase in length does not produce a trend.
 
 Length alone does essentially nothing. Our initial verbosity hypothesis was wrong, and we
 report it as disconfirmed. The scorer is not sensitive to how *much* a response says; it
@@ -380,9 +391,11 @@ stratified dev timelines (n≈125 queries per baseline).
 **SFRR falls on every baseline, without exception**, by 8.8 to 17.6pp. Roughly half to
 three-quarters of published SFRR was not resurrection.
 
-Decision accuracy moves by ≤6pp with no consistent direction, consistent with judge
-sampling noise at this n. Must-mention is similarly stable. **Only the phrase-list metrics
-move**, which is what the defect analysis predicts.
+Decision accuracy moves by at most 6.4pp (`transcript_replay`) with no consistent
+direction — four baselines fall, six rise — consistent with judge sampling noise at this
+n. Must-mention is tighter, within 2pp on every baseline, as expected for a metric the
+decision extractor does not feed. **Only the phrase-list metrics move systematically**,
+which is what the defect analysis predicts.
 
 ### 6.3 The ordering does not survive
 
@@ -457,7 +470,8 @@ it. Correcting the instrument cost the system one claim and gave it another.
 ### 6.5 The bias is not static: model capability interacts with it
 
 Repeating the corrected evaluation on a current-generation model (`gpt-5.6-sol`, same
-scoring, same judge) shows SFRR falling a further 0.8–7.5pp across baselines. More
+scoring, same judge) shows SFRR falling a further 0.8–7.5pp on nine of ten baselines;
+`transcript_latest_wins` is the exception and rises 1.7pp. More
 consequentially for anyone reading an older leaderboard: the accuracy premium of the
 best architecture over a simpler one collapses from 9.1pp to 0.7pp on dev, and from 7.3pp
 to 0.1pp on test.
