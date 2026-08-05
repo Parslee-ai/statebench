@@ -43,8 +43,9 @@ hypothesis — that curation helps small models more, which the prior work's ">=
 parameters" result invites — **failed**: of five models across three families, only one
 showed any premium, with no gradient.
 
-Scope is narrow and we do not overstate it: one weak model, one task family, 15 evaluation
-timelines.
+Scope is narrow and load-bearing: one weak model, one task family, 15 evaluation timelines.
+We demonstrate that the episodes-versus-description gap **can** be large; we do not estimate
+how large it typically is, and §6.3 is our own evidence against extrapolating.
 
 ---
 
@@ -259,9 +260,25 @@ datapoint would have been easy to present as a trend.
 
 ## 7. Limitations
 
-**One model, one task, small n.** `qwen3-4b` on `repair_propagation` over 15 timelines.
-Whether +18.7pp generalises across tasks or models is untested. Given §6.3, we would not
-assume it.
+These are the paper's boundaries, not a research agenda. The two most consequential —
+a second task family and an uncontaminated expert control — were considered and
+deliberately not run. We state them as open rather than forthcoming.
+
+**A single task family. This is the binding limitation.** Every headline number comes from
+`repair_propagation` on `qwen3-4b` over 15 timelines. We claim episodes beat descriptions
+*on this task*, and nothing wider. §6.3 is our own evidence against extrapolating: a
+capability hypothesis that looked reasonable held for one model out of five. A reader
+should treat +18.7pp as a demonstration that the gap **can** be large, not an estimate of
+how large it typically is.
+
+**The expert-authored baseline is unresolved.** §6.1's targeted control scores 60.0% —
+*above* distillation — but we wrote it after seeing the distilled artifacts, so it cannot
+be treated as independent. The question it was meant to answer, *could a domain expert
+match distillation without episodes?*, is therefore open. We consider this the strongest
+surviving deflationary account of our result: if the answer is yes, the contribution
+narrows from "episodes are necessary" to "episodes are a cheap substitute for expertise".
+Resolving it requires an author with no exposure to the distilled artifacts, and we did
+not run that.
 
 **Description quality is a confound we could not fully remove.** `repair_propagation`'s
 description — "corrections cascade to derived conclusions" — nearly *is* the procedure. We
@@ -270,9 +287,12 @@ anyway, producing guidance about "treating corrections as superseding earlier in
 from a description that only said information changes over time. A task whose method cannot
 be inferred from any honest description would be a cleaner test; we did not find one.
 
-**Over-generalization is untested.** The intended control — applying skills to a family
-whose correct behavior conflicts — was degenerate: the weak model scores 0.0% on that
-family with or without skills, so there is no headroom for harm to appear.
+**Over-generalization is untested, and the attempt failed rather than being skipped.** The
+intended control — applying skills to a family whose correct behavior conflicts — was
+degenerate: the weak model scores 0.0% on that family with or without skills, leaving no
+headroom for harm to appear. So we cannot say whether these artifacts misfire when applied
+where they should not. Given §6.1's finding that a *wrong* procedure is worse than none
+(−8.9pp), the potential for harm is real and unmeasured.
 
 **No cost measurement.** The local inference path reports `usage: null`, so token
 accounting for the weak arm reads zero and the cost ratio is unavailable. The 12×
