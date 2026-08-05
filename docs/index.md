@@ -192,19 +192,19 @@ Liotta, 2026. The production implementation—query-relevance sorting, engine-le
 
 **The Instrument:**
 
-[**The Correct Answer Violates**](paper-measurement-validity.pdf)
+[**The Correct Answer Violates**](paper-measurement-validity.pdf) · [read online](paper-measurement-validity)
 
 An audit of this benchmark's own scoring. Six defects, the largest of which flags **100% of correct rejecting answers as violations**. Correcting it moves SFRR on every baseline, reorders the leaderboard, and withdraws one claim from the Memgine paper above. Not a verbosity effect—we predicted that and disconfirmed it.
 
 **What a State Layer Is For:**
 
-[**Retrieval, Reconstruction, and Governance**](paper3-retrieval-reconstruction-governance.pdf)
+[**Retrieval, Reconstruction, and Governance**](paper3-retrieval-reconstruction-governance.pdf) · [read online](paper3-retrieval-reconstruction-governance)
 
 Whether a learned reconstruction stage can enforce governance. It cannot—on axes constructed so the deciding fact never enters the model's context, no amount of training could teach it to. Across an 18-cell factorial, reconstruction never once declined to use an inapplicable memory.
 
 **Transferring Experience:**
 
-[**Worked Examples Are Worth Paying For**](paper4-worked-examples.pdf)
+[**Worked Examples Are Worth Paying For**](paper4-worked-examples.pdf) · [read online](paper4-worked-examples)
 
 Procedures distilled from worked episodes beat what the same frontier model writes from a one-line task description—by ~19 points. Also the methodological trap: generate the artifact once and the difference vanishes into noise you cannot see.
 
