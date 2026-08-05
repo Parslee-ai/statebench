@@ -470,7 +470,8 @@ it. Correcting the instrument cost the system one claim and gave it another.
 ### 6.5 The bias is not static: model capability interacts with it
 
 Repeating the corrected evaluation on a current-generation model (`gpt-5.6-sol`, same
-scoring, same judge) shows SFRR falling a further 0.8–7.5pp across baselines. More
+scoring, same judge) shows SFRR falling a further 0.8–7.5pp on nine of ten baselines;
+`transcript_latest_wins` is the exception and rises 1.7pp. More
 consequentially for anyone reading an older leaderboard: the accuracy premium of the
 best architecture over a simpler one collapses from 9.1pp to 0.7pp on dev, and from 7.3pp
 to 0.1pp on test.

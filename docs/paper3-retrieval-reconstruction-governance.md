@@ -520,11 +520,16 @@ output schema does not add the disposition to refuse.
 ### 9.4 The architecture premium is model-dependent
 
 Refreshing the leaderboard on a current-generation model (`gpt-5.6-sol`, same corrected
-scoring, same judge, 59 of 60 units) shows SFRR falling 0.8–7.5pp across baselines — the
-newer model resurrects substantially less under identical context. More consequentially,
+scoring, same judge, 59 of 60 units) shows SFRR falling 0.8–7.5pp on nine of ten
+baselines — the newer model resurrects substantially less under identical context.
+`transcript_latest_wins` is the lone exception, rising 1.7pp. More consequentially,
 Memgine's dev-split accuracy lead over `state_based` collapses from **9.1pp to 0.7pp**
-(and on test from 7.3pp to 0.1pp). Memgine is the only baseline whose accuracy materially
-*declines* (−5.8pp dev, −2.8pp test) while mid-table baselines hold or improve.
+(and on test from 7.3pp to 0.1pp). The gap closes from both ends: Memgine *declines*
+(−5.8pp dev, −2.8pp test) while `state_based` *improves* (+2.7pp dev, +4.4pp test). Three
+baselines decline materially on both splits — Memgine, `transcript_latest_wins` (−8.7 /
+−4.5) and `no_memory` (−6.9 / −6.1) — so decline is not unique to Memgine. What is
+particular to Memgine is that it is the only one of the three that led the leaderboard,
+so its decline is the one that changes a published conclusion.
 
 We do not have an attribution. Two candidates: filtering that removes context a stronger
 model could have used, or prompt and marker conventions tuned to the older model. A
