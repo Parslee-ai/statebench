@@ -49,7 +49,7 @@ how large it typically is, and §6.3 is our own evidence against extrapolating.
 
 ---
 
-## 1. The question
+## 1. Introduction
 
 Give a small model a procedure and it does better. That much is established (§2). The
 question with economic content is *where the procedure comes from*.
@@ -258,7 +258,61 @@ were uniformly more encouraging than replicated ones.
 We report this because the hypothesis motivated the work, and because a single supporting
 datapoint would have been easy to present as a trend.
 
-## 7. Limitations
+## 7. Discussion
+
+### 7.1 What a practitioner should take from this
+
+If you are building an instruction-retrieval or distilled-skill system, three things follow.
+
+**Gather the episodes.** They are worth ~19 points over what the same teacher writes from a
+description, and the description-only shortcut is tempting precisely because it looks
+equivalent when you test it once. On this task it was not.
+
+**Generate the artifact more than once and keep the better one.** Description-only spans
+20 points across generations; distilled spans 7. Since generation is cheap relative to
+serving, sampling several and selecting is close to free and recovers most of the
+downside. Nothing in the literature we surveyed does this, because nothing in it measures
+generation variance.
+
+**Do not assume a generic procedure is a safe default.** A task-agnostic procedure scored
+*below* no procedure at all (§6.1). Shipping one "just in case" is a live way to make a
+system worse.
+
+### 7.2 The safety cost is a property of the technique
+
+Governance bypass rose identically for both artifact conditions (§6.2). This is not a
+distillation problem to be engineered away by better distillation — it attaches to putting
+a reasoning procedure in front of a weak model at all.
+
+The mechanism is plausible on inspection: a procedure instructing a model to trace
+corrections through their dependents is also instructing it to go looking, and a model that
+goes looking finds state it was not meant to use. The intervention makes the model more
+capable *and* more acquisitive, and the accuracy headline reports only the first.
+
+Anyone deploying this should measure the second with an instrument the procedure cannot
+influence. We used a metric scored against the state layer's own audit record, which
+requires no judge and is insensitive to how the answer is phrased. A phrase-list or
+judge-based safety metric would be scored on text the procedure helped write.
+
+### 7.3 Why we report a failed hypothesis at length
+
+§6.3 records a prediction that did not survive: that curation helps in inverse proportion
+to model capability. It motivated this work, and one supporting datapoint existed.
+
+We report it because the failure mode is instructive rather than embarrassing. The
+hypothesis was plausible, the first datapoint confirmed it, and four subsequent models did
+not. Had we stopped at one model — as the compute budget invited — we would have published
+a clean gradient story built on a single observation. The same pattern recurred at every
+scale of this project: the description-only comparison inverted between passes, and every
+capability tier shrank toward zero as runs accumulated. Single-run results were uniformly
+more encouraging than replicated ones.
+
+That regularity is worth more than the specific hypothesis. If it generalises — and §4
+gives a mechanism for why it should, since the encouraging draw is the one that gets
+written up — then the appropriate prior on any single-run result in this literature is
+that it overstates.
+
+## 8. Limitations
 
 These are the paper's boundaries, not a research agenda. The two most consequential —
 a second task family and an uncontaminated expert control — were considered and
@@ -301,7 +355,7 @@ generation-cost difference is by construction, not measured end-to-end.
 **Judge and distiller share a provider family**, though not a model. A cross-family judge
 control was not run.
 
-## 8. Conclusion
+## 9. Conclusion
 
 Worked examples are worth paying for. They produce procedures ~19 points better and about
 twice as stable as what the same model writes from a task description alone. Existing
@@ -345,7 +399,7 @@ Evaluation.*
 
 ---
 
-## Appendix: reproduction
+## Appendix A: Reproduction
 
 ```bash
 # The corrected design: N generations, one evaluation each
