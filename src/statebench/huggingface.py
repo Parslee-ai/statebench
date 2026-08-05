@@ -112,6 +112,7 @@ def push_to_hub(
     repo_id: str = "parslee/statebench",
     private: bool = False,
     token: str | None = None,
+    push_card: bool = True,
 ) -> str:
     """Push a StateBench release to HuggingFace Hub.
 
@@ -120,6 +121,7 @@ def push_to_hub(
         repo_id: HuggingFace repository ID (e.g., "parslee/statebench")
         private: Whether the repository should be private
         token: HuggingFace API token (uses cached token if not provided)
+        push_card: Also upload ``<release_dir>/README.md`` as the dataset card.
 
     Returns:
         URL of the published dataset.
@@ -128,7 +130,7 @@ def push_to_hub(
         ImportError: If huggingface_hub is not installed.
     """
     try:
-        import huggingface_hub  # noqa: F401
+        from huggingface_hub import HfApi
     except ImportError as e:
         raise ImportError(
             "The 'huggingface_hub' package is required. "
@@ -144,6 +146,23 @@ def push_to_hub(
         private=private,
         token=token,
     )
+
+    # The card is the dataset's public description of what its numbers mean, so
+    # it ships from version control with the data rather than being edited on the
+    # Hub. Without this the two drift silently -- which is how a superseded
+    # scoreboard and a since-retracted tradeoff claim stayed live on the Hub after
+    # the repository had corrected both.
+    if push_card:
+        card = release_dir / "README.md"
+        if card.exists():
+            HfApi().upload_file(
+                path_or_fileobj=str(card),
+                path_in_repo="README.md",
+                repo_id=repo_id,
+                repo_type="dataset",
+                token=token,
+                commit_message="Sync dataset card from release directory",
+            )
 
     return f"https://huggingface.co/datasets/{repo_id}"
 

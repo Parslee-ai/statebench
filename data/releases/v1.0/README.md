@@ -133,44 +133,76 @@ See the [StateBench repository](https://github.com/Parslee-ai/statebench) for fu
 | validation | 209 | Development/validation (15%) |
 | test | 209 | Held-out test (15%) |
 
-## Baseline Scoreboard
+## ⚠️ Scoring was corrected in statebench 2.0.0
 
-Results on the test split with different memory strategies.
+**The scoreboard below has been re-derived.** Results published before August 2026
+used an evaluation instrument with six defects, most consequentially that
+phrase-list scoring could not distinguish *naming a value in order to reject it*
+from *asserting it*. A response like "the meeting is **not** Friday — that was
+superseded" was scored as a resurrection.
+
+Across 400 queries from this release, **100% of correct answers phrased as
+explicit rejections were flagged as violations**. Under corrected scoring, 0%.
+
+Practical consequence: **SFRR figures published before 2.0.0 are roughly 2× the
+true resurrection rate, and the ordering between baselines does not survive
+correction.** They cannot be rescaled — the artifact share differs per system.
+Decision accuracy and must-mention are largely unaffected.
+
+Use `statebench >= 2.0.0` to reproduce the numbers below. See
+[CHANGELOG](https://github.com/Parslee-ai/statebench/blob/main/CHANGELOG.md).
+
+## Baseline Scoreboard (corrected scoring)
+
+`gpt-5.2-2025-12-11`, judge `gpt-4o-mini` pinned globally, 3 runs, mean ± std.
 
 > **Dataset revision**: `ffb2d1ab314ba6c2f92195e5e642ddffadee8df4`
+> **Instrument**: statebench 2.0.0
 
-### GPT-5.2
+### Validation split (dev)
 
-| Baseline | Decision Acc | SFRR ↓ | Must Mention | MNM Violations ↓ |
-|----------|-------------|--------|--------------|------------------|
-| **state_based** | **80.3%** | 34.4% | 79.8% | 18.5% |
-| state_based_no_supersession | 75.4% | 23.0% | 84.0% | 14.0% |
-| rolling_summary | 72.1% | 21.3% | 66.4% | 10.8% |
-| fact_extraction_with_supersession | 72.1% | 26.2% | 63.9% | 12.7% |
-| rag_transcript | 68.9% | 29.5% | 62.2% | 15.3% |
-| fact_extraction | 63.9% | 27.9% | 56.3% | 13.4% |
-| transcript_replay | 60.7% | 24.6% | 67.2% | 12.1% |
-| transcript_latest_wins | 60.7% | 21.3% | 42.0% | 9.6% |
-| no_memory | 26.2% | 19.7% | 5.0% | 9.6% |
+| Baseline | Decision Acc | SFRR ↓ | Leakage ↓ | Must Mention |
+|----------|-------------|--------|-----------|--------------|
+| **memgine** | **96.8% ± 0.0%** | 14.0% ± 0.2% | **1.9%** | 81.0% ± 0.1% |
+| state_based_no_supersession | 91.5% ± 0.6% | **9.5% ± 1.2%** | 5.4% | 80.8% ± 0.5% |
+| state_based | 87.6% ± 0.5% | 12.9% ± 0.9% | 7.4% | 79.3% ± 0.2% |
+| fact_extraction_with_supersession | 84.0% ± 1.1% | 13.4% ± 0.8% | 4.6% | 65.2% ± 1.5% |
+| rolling_summary | 83.9% ± 0.7% | 6.9% ± 0.6% | 5.1% | 67.1% ± 1.2% |
+| rag_transcript | 83.5% ± 1.0% | 10.8% ± 0.5% | 4.8% | 71.0% ± 0.3% |
+| transcript_replay | 83.2% ± 0.2% | 7.9% ± 0.8% | 4.6% | 70.6% ± 0.5% |
+| fact_extraction | 77.6% ± 2.0% | 14.1% ± 1.1% | 4.4% | 64.3% ± 0.7% |
+| transcript_latest_wins | 69.5% ± 1.3% | 7.4% ± 0.5% | 2.3% | 42.7% ± 1.1% |
+| no_memory | 26.3% ± 1.1% | 4.7% ± 0.5% | 2.3% | 9.3% ± 0.4% |
 
-### Claude Opus 4.5
+### Test split (held out)
 
-| Baseline | Decision Acc | SFRR ↓ | Must Mention | MNM Violations ↓ |
-|----------|-------------|--------|--------------|------------------|
-| state_based_no_supersession | **62.9%** | 38.2% | 86.0% | 23.9% |
-| **state_based** | 58.2% | 41.0% | 87.4% | 23.6% |
-| transcript_replay | 53.0% | 33.5% | 74.8% | 20.6% |
-| rolling_summary | 51.4% | 45.8% | 73.6% | 28.7% |
-| fact_extraction_with_supersession | 51.4% | 39.0% | 71.0% | 22.9% |
-| rag_transcript | 51.0% | 44.2% | 76.9% | 27.7% |
-| fact_extraction | 49.0% | 37.5% | 68.8% | 21.1% |
-| transcript_latest_wins | 36.7% | 24.3% | 48.1% | 16.5% |
-| no_memory | 13.5% | 7.6% | 7.9% | 3.8% |
+| Baseline | Decision Acc | SFRR ↓ | Leakage ↓ | Must Mention |
+|----------|-------------|--------|-----------|--------------|
+| **memgine** | **94.2% ± 1.0%** | 12.7% ± 1.0% | 4.0% | 77.6% ± 1.9% |
+| state_based_no_supersession | 90.3% ± 0.7% | 9.2% ± 0.7% | 8.2% | **81.1% ± 0.4%** |
+| state_based | 86.9% ± 0.9% | 9.6% ± 0.6% | 8.9% | 76.9% ± 0.8% |
+| transcript_replay | 85.1% ± 0.7% | **6.8% ± 0.9%** | 7.4% | 67.2% ± 0.3% |
+| rolling_summary | 84.7% ± 0.5% | 6.8% ± 0.6% | 8.5% | 65.4% ± 1.2% |
+| rag_transcript | 83.1% ± 0.7% | 12.1% ± 0.5% | 8.0% | 67.3% ± 0.3% |
+| fact_extraction | 78.0% ± 0.8% | 11.2% ± 1.0% | 6.9% | 59.8% ± 0.7% |
+| transcript_latest_wins | 68.5% ± 0.3% | 8.2% ± 0.5% | 5.4% | 40.5% ± 0.1% |
+| no_memory | 25.5% ± 0.6% | 2.4% ± 0.0% | 3.3% | 7.4% ± 0.1% |
 
-**Key findings:**
-- `state_based` achieves highest decision accuracy on GPT-5.2 (80.3%)
-- Higher must-mention rates correlate with higher SFRR (accuracy-safety tradeoff)
-- Claude Opus 4.5 shows different baseline rankings than GPT-5.2
+**Key findings under corrected scoring:**
+
+- `memgine` leads decision accuracy on both splits by a wide margin, and has the
+  **lowest leakage of any baseline** (1.9% dev) — a result the previously blended
+  SFRR metric could not express.
+- The **accuracy–safety tradeoff claimed in earlier versions of this card does not
+  hold as stated.** It rested on SFRR figures that were substantially artifact;
+  the systems said to trade accuracy for resurrection are not the ones that do.
+- SFRR now counts resurrection only. Restricted-data leaks and fabrications are
+  reported separately as `leakage_rate` and `fabrication_rate`.
+- A refresh on a current-generation model (`gpt-5.6-sol`) shows the architectural
+  accuracy premium narrowing sharply, from 9.1pp to 0.7pp over `state_based`.
+
+Full analysis, including what the correction invalidated in the associated
+papers, is in the repository's `docs/`.
 
 ## Citation
 
