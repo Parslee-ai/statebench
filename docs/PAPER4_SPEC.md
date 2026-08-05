@@ -345,6 +345,76 @@ Three runs are required before any of this is publishable.
 
 ---
 
+## 7d. RQ3 RESULT: the episodes add nothing. The framing is wrong.
+
+Three runs per arm, `repair_propagation`, 15 dev timelines, weak model
+`mlx/qwen3-4b:4bit`, judge `gpt-4o-mini`.
+
+| Arm | Accuracy | Gain over floor |
+|---|---|---|
+| `weak_alone` | 35.6% ± 3.1% | — |
+| **`weak_plus_skills`** (distilled from 12 episodes) | 53.3% ± 5.4% | **+17.8pp** |
+| **`weak_plus_desconly`** (frontier, *one-line description, no episodes*) | 53.3% ± 0.0% | **+17.8pp** |
+| `weak_plus_targeted` (hand-written, task-specific) | 60.0% ± 0.0% | +24.4pp |
+| `weak_plus_generic` (hand-written, generic) | 26.7% ± 5.4% | **−8.9pp** |
+| `frontier_alone` | 100.0% ± 0.0% | +64.4pp |
+
+**The deflationary control succeeds, and the paper's thesis does not.** A
+procedure the frontier model wrote from nothing but the string *"Corrections
+cascade to derived conclusions"* matches distillation from twelve worked
+episodes **exactly** — 53.3% both ways. The episodes contribute **+0.0pp**.
+
+A hand-written task-targeted procedure does *better* than distillation
+(+24.4pp), though that control is contaminated: it was authored after seeing the
+distilled skills. The description-only control has no such exposure and is the
+one to weight. It already ties.
+
+**What survives, and it is worth having.** Procedures lift a weak model
+substantially — +17.8pp, closing 28% of a 64pp gap — and the generic control
+(−8.9pp) shows this is not "any text in the context helps": a procedure must be
+*task-appropriate* or it actively harms. But the source of that appropriateness
+is the task description, not worked examples.
+
+**The honest reframing.** This is not capability transfer from experience. It is:
+*a frontier model can write a procedure that substantially lifts a weak model,
+from a one-line task description, at the cost of a single call.* That is a
+cheaper and more practical claim than the one we set out to test — 1 API call
+rather than 12 episodes — but it is a different claim, and "amortized experience
+distillation" is the wrong frame for it.
+
+**RQ4 is unmeasurable as designed.** On the conflicting family
+(`supersession_maintain`, where the correct answer is to *affirm* the still-valid
+fact) the weak model scores **0.0% with or without skills**. It cannot do the
+task at all, so there is no headroom for skills to harm it and the
+over-generalization test is degenerate at this floor. It needs either a stronger
+weak model or a conflicting family the weak model can partly do. Separately,
+0.0% unaided is itself notable: this model over-supersedes universally.
+
+**RQ3 cost.** Token accounting is not usable — the CAR local path reports
+`usage: null`, so the weak arm's token count is 0 and the ratio is meaningless.
+Cost comparison needs wall-clock or price-weighted accounting instead.
+
+### What this means for the project
+
+The interesting question moved. "Do distilled experiences transfer?" is answered
+*no, not measurably beyond the task description*. The live questions are now:
+
+1. Does the description-only result hold on tasks where the description
+   under-determines the procedure? `repair_propagation`'s description
+   ("corrections cascade to derived conclusions") nearly *is* the procedure,
+   which may be why episodes added nothing. A task whose description does not
+   telegraph its method is the real test, and is the single experiment most
+   worth running next.
+2. Does the +17.8pp survive on a weak model that is not at a floor?
+3. Is the governance cost (GBR 0% → 13.3%, §7c) attached to procedures in
+   general, or to distilled ones specifically? The description-only arm makes
+   this separable and it was not measured.
+
+Question 1 could rescue the original framing or bury it. It should run before
+anything else.
+
+---
+
 ## 8. Sequencing
 
 1. **RQ1 gradient** — running. Gate on it.

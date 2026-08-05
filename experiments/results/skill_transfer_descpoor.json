@@ -1,0 +1,207 @@
+{
+ "track": "repair_propagation",
+ "weak_model": "mlx/qwen3-4b:4bit",
+ "frontier_model": "gpt-5.6-sol",
+ "distill_model": "gpt-5.6-sol",
+ "n_skills": 4,
+ "n_rejected": 0,
+ "skills": [
+  {
+   "skill_id": "SK-repair_propa-001",
+   "task_family": "repair_propagation",
+   "principle": "When an authoritative input is corrected, invalidate every conclusion that depended on the superseded value and recompute it from the corrected value using the original unchanged rules.",
+   "procedure": [
+    "Identify the original input, its authoritative replacement, and the prior derived conclusion marked as invalid.",
+    "Trace which requested outputs directly or indirectly depended on the replaced input.",
+    "Recover the calculation, rate, offset, sequence, or other transformation used to produce those outputs.",
+    "Substitute the corrected input while retaining only assumptions and rules that remain valid.",
+    "Recompute every affected output and check arithmetic, units, timing, and internal consistency.",
+    "Answer with the revised result and briefly state the corrected basis; do not repeat the invalid result as current."
+   ],
+   "preconditions": [
+    "A later statement explicitly supersedes an earlier input.",
+    "The requested result depends on the superseded input.",
+    "The governing transformation or dependency can be inferred from the context.",
+    "No later instruction also replaces the transformation itself."
+   ],
+   "counter_indications": [
+    "Do not apply this procedure when the new statement merely adds information without contradicting or replacing the earlier input.",
+    "Do not recalculate outputs that are independent of the corrected input.",
+    "Do not preserve the original transformation if it was also corrected or invalidated.",
+    "Do not invent missing rates, offsets, formulas, or assumptions when the dependency cannot be determined; request clarification instead."
+   ],
+   "source_episodes": [
+    "S9-000888",
+    "S9-000837",
+    "S9-000871"
+   ],
+   "source_scope": {},
+   "derived_by": "gpt-5.6-sol",
+   "confidence": 0.8
+  },
+  {
+   "skill_id": "SK-repair_propa-002",
+   "task_family": "repair_propagation",
+   "principle": "When a source fact is corrected, invalidate every conclusion that depends on the superseded fact and recompute it using the corrected fact while preserving all still-valid assumptions and relationships.",
+   "procedure": [
+    "Identify the original source fact, its corrected replacement, and the prior conclusion marked as invalid.",
+    "Determine which parts of the prior conclusion depended on the superseded fact.",
+    "Retain only inputs, constraints, intervals, formulas, and dependencies that remain valid.",
+    "Replace the obsolete fact with the corrected fact and reapply the original calculation or scheduling logic.",
+    "Check that all downstream outputs are internally consistent with the correction.",
+    "Answer with the updated result and, when useful, briefly indicate that it replaces the earlier result."
+   ],
+   "preconditions": [
+    "An earlier conclusion was derived from an identifiable source fact.",
+    "That source fact has been explicitly corrected or superseded.",
+    "The dependency or rule needed to recompute the affected conclusion is available or safely inferable.",
+    "The requested output is downstream of the corrected fact."
+   ],
+   "counter_indications": [
+    "Do not apply this procedure when the new information is merely an alternative, hypothetical, or unconfirmed claim rather than a correction.",
+    "Do not recompute outputs that do not depend on the corrected fact.",
+    "Do not preserve assumptions or relationships that were also superseded or invalidated.",
+    "Do not invent a formula, duration, dependency, or business rule when the available information is insufficient; instead state that the result cannot be determined."
+   ],
+   "source_episodes": [
+    "S9-000899",
+    "S9-000883",
+    "S9-000805"
+   ],
+   "source_scope": {},
+   "derived_by": "gpt-5.6-sol",
+   "confidence": 0.8
+  },
+  {
+   "skill_id": "SK-repair_propa-003",
+   "task_family": "repair_propagation",
+   "principle": "When a source fact is corrected, invalidate every conclusion that depended on the superseded fact and recompute it using the corrected fact while preserving only still-valid assumptions.",
+   "procedure": [
+    "Identify the original input, its corrected replacement, and the prior derived conclusion.",
+    "Determine the calculation, timing rule, dependency, or transformation that linked the original input to the conclusion.",
+    "Mark the prior conclusion as invalid rather than treating it as an additional valid result.",
+    "Substitute the corrected input into the same derivation, retaining only assumptions that remain supported.",
+    "Recalculate all affected quantities, dates, ranges, or decisions and propagate the change through downstream dependencies.",
+    "Answer with the updated result and briefly indicate that it reflects the correction."
+   ],
+   "preconditions": [
+    "A later statement explicitly supersedes or corrects an earlier fact.",
+    "The requested conclusion depends directly or indirectly on the corrected fact.",
+    "The derivation rule or relationship needed for recomputation is known or can be reliably inferred from the prior reasoning.",
+    "Any unchanged inputs or assumptions remain valid."
+   ],
+   "counter_indications": [
+    "Do not apply this procedure when the requested conclusion is independent of the corrected fact.",
+    "Do not recompute when the correction is ambiguous, conflicting, or not authoritative; request clarification instead.",
+    "Do not preserve the prior derivation if the correction also changes the governing rule, scope, duration, or calculation method.",
+    "Do not invent missing dependencies or assumptions when the available information is insufficient to determine an updated result."
+   ],
+   "source_episodes": [
+    "S9-000874",
+    "S9-000862",
+    "S9-000890"
+   ],
+   "source_scope": {},
+   "derived_by": "gpt-5.6-sol",
+   "confidence": 0.8
+  },
+  {
+   "skill_id": "SK-repair_propa-004",
+   "task_family": "repair_propagation",
+   "principle": "When an upstream fact is corrected, invalidate every conclusion that depends on it and recompute those conclusions from the corrected fact while preserving the original dependency rule unless that rule was also changed.",
+   "procedure": [
+    "Identify the original upstream fact, its corrected replacement, and the downstream conclusion marked as invalid.",
+    "Determine how the downstream conclusion was derived, including relative offsets, sequence, duration, or other transformation.",
+    "Treat the corrected fact as authoritative and do not reuse the invalidated downstream values.",
+    "Apply the same derivation rule to the corrected fact, respecting calendar boundaries, units, ordering, and stated constraints.",
+    "Report the recalculated result directly and, when useful, briefly note that it reflects the correction."
+   ],
+   "preconditions": [
+    "A later statement explicitly supersedes or corrects an earlier fact.",
+    "The requested conclusion depends on the corrected fact.",
+    "The original derivation rule can be inferred or is explicitly stated.",
+    "There is no indication that the derivation rule itself has changed."
+   ],
+   "counter_indications": [
+    "Do not apply this procedure when the correction is unrelated to the requested conclusion.",
+    "Do not preserve the old derivation rule when the rule, duration, dependency, or constraints were also revised.",
+    "Do not recalculate when a later authoritative statement directly supplies the final result.",
+    "Do not invent missing offsets, durations, business-calendar assumptions, or dependency rules when the available information is insufficient."
+   ],
+   "source_episodes": [
+    "S9-000860",
+    "S9-000889",
+    "S9-000825"
+   ],
+   "source_scope": {},
+   "derived_by": "gpt-5.6-sol",
+   "confidence": 0.8
+  }
+ ],
+ "arms": {
+  "weak_alone": {
+   "arm": "weak_alone",
+   "model": "mlx/qwen3-4b:4bit",
+   "n_runs": 3,
+   "n_queries": 15,
+   "decision_accuracy": 0.37777777777777777,
+   "decision_accuracy_std": 0.08314794192830982,
+   "sfrr": 0.4666666666666667,
+   "sfrr_std": 0.05443310539518172,
+   "must_mention_rate": 0.5333333333333333,
+   "must_mention_rate_std": 0.018144368465060606,
+   "skill_firing_rate": 0.0,
+   "skill_firing_rate_std": 0.0,
+   "tokens": 0,
+   "tokens_std": 0.0
+  },
+  "weak_plus_skills": {
+   "arm": "weak_plus_skills",
+   "model": "mlx/qwen3-4b:4bit",
+   "n_runs": 3,
+   "n_queries": 15,
+   "decision_accuracy": 0.5555555555555556,
+   "decision_accuracy_std": 0.03142696805273544,
+   "sfrr": 0.6,
+   "sfrr_std": 0.05443310539518172,
+   "must_mention_rate": 0.7481481481481481,
+   "must_mention_rate_std": 0.010475656017578498,
+   "skill_firing_rate": 1.0,
+   "skill_firing_rate_std": 0.0,
+   "tokens": 0,
+   "tokens_std": 0.0
+  },
+  "weak_plus_desconly": {
+   "arm": "weak_plus_desconly",
+   "model": "mlx/qwen3-4b:4bit",
+   "n_runs": 3,
+   "n_queries": 15,
+   "decision_accuracy": 0.4666666666666667,
+   "decision_accuracy_std": 0.0,
+   "sfrr": 0.4888888888888889,
+   "sfrr_std": 0.03142696805273544,
+   "must_mention_rate": 0.6888888888888889,
+   "must_mention_rate_std": 0.03628873693012112,
+   "skill_firing_rate": 1.0,
+   "skill_firing_rate_std": 0.0,
+   "tokens": 0,
+   "tokens_std": 0.0
+  },
+  "weak_plus_descpoor": {
+   "arm": "weak_plus_descpoor",
+   "model": "mlx/qwen3-4b:4bit",
+   "n_runs": 3,
+   "n_queries": 15,
+   "decision_accuracy": 0.4,
+   "decision_accuracy_std": 0.054433105395181744,
+   "sfrr": 0.4,
+   "sfrr_std": 0.0,
+   "must_mention_rate": 0.6666666666666667,
+   "must_mention_rate_std": 0.03142696805273544,
+   "skill_firing_rate": 1.0,
+   "skill_firing_rate_std": 0.0,
+   "tokens": 0,
+   "tokens_std": 0.0
+  }
+ }
+}

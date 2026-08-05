@@ -1,0 +1,276 @@
+{
+ "track": "repair_propagation",
+ "weak_model": "mlx/qwen3-4b:4bit",
+ "frontier_model": "gpt-5.6-sol",
+ "distill_model": "gpt-5.6-sol",
+ "n_skills": 4,
+ "n_rejected": 0,
+ "skills": [
+  {
+   "skill_id": "SK-repair_propa-001",
+   "task_family": "repair_propagation",
+   "principle": "When an authoritative correction replaces an input used by a prior conclusion, invalidate that conclusion and recompute every requested dependent result using the corrected input and the original valid rules.",
+   "procedure": [
+    "Identify the original input, its authoritative replacement, and the prior conclusion marked as invalid.",
+    "Trace which parts of the requested result depend on the replaced input.",
+    "Retain assumptions, rates, offsets, and transformation rules that were not corrected or invalidated.",
+    "Recompute all affected outputs from the corrected input, propagating the change through each dependency.",
+    "Check that no superseded input or invalidated conclusion remains in the calculation.",
+    "Report the revised result clearly, including the corrected input and the key recomputation."
+   ],
+   "preconditions": [
+    "An explicit correction supersedes a previously accepted input.",
+    "A prior conclusion was derived from that superseded input.",
+    "The requested output depends directly or indirectly on the corrected input.",
+    "The remaining calculation or scheduling rules are still valid and provide enough information to recompute the result."
+   ],
+   "counter_indications": [
+    "Do not apply this procedure when the correction is unrelated to the requested output.",
+    "Do not alter conclusions that do not depend on the superseded input.",
+    "Do not reuse the invalidated conclusion merely because it was previously stored or stated.",
+    "Do not invent missing dependency rules, rates, offsets, or assumptions; request clarification when recomputation is underdetermined."
+   ],
+   "source_episodes": [
+    "S9-000888",
+    "S9-000837",
+    "S9-000871"
+   ],
+   "source_scope": {},
+   "derived_by": "gpt-5.6-sol",
+   "confidence": 0.8
+  },
+  {
+   "skill_id": "SK-repair_propa-002",
+   "task_family": "repair_propagation",
+   "principle": "When a corrected source value supersedes an earlier value, invalidate every conclusion that depended on the earlier value and recompute it from the corrected value using the original dependency rules.",
+   "procedure": [
+    "Identify the original source value, its corrected replacement, and the prior derived conclusion.",
+    "Treat the corrected value as authoritative and do not reuse the superseded value.",
+    "Determine how the prior conclusion was derived, including calculations, intervals, offsets, sequencing, and unchanged inputs.",
+    "Mark the dependent parts of the prior conclusion as invalid while preserving any parts that do not depend on the correction.",
+    "Recompute all affected outputs by applying the same derivation rules to the corrected value.",
+    "Check arithmetic, timing, units, ordering, and consistency with the corrected source."
+   ],
+   "preconditions": [
+    "A source value has been explicitly corrected or superseded.",
+    "The requested conclusion depends directly or indirectly on that source value.",
+    "The derivation rule can be recovered from the prior reasoning or supplied context.",
+    "Other required inputs remain valid or have also been updated."
+   ],
+   "counter_indications": [
+    "Do not apply this procedure when the alleged correction is merely an alternative, suggestion, or unconfirmed claim.",
+    "Do not alter conclusions that are independent of the corrected source value.",
+    "Do not preserve the original output merely because it was previously recorded as a decision.",
+    "Do not invent a derivation rule when the relationship between the source and requested output is unspecified or ambiguous; request clarification instead."
+   ],
+   "source_episodes": [
+    "S9-000899",
+    "S9-000883",
+    "S9-000805"
+   ],
+   "source_scope": {},
+   "derived_by": "gpt-5.6-sol",
+   "confidence": 0.8
+  },
+  {
+   "skill_id": "SK-repair_propa-003",
+   "task_family": "repair_propagation",
+   "principle": "When a source fact is superseded, invalidate every conclusion that depends on it and recompute those conclusions from the corrected fact while preserving unaffected assumptions and rules.",
+   "procedure": [
+    "Identify the original fact, its corrected replacement, and the conclusion marked as dependent on the original fact.",
+    "Treat the corrected fact as authoritative and stop using the superseded fact.",
+    "Determine the calculation, timing offset, dependency, or other transformation that produced the original conclusion.",
+    "Reapply that same transformation using the corrected fact, together with any still-valid assumptions.",
+    "Check all downstream conclusions for direct or indirect dependence and update each affected result.",
+    "Answer with the recalculated result and briefly indicate that it reflects the correction."
+   ],
+   "preconditions": [
+    "A prior fact has been explicitly corrected or superseded.",
+    "The requested conclusion depends materially on the corrected fact.",
+    "The original derivation rule or dependency can be inferred or is provided.",
+    "Other inputs needed for recomputation remain valid or have also been updated."
+   ],
+   "counter_indications": [
+    "Do not apply this procedure when the requested conclusion is independent of the corrected fact.",
+    "Do not retain or combine the superseded value with its replacement unless explicitly instructed.",
+    "Do not recompute when the correction is hypothetical, disputed, or later withdrawn.",
+    "Do not invent missing derivation rules, durations, quantities, or assumptions; request clarification when the updated result is underdetermined."
+   ],
+   "source_episodes": [
+    "S9-000874",
+    "S9-000862",
+    "S9-000890"
+   ],
+   "source_scope": {},
+   "derived_by": "gpt-5.6-sol",
+   "confidence": 0.8
+  },
+  {
+   "skill_id": "SK-repair_propa-004",
+   "task_family": "repair_propagation",
+   "principle": "When an upstream fact is corrected, invalidate every conclusion that depended on it and recompute those conclusions from the corrected fact while preserving any unchanged timing, duration, or dependency rules.",
+   "procedure": [
+    "Identify the original upstream fact, its corrected replacement, and the prior derived conclusion marked as invalid.",
+    "Determine the rule that linked the original fact to the derived conclusion, such as a lead-time offset, start-after dependency, fixed duration, or sequence of milestones.",
+    "Treat the corrected fact as authoritative and do not reuse the invalid conclusion as current information.",
+    "Apply the same unchanged dependency rule to the corrected fact to calculate the revised result.",
+    "Check that all dependent milestones were shifted or recalculated consistently and that the result satisfies the corrected constraints.",
+    "Answer the exact question with the revised values, optionally noting that the schedule or conclusion changed because of the correction."
+   ],
+   "preconditions": [
+    "A prior conclusion was derived from an upstream fact that has since been explicitly corrected or superseded.",
+    "The dependency between the upstream fact and the requested result is stated or can be reliably inferred from the prior derivation.",
+    "The correction changes the input but does not itself replace the dependency rule used for recalculation."
+   ],
+   "counter_indications": [
+    "Do not apply this procedure when the corrected fact is unrelated to the requested conclusion.",
+    "Do not preserve prior offsets or durations when the correction also changes scope, duration, sequencing, business-day rules, time zones, or other dependency constraints.",
+    "Do not invent a revised value when the dependency rule is ambiguous or insufficiently specified; request clarification instead.",
+    "Do not use the superseded fact or the invalidated conclusion as authoritative after an explicit correction."
+   ],
+   "source_episodes": [
+    "S9-000860",
+    "S9-000889",
+    "S9-000825"
+   ],
+   "source_scope": {},
+   "derived_by": "gpt-5.6-sol",
+   "confidence": 0.8
+  }
+ ],
+ "arms": {
+  "weak_alone": {
+   "arm": "weak_alone",
+   "model": "mlx/qwen3-4b:4bit",
+   "n_runs": 3,
+   "n_queries": 15,
+   "decision_accuracy": 0.35555555555555557,
+   "decision_accuracy_std": 0.03142696805273546,
+   "sfrr": 0.5111111111111111,
+   "sfrr_std": 0.0831479419283098,
+   "must_mention_rate": 0.5481481481481482,
+   "must_mention_rate_std": 0.027715980642769936,
+   "skill_firing_rate": 0.0,
+   "skill_firing_rate_std": 0.0,
+   "tokens": 0,
+   "tokens_std": 0.0
+  },
+  "weak_plus_skills": {
+   "arm": "weak_plus_skills",
+   "model": "mlx/qwen3-4b:4bit",
+   "n_runs": 3,
+   "n_queries": 15,
+   "decision_accuracy": 0.5333333333333333,
+   "decision_accuracy_std": 0.05443310539518172,
+   "sfrr": 0.5111111111111111,
+   "sfrr_std": 0.03142696805273544,
+   "must_mention_rate": 0.6814814814814815,
+   "must_mention_rate_std": 0.037770514915502075,
+   "skill_firing_rate": 1.0,
+   "skill_firing_rate_std": 0.0,
+   "tokens": 0,
+   "tokens_std": 0.0
+  },
+  "weak_plus_desconly": {
+   "arm": "weak_plus_desconly",
+   "model": "mlx/qwen3-4b:4bit",
+   "n_runs": 3,
+   "n_queries": 15,
+   "decision_accuracy": 0.5333333333333333,
+   "decision_accuracy_std": 0.0,
+   "sfrr": 0.4222222222222222,
+   "sfrr_std": 0.06285393610547091,
+   "must_mention_rate": 0.7259259259259259,
+   "must_mention_rate_std": 0.041902624070313935,
+   "skill_firing_rate": 1.0,
+   "skill_firing_rate_std": 0.0,
+   "tokens": 0,
+   "tokens_std": 0.0
+  },
+  "weak_plus_targeted": {
+   "arm": "weak_plus_targeted",
+   "model": "mlx/qwen3-4b:4bit",
+   "n_runs": 3,
+   "n_queries": 15,
+   "decision_accuracy": 0.6,
+   "decision_accuracy_std": 0.0,
+   "sfrr": 0.4444444444444445,
+   "sfrr_std": 0.03142696805273544,
+   "must_mention_rate": 0.7555555555555555,
+   "must_mention_rate_std": 0.0,
+   "skill_firing_rate": 1.0,
+   "skill_firing_rate_std": 0.0,
+   "tokens": 0,
+   "tokens_std": 0.0
+  },
+  "weak_plus_generic": {
+   "arm": "weak_plus_generic",
+   "model": "mlx/qwen3-4b:4bit",
+   "n_runs": 3,
+   "n_queries": 15,
+   "decision_accuracy": 0.26666666666666666,
+   "decision_accuracy_std": 0.05443310539518172,
+   "sfrr": 0.6,
+   "sfrr_std": 0.09428090415820632,
+   "must_mention_rate": 0.4962962962962963,
+   "must_mention_rate_std": 0.010475656017578472,
+   "skill_firing_rate": 0.8666666666666667,
+   "skill_firing_rate_std": 0.0,
+   "tokens": 0,
+   "tokens_std": 0.0
+  },
+  "frontier_alone": {
+   "arm": "frontier_alone",
+   "model": "gpt-5.6-sol",
+   "n_runs": 3,
+   "n_queries": 15,
+   "decision_accuracy": 1.0,
+   "decision_accuracy_std": 0.0,
+   "sfrr": 0.15555555555555556,
+   "sfrr_std": 0.031426968052735454,
+   "must_mention_rate": 0.8296296296296296,
+   "must_mention_rate_std": 0.020951312035156943,
+   "skill_firing_rate": 0.0,
+   "skill_firing_rate_std": 0.0,
+   "tokens": 11628.666666666666,
+   "tokens_std": 41.41121694527811
+  },
+  "conflict_alone": {
+   "arm": "conflict_alone",
+   "model": "mlx/qwen3-4b:4bit",
+   "n_runs": 3,
+   "n_queries": 15,
+   "decision_accuracy": 0.0,
+   "decision_accuracy_std": 0.0,
+   "sfrr": 0.0,
+   "sfrr_std": 0.0,
+   "must_mention_rate": 0.0,
+   "must_mention_rate_std": 0.0,
+   "skill_firing_rate": 0.0,
+   "skill_firing_rate_std": 0.0,
+   "tokens": 0,
+   "tokens_std": 0.0
+  },
+  "conflict_plus_skills": {
+   "arm": "conflict_plus_skills",
+   "model": "mlx/qwen3-4b:4bit",
+   "n_runs": 3,
+   "n_queries": 15,
+   "decision_accuracy": 0.0,
+   "decision_accuracy_std": 0.0,
+   "sfrr": 0.0,
+   "sfrr_std": 0.0,
+   "must_mention_rate": 0.0,
+   "must_mention_rate_std": 0.0,
+   "skill_firing_rate": 1.0,
+   "skill_firing_rate_std": 0.0,
+   "tokens": 0,
+   "tokens_std": 0.0
+  }
+ },
+ "gap": 0.6444444444444444,
+ "raw_gain": 0.17777777777777776,
+ "gap_closure": 0.27586206896551724,
+ "over_generalization_delta": 0.0,
+ "token_ratio_vs_frontier": 0.0
+}
