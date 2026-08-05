@@ -67,8 +67,7 @@ Thumbs.db
 # Claude Code config
 CLAUDE.md
 
-# Paper PDFs are build products of docs/build_papers.py -- except the two
-# published ones, which are historical artifacts and are force-added.
-docs/paper-measurement-validity.pdf
-docs/paper3-retrieval-reconstruction-governance.pdf
-docs/paper4-worked-examples.pdf
+# Paper PDFs were ignored as build products of docs/build_papers.py, but GitHub
+# Pages serves this directory, so an ignored PDF is a broken link on the site.
+# They are tracked; rebuild with `python docs/build_papers.py` before committing
+# a change to any paper's markdown.

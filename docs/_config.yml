@@ -8,3 +8,6 @@ plugins:
 exclude:
   - Gemfile
   - Gemfile.lock
+  # Paper build tooling, not site content. The PDFs it produces are served.
+  - build_papers.py
+  - paper.css

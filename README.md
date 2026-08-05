@@ -11,8 +11,16 @@
 StateBench is not another LLM benchmark. It is a test suite that proves whether your AI system actually maintains correct state over time—or just pretends to.
 
 > **Papers:**
+>
+> *Published:*
 > - [Beyond Conversation: A State-Based Context Architecture for Enterprise AI Agents](docs/state-based-context-architecture.pdf) (Liotta, 2025) — the theoretical foundations and benchmark evaluation.
 > - [Memgine: A Deterministic Memory Engine for Stateful AI Agents](docs/memgine-deterministic-memory-engine.pdf) (Liotta, 2026) — a production engine implementing the full specification, achieving 95.8% decision accuracy.
+>
+> *Drafts.* These audit and extend the work above; where they disagree with it,
+> they are the later word. Rebuild any of them with `python docs/build_papers.py`.
+> - [The Correct Answer Violates](docs/paper-measurement-validity.pdf) — how phrase-list scoring punishes the behavior it exists to reward. Six defects in this benchmark's own instrument; **100% of correct rejecting answers were scored as violations**, and correcting it withdraws a claim from the Memgine paper.
+> - [Retrieval, Reconstruction, and Governance](docs/paper3-retrieval-reconstruction-governance.pdf) — whether a reconstruction stage can enforce governance. It cannot, on axes built so that no amount of training could teach it to, because the deciding fact never reaches the model.
+> - [Worked Examples Are Worth Paying For](docs/paper4-worked-examples.pdf) — skills distilled from episodes beat what the same model writes from a task description, and the artifact-generation variance that hides the difference if you only generate once.
 
 ## The Problem
 
@@ -49,8 +57,9 @@ Passing is rare. Most transcript-replay systems fail Track 1 (Causality) at mean
 > **⚠️ These numbers predate the v2.0 scoring changes and are not reproducible
 > with current code.** The evaluation instrument was corrected after these runs:
 > forbidden phrases are now matched on word boundaries, non-discriminative
-> phrases are excluded from scoring (979 of 8,299 in the v1.0 release, chiefly
-> on `hallucination_resistance`), a phrase appearing only under negation no
+> phrases are excluded from scoring (444 of 4,163 in the v1.0 release, and
+> 40.1% of `hallucination_resistance`'s entire forbidden list), a phrase
+> appearing only under negation no
 > longer counts as a violation, SFRR now counts resurrection only (privacy leaks
 > and fabrications are reported separately), and the decision extractor no
 > longer reads a bare "no" inside words like "now" and "know". The judge is also
@@ -58,10 +67,12 @@ Passing is rare. Most transcript-replay systems fail Track 1 (Causality) at mean
 >
 > The leaderboard has been **re-derived** under corrected scoring on
 > `gpt-5.2-2025-12-11` (the published configuration), full dev and test splits,
-> 3 runs — see `docs/PAPER3_SPEC.md` §10a-v for the new tables.
+> 3 runs — see [The Correct Answer Violates](docs/paper-measurement-validity.pdf)
+> §6.4 for the new tables.
 >
-> Decision accuracy and must-mention reproduce within ~1–2pp, so those figures
-> below stand. **SFRR does not.** Every SFRR figure here is inflated roughly
+> Must-mention reproduces within 2pp and decision accuracy within 6.4pp in no
+> consistent direction, so those figures below stand as approximations.
+> **SFRR does not.** Every SFRR figure here is inflated roughly
 > 2×, and the ordering between baselines changes. Most consequentially,
 > Memgine's reported SFRR parity with `state_based_no_supersession`
 > (24.2% vs 24.1%) becomes **14.0% vs 9.5%** — a real gap, not noise — so the
@@ -71,8 +82,10 @@ Passing is rare. Most transcript-replay systems fail Track 1 (Causality) at mean
 > baseline, which the old blended SFRR concealed.
 >
 > A `gpt-5.6-sol` refresh under the same corrected scoring is in
-> `docs/PAPER3_SPEC.md` §10a-vi. Headline: the newer model resurrects
-> substantially less across the board (SFRR −0.8 to −7.5pp), and the
+> [The Correct Answer Violates](docs/paper-measurement-validity.pdf) §6.5.
+> Headline: the newer model resurrects substantially less — SFRR falls 0.8 to
+> 7.5pp on nine of ten baselines, `transcript_latest_wins` being the lone
+> exception at +1.7pp — and the
 > architecture premium narrows sharply — `memgine`'s dev-split lead over
 > `state_based` falls from 9.1pp to 0.7pp, and on the test split `state_based`
 > pulls level. Stronger models need less context curation.
@@ -399,8 +412,13 @@ statebench/
 ├── docs/
 │   ├── state-based-context-architecture.pdf  # Architecture paper
 │   ├── memgine-deterministic-memory-engine.pdf  # Memgine paper
+│   ├── paper-measurement-validity.*  # Instrument audit (draft)
+│   ├── paper3-retrieval-reconstruction-governance.*  # Governance (draft)
+│   ├── paper4-worked-examples.*  # Skill transfer (draft)
+│   ├── build_papers.py  # Rebuilds the draft PDFs from markdown
 │   ├── EVALUATION.md    # Scoring methodology
 │   └── ALGORITHM.md     # State-based algorithm spec
+├── experiments/         # Result-producing scripts for the papers
 └── results/             # Evaluation outputs
 ```
 

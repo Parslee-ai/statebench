@@ -75,6 +75,23 @@ We compared transcript replay, rolling summaries, RAG, fact extraction, state-ba
 
 State-based wins on accuracy. A deterministic engine wins decisively.
 
+> **The SFRR figures below are superseded.** We later audited our own scoring and
+> found it counted correct answers as failures — a response that names a dead fact
+> *in order to reject it* was flagged as having resurrected it, every time. Under
+> corrected scoring SFRR falls 8.8–17.6pp on all ten baselines and the ordering
+> between them changes. Decision accuracy and must-mention are broadly unaffected,
+> so the accuracy story below stands; the resurrection story does not.
+>
+> Most consequentially, Memgine's reported SFRR parity with
+> `state_based_no_supersession` (24.2% vs 24.1%, called "within noise") becomes
+> **14.0% vs 9.5%** — a real gap. The claim that Memgine improves accuracy without
+> increasing leakage does not survive. Its *leakage* rate, 1.9%, is the lowest of
+> any baseline, which the old blended metric concealed.
+>
+> Full analysis and the re-derived leaderboard:
+> [The Correct Answer Violates](paper-measurement-validity.pdf). These tables are
+> kept as the published record.
+
 ### Memgine (Deterministic Engine)
 
 Memgine implements the full state-based specification with query-relevance sorting, engine-level access control, and adaptive inline repair. Results on the v1.0 development split (3-run mean ± std):
@@ -172,6 +189,26 @@ Liotta, 2025. The theoretical foundations—four-layer state model, supersession
 [**Memgine: A Deterministic Memory Engine for Stateful AI Agents**](memgine-deterministic-memory-engine.pdf)
 
 Liotta, 2026. The production implementation—query-relevance sorting, engine-level access control, adaptive inline repair, per-track analysis, and the enforcement-reasoning boundary.
+
+**The Instrument:**
+
+[**The Correct Answer Violates**](paper-measurement-validity.pdf)
+
+An audit of this benchmark's own scoring. Six defects, the largest of which flags **100% of correct rejecting answers as violations**. Correcting it moves SFRR on every baseline, reorders the leaderboard, and withdraws one claim from the Memgine paper above. Not a verbosity effect—we predicted that and disconfirmed it.
+
+**What a State Layer Is For:**
+
+[**Retrieval, Reconstruction, and Governance**](paper3-retrieval-reconstruction-governance.pdf)
+
+Whether a learned reconstruction stage can enforce governance. It cannot—on axes constructed so the deciding fact never enters the model's context, no amount of training could teach it to. Across an 18-cell factorial, reconstruction never once declined to use an inapplicable memory.
+
+**Transferring Experience:**
+
+[**Worked Examples Are Worth Paying For**](paper4-worked-examples.pdf)
+
+Procedures distilled from worked episodes beat what the same frontier model writes from a one-line task description—by ~19 points. Also the methodological trap: generate the artifact once and the difference vanishes into noise you cannot see.
+
+*The last three are drafts. Where they disagree with the two published papers, they are the later word.*
 
 ---
 
