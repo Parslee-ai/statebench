@@ -136,15 +136,19 @@ def build(md_path: Path) -> Path:
             block.append(f'<p class="author">{author}</p>')
         html = html.replace("<body>", "<body>\n" + "\n".join(block), 1)
 
-        # Wrap the abstract so the WHOLE section is indented. CSS can only reach
-        # one adjacent sibling, which left later abstract paragraphs full-width.
-        html = re.sub(
-            r'(<h2[^>]*>Abstract</h2>)(.*?)(?=<h[12])',
-            lambda m: f'{m.group(1)}<div class="abstract">{m.group(2)}</div>',
-            html,
-            count=1,
-            flags=re.S,
-        )
+        # Wrap sections whose styling must not leak. CSS sibling selectors are
+        # the wrong tool here: an adjacent sibling reaches only the first
+        # paragraph (which left later abstract paragraphs full-width), and a
+        # general sibling reaches everything after it (which gave the appendix a
+        # hanging indent meant for references).
+        for heading, cls in (("Abstract", "abstract"), ("References", "references")):
+            html = re.sub(
+                rf'(<h2[^>]*>{heading}</h2>)(.*?)(?=<h[12]|</body>)',
+                lambda m, c=cls: f'{m.group(1)}<div class="{c}">{m.group(2)}</div>',
+                html,
+                count=1,
+                flags=re.S,
+            )
 
         (tmp / "out.html").write_text(html)
         result = subprocess.run(

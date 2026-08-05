@@ -149,8 +149,9 @@ a { color: #000; text-decoration: none; }
 
 strong { font-weight: bold; }
 
-/* References: hanging indent, and never split an entry across pages. */
-h2#references ~ p {
+/* References: hanging indent, and never split an entry across pages. Scoped to a
+ * wrapper div -- a general-sibling selector leaked the indent into the appendix. */
+div.references p {
   padding-left: 0.3in;
   text-indent: -0.3in;
   text-align: left;
