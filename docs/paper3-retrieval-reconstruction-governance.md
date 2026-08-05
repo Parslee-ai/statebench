@@ -337,6 +337,11 @@ instruction is the thing under test.
 | `reconstructive_rag_engine_filtered` (`Γ∘C`) | **100%** | 25% | 20% | 10.7% |
 | `reconstructive_rag_validated` (`Γ∘C∘V`) | **100%** | 25% | 20% | 10.7% |
 
+GBR is the **conditional** rate throughout — the fraction of leaks among queries where the
+reference resolver actually withheld something. The unconditional rate over all 28 pairs is
+proportionally lower (5.4% / 21.4% / 7.1% / 7.1%) and is the wrong denominator here, since
+a query with nothing withheld cannot bypass anything.
+
 Every arm scores 100% on the positive side. The entire split is on the counterfactual.
 
 Prompt-governed reconstruction scores 0% across all 12 engine-decidable pairs: it answers
@@ -420,16 +425,18 @@ refer to the companion audit (Liotta, 2026b) for the defect analysis, the paired
 method, and the corrected leaderboard.
 
 **What was corrected.** Six defects: judges inherited from the system under test;
-unbounded substring matching; forbidden phrases a *correct* answer must contain (979 of
-8,299 in the release, and on one track the correct answer violated by construction);
+unbounded substring matching; forbidden phrases a *correct* answer must contain (444 of
+4,163 in the release, and on one track the correct answer violated by construction);
 blindness to negation; SFRR computed from any forbidden-phrase violation rather than from
 resurrection specifically; and a decision extractor matching a bare "no" inside "now".
 
 **Impact.** Scoring identical responses under both semantics on the published
 configuration, SFRR falls on all ten baselines by 8.8–17.6pp, and the between-baseline
-ordering does not survive. The mechanism is verbosity: substring matching gives longer
-responses more spurious hits. Decision accuracy and must-mention reproduce within 1–2pp
-and serve as controls.
+ordering does not survive. The mechanism is *engagement*, not verbosity: the companion's
+decoy sweep shows generic filler of 319 words trips the scorer 0.3% of the time, while a
+response that names the dead value in order to reject it is flagged 100% of the time. The
+judge-scored metrics behave as controls — must-mention within 2pp, decision accuracy
+within 6.4pp in no consistent direction.
 
 **Why it matters here.** This paper's own results depend on the corrected instrument.
 Governance Bypass Rate and Unsupported Reconstruction Rate are scored against the state
@@ -595,8 +602,8 @@ AI Agents.*
 
 Liotta, M. (2026). *Memgine: A Deterministic Memory Engine for Stateful AI Agents.*
 
-Liotta, M. (2026b). *Your Memory Benchmark May Be Measuring Verbosity: Measurement
-Validity in Agent-Memory Evaluation.* Companion paper.
+Liotta, M. (2026b). *The Correct Answer Violates: Measurement Validity in Agent-Memory
+Evaluation.* Companion paper.
 
 Liu, N. F., et al. (2023). *Lost in the Middle: How Language Models Use Long Contexts.*
 arXiv:2307.03172.
