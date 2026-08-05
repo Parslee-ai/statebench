@@ -355,8 +355,16 @@ this cannot be closed by training on these axes: the discriminating fact never e
 model's context.
 
 A separate, judge-free replication on a weaker model (3 engine axes, 6 pairs, subject
-`mlx/qwen3-4b:4bit`) gives the prompted arm 100% conditional GBR — it leaked on *every*
-query where the resolver withheld anything — against 0% for `Γ∘C`.
+`mlx/qwen3-4b:4bit`) was run three times. The prompted arm gives **100% conditional GBR in
+all three** — it leaked on *every* query where the resolver withheld anything. `Γ∘C` gives
+**0%, 25% and 16.7%**.
+
+We report all three because the first is the one we would have quoted. Scoring is
+deterministic here — no judge — so the spread is the subject model's own sampling, and a
+single run of `Γ∘C` would have read as perfect enforcement when the three-run mean is
+13.9%. The separation is not in doubt at 100% versus 13.9%; the zero was a draw, not a
+property. `Γ` bounds what can leak, it does not drive the rate to zero on a model that
+paraphrases what it was given.
 
 ### 7.2 The applicability factorial — reconstruction does not decline
 
@@ -547,8 +555,13 @@ not accuracy.
 ## 10. Limitations
 
 **Statistical power.** RQ2's decisive result is 12 pairs on three axes, single run. The
-effect is maximal (0% vs 100%) and replicated judge-free on a second model, but the sample
-is small.
+pair-accuracy effect is maximal (0% vs 100%) and the governance separation is replicated
+judge-free on a second model across three runs, but the sample is small. The weak-model
+replication also shows why the single run should not be trusted on its own: the same
+configuration returned 0%, 25% and 16.7% for `Γ∘C` under deterministic scoring, so the
+subject model's sampling alone spans that range. Pair accuracy on the engine axes is the
+robust part — it was 0% for the prompted arm in every run — and the leak *rate* is the
+part that needs replication.
 
 **Judge design.** The RQ2 experiment used the same model as subject and judge, risking
 self-preference on meta-label classification. The judge-free metrics (GBR, URR) are
