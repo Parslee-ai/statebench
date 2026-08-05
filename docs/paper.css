@@ -1,0 +1,158 @@
+/* Print stylesheet for StateBench papers.
+ *
+ * Reproduces the visual style of the two published PDFs, which were produced by
+ * pandoc -> WeasyPrint but whose styling was never committed. That is why the
+ * PDFs could not be regenerated: the recipe lived outside the repository. This
+ * file is that recipe.
+ *
+ * Matched from the published artifacts: Letter page, Times New Roman body,
+ * Courier New for code, centred title block, indented abstract.
+ *
+ *   make papers        # build all
+ *   make paper4        # build one
+ */
+
+@page {
+  size: letter;
+  margin: 1in 1.1in;
+
+  @bottom-center {
+    content: "Page " counter(page);
+    font-family: "Times New Roman", Times, serif;
+    font-size: 9pt;
+    color: #444;
+  }
+}
+
+/* The title page carries no folio, matching the published papers. */
+@page :first {
+  @bottom-center { content: none; }
+}
+
+body {
+  font-family: "Times New Roman", Times, serif;
+  font-size: 11pt;
+  line-height: 1.45;
+  color: #000;
+  hyphens: auto;
+}
+
+/* --- title block ------------------------------------------------------- */
+
+h1.title {
+  font-size: 19pt;
+  font-weight: bold;
+  text-align: center;
+  margin: 0 0 0.15in 0;
+  line-height: 1.25;
+}
+
+p.subtitle {
+  font-size: 12pt;
+  font-style: italic;
+  text-align: center;
+  margin: 0 0 0.28in 0;
+  color: #222;
+}
+
+p.author {
+  text-align: center;
+  font-size: 11pt;
+  margin: 0 0 0.35in 0;
+}
+
+/* --- headings ---------------------------------------------------------- */
+
+h1, h2, h3, h4 {
+  font-family: "Times New Roman", Times, serif;
+  font-weight: bold;
+  /* Never orphan a heading at the foot of a page. */
+  break-after: avoid;
+  page-break-after: avoid;
+}
+
+h1 { font-size: 15pt; margin: 1.4em 0 0.5em; }
+h2 { font-size: 13pt; margin: 1.3em 0 0.45em; }
+h3 { font-size: 11.5pt; margin: 1.1em 0 0.35em; }
+
+/* The abstract is indented on both sides, as in the published papers. The build
+ * script wraps it in a div because an adjacent-sibling selector would style only
+ * the first paragraph and leave the rest full-width. */
+div.abstract {
+  margin-left: 0.4in;
+  margin-right: 0.4in;
+  font-size: 10.5pt;
+}
+
+div.abstract p { margin-bottom: 0.5em; }
+
+p { margin: 0 0 0.55em; text-align: justify; }
+
+/* --- tables ------------------------------------------------------------ */
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0.9em 0;
+  font-size: 9.5pt;
+  /* Keep a table whole where it fits; splitting mid-comparison is unreadable. */
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+th, td {
+  border: 0.5pt solid #999;
+  padding: 3.5pt 6pt;
+  text-align: left;
+  vertical-align: top;
+}
+
+th { background: #f0f0f0; font-weight: bold; }
+
+/* --- code -------------------------------------------------------------- */
+
+code, pre {
+  font-family: "Courier New", Courier, monospace;
+  font-size: 9pt;
+}
+
+code { background: #f4f4f4; padding: 0.5pt 2pt; }
+
+pre {
+  background: #f7f7f7;
+  border: 0.5pt solid #ddd;
+  padding: 6pt 8pt;
+  margin: 0.8em 0;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  break-inside: avoid;
+}
+
+pre code { background: none; padding: 0; }
+
+/* --- other ------------------------------------------------------------- */
+
+blockquote {
+  margin: 0.8em 0.35in;
+  padding-left: 9pt;
+  border-left: 2pt solid #ccc;
+  color: #333;
+  font-style: italic;
+}
+
+ul, ol { margin: 0 0 0.6em 0; padding-left: 0.28in; }
+li { margin-bottom: 0.22em; text-align: justify; }
+
+hr { border: none; border-top: 0.5pt solid #ccc; margin: 1.1em 0; }
+
+a { color: #000; text-decoration: none; }
+
+strong { font-weight: bold; }
+
+/* References: hanging indent, and never split an entry across pages. */
+h2#references ~ p {
+  padding-left: 0.3in;
+  text-indent: -0.3in;
+  text-align: left;
+  break-inside: avoid;
+}
