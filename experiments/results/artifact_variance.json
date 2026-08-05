@@ -1,0 +1,143 @@
+{
+ "track": "repair_propagation",
+ "samples": 5,
+ "conditions": {
+  "weak_alone": {
+   "condition": "weak_alone",
+   "n_samples": 5,
+   "decision_accuracy": 0.38666666666666666,
+   "decision_accuracy_std": 0.0498887651569859,
+   "decision_accuracy_min": 0.3333333333333333,
+   "decision_accuracy_max": 0.4666666666666667,
+   "sfrr": 0.5066666666666667,
+   "sfrr_std": 0.03265986323710903,
+   "sfrr_min": 0.4666666666666667,
+   "sfrr_max": 0.5333333333333333,
+   "gbr": 0.0,
+   "gbr_std": 0.0,
+   "gbr_min": 0.0,
+   "gbr_max": 0.0
+  },
+  "distilled": {
+   "condition": "distilled (episodes)",
+   "n_samples": 5,
+   "decision_accuracy": 0.64,
+   "decision_accuracy_std": 0.03265986323710903,
+   "decision_accuracy_min": 0.6,
+   "decision_accuracy_max": 0.6666666666666666,
+   "sfrr": 0.6933333333333334,
+   "sfrr_std": 0.14966629547095767,
+   "sfrr_min": 0.5333333333333333,
+   "sfrr_max": 0.9333333333333333,
+   "gbr": 0.13333333333333333,
+   "gbr_std": 0.0,
+   "gbr_min": 0.13333333333333333,
+   "gbr_max": 0.13333333333333333
+  },
+  "description_only": {
+   "condition": "description_only",
+   "n_samples": 5,
+   "decision_accuracy": 0.45333333333333337,
+   "decision_accuracy_std": 0.07774602526460399,
+   "decision_accuracy_min": 0.4,
+   "decision_accuracy_max": 0.6,
+   "sfrr": 0.52,
+   "sfrr_std": 0.07774602526460399,
+   "sfrr_min": 0.4,
+   "sfrr_max": 0.6,
+   "gbr": 0.13333333333333333,
+   "gbr_std": 0.0,
+   "gbr_min": 0.13333333333333333,
+   "gbr_max": 0.13333333333333333
+  }
+ },
+ "artifacts": {
+  "distilled": [
+   {
+    "n": 4,
+    "rejected": 0,
+    "principles": [
+     "When a source fact is corrected, invalidate every conclusion that depends on the supersede",
+     "When an authoritative input is corrected, invalidate every conclusion that depends on the ",
+     "When an input is corrected, invalidate every conclusion that depends on the superseded inp",
+     "When a corrected input supersedes the input used for a prior conclusion, invalidate that c"
+    ]
+   },
+   {
+    "n": 4,
+    "rejected": 0,
+    "principles": [
+     "When a source fact is corrected, invalidate every conclusion that depends on the supersede",
+     "When corrected source information invalidates a dependent conclusion, replace the supersed",
+     "When a corrected source fact invalidates a dependent conclusion, recompute that conclusion",
+     "When an authoritative correction replaces an input used by a prior conclusion, invalidate "
+    ]
+   },
+   {
+    "n": 4,
+    "rejected": 0,
+    "principles": [
+     "When an upstream fact is corrected, invalidate every conclusion that depended on the obsol",
+     "When a corrected upstream fact invalidates a dependent conclusion, discard the old conclus",
+     "When a source fact is explicitly corrected, replace the superseded fact and recompute ever",
+     "When an authoritative input is corrected, invalidate every dependent conclusion and recomp"
+    ]
+   },
+   {
+    "n": 4,
+    "rejected": 0,
+    "principles": [
+     "When a corrected upstream fact invalidates a dependent conclusion, recompute that conclusi",
+     "When an input is corrected, invalidate every conclusion that depends on the superseded val",
+     "When a source value is corrected, invalidate every conclusion that depends on the supersed",
+     "When a premise is corrected, invalidate every dependent conclusion and recompute it from t"
+    ]
+   },
+   {
+    "n": 4,
+    "rejected": 0,
+    "principles": [
+     "When an authoritative correction supersedes an input used by an earlier conclusion, invali",
+     "When an authoritative input is corrected, invalidate conclusions that depended on the supe",
+     "When corrected source information supersedes a value used by a prior conclusion, invalidat",
+     "When a corrected input invalidates a dependent conclusion, recompute that conclusion from "
+    ]
+   }
+  ],
+  "description_only": [
+   {
+    "n": 1,
+    "principles": [
+     "When a fact or premise is corrected, retract or revise every conclusion that depends on it"
+    ]
+   },
+   {
+    "n": 1,
+    "principles": [
+     "When a source fact or intermediate result is corrected, recompute every conclusion that de"
+    ]
+   },
+   {
+    "n": 1,
+    "principles": [
+     "When a premise or intermediate result is corrected, recompute every conclusion that depend"
+    ]
+   },
+   {
+    "n": 1,
+    "principles": [
+     "When a source fact is corrected, retract conclusions that depended on the old fact and rec"
+    ]
+   },
+   {
+    "n": 1,
+    "principles": [
+     "When a premise or intermediate result is corrected, recompute every conclusion that depend"
+    ]
+   }
+  ]
+ },
+ "episodes_gap": 0.18666666666666665,
+ "pooled_generation_std": 0.059628479399994376,
+ "gap_over_noise": 3.130495168499706
+}

@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import statistics as st
 from pathlib import Path
 
 from statebench.baselines.skill_augmented import (
@@ -36,6 +37,11 @@ from statebench.baselines.skill_augmented import (
 from statebench.evaluation.metrics import MetricsAggregator
 from statebench.runner.harness import EvaluationHarness, load_timelines
 from statebench.skills import SkillStore, distill_skills
+from statebench.skills.controls import (
+    CONFLICTING_OFF_FAMILY,
+    make_description_only_store,
+    make_targeted_store,
+)
 from statebench.skills.distill import evaluation_literals
 
 
@@ -88,7 +94,7 @@ def build_skills(args, eval_timelines) -> tuple[SkillStore, list[dict]]:
     return store, rejected
 
 
-def run_arm(args, name, timelines, model, provider, store, family) -> dict:
+def _single_run(args, name, timelines, model, provider, store, family) -> dict:
     harness = EvaluationHarness(
         model=model,
         provider=provider,
@@ -102,27 +108,50 @@ def run_arm(args, name, timelines, model, provider, store, family) -> dict:
             token_budget=8000, model=model, skills=store, task_family=family
         )
     agg = MetricsAggregator(baseline=name, model=model)
-    fired = 0
-    total = 0
+    fired = total = tokens = 0
     for tl in timelines:
-        for r in harness.run_timeline(tl, strategy):
+        for r in agg_results(harness, tl, strategy):
             agg.add_result(r)
             total += 1
+            tokens += r.tokens_used
             if getattr(strategy, "last_retrieved", None):
                 fired += 1
     m = agg.compute_benchmark_metrics()
-    out = {
-        "arm": name,
-        "model": model,
+    return {
         "n_queries": m.total_queries,
         "decision_accuracy": m.overall_decision_accuracy,
         "sfrr": m.overall_sfrr,
         "must_mention_rate": m.overall_must_mention_rate,
         "skill_firing_rate": fired / total if total else 0.0,
+        "tokens": tokens,
     }
+
+
+def agg_results(harness, timeline, strategy):
+    return harness.run_timeline(timeline, strategy)
+
+
+def run_arm(args, name, timelines, model, provider, store, family) -> dict:
+    """Run an arm `args.runs` times and report mean +- std.
+
+    Multi-run is not optional here: the local model is nondeterministic and a
+    prior single-run pass measured the same configuration at 33.3% and 53.3%.
+    """
+    runs = [
+        _single_run(args, name, timelines, model, provider, store, family)
+        for _ in range(args.runs)
+    ]
+    out = {"arm": name, "model": model, "n_runs": len(runs),
+           "n_queries": runs[0]["n_queries"]}
+    for key in ("decision_accuracy", "sfrr", "must_mention_rate",
+                "skill_firing_rate", "tokens"):
+        vals = [r[key] for r in runs]
+        out[key] = st.mean(vals)
+        out[key + "_std"] = st.pstdev(vals) if len(vals) > 1 else 0.0
     print(
-        f"  {name:24s} acc={out['decision_accuracy']:6.1%} "
-        f"sfrr={out['sfrr']:5.1%} fired={out['skill_firing_rate']:5.1%} n={out['n_queries']}"
+        f"  {name:26s} acc={out['decision_accuracy']:6.1%}+-{out['decision_accuracy_std']:4.1%} "
+        f"sfrr={out['sfrr']:5.1%} fired={out['skill_firing_rate']:5.1%} "
+        f"n={out['n_queries']}x{out['n_runs']}"
     )
     return out
 
@@ -144,6 +173,8 @@ def main() -> None:
     ap.add_argument("--episodes-per-skill", type=int, default=3)
     ap.add_argument("--max-skills", type=int, default=4)
     ap.add_argument("--limit", type=int, default=20, help="evaluation timelines")
+    ap.add_argument("--runs", type=int, default=3,
+                    help="repeats per arm; the local model is nondeterministic")
     ap.add_argument("--arms", nargs="+", default=None)
     ap.add_argument("--out", default="experiments/results/skill_transfer.json")
     args = ap.parse_args()
@@ -158,28 +189,73 @@ def main() -> None:
     if len(store) == 0:
         raise SystemExit("no skills survived scrubbing — cannot run the transfer arms")
 
-    off_store, _ = (SkillStore(), [])
-    for s in store.all():
-        clone = type(s)(**{**s.to_dict(), "task_family": args.offfamily_track})
-        off_store.add(clone)
+    from statebench.runner.completion import complete as _complete
+
+    desc_store = make_description_only_store(
+        args.track,
+        lambda p, model, max_tokens: _complete(
+            p, provider=args.distill_provider, model=model, max_tokens=max_tokens
+        ),
+        args.distill_model,
+    )
+    poor_store = make_description_only_store(
+        args.track,
+        lambda p, model, max_tokens: _complete(
+            p, provider=args.distill_provider, model=model, max_tokens=max_tokens
+        ),
+        args.distill_model,
+        impoverished=True,
+    )
+    targeted_store = make_targeted_store(args.track)
+    print(f"controls: description-only={len(desc_store)}  targeted={len(targeted_store)}")
+    for sk in desc_store.all():
+        print(f"  desc-rich: {sk.principle[:100]}")
+    for sk in poor_store.all():
+        print(f"  desc-poor: {sk.principle[:100]}")
+
+    # Over-generalization: a family whose correct behavior CONFLICTS with the
+    # skill. The first pass used scope_permission, where nothing contradicts
+    # "recompute from corrected inputs" -- so skills helped, which is
+    # uninformative. supersession_maintain is built so the later event looks like
+    # an update but invalidates nothing, making "treat the earlier conclusion as
+    # void" the wrong move.
+    conflict_track = CONFLICTING_OFF_FAMILY.get(args.track)
+    conflict_tls = []
+    if conflict_track:
+        from statebench.generator.engine import TimelineGenerator
+
+        conflict_tls = list(
+            TimelineGenerator(seed=42).generate_track(conflict_track, args.limit)
+        )[: args.limit]
+        conflict_store = SkillStore()
+        for sk in store.all():
+            conflict_store.add(
+                type(sk)(**{**sk.to_dict(), "task_family": conflict_track})
+            )
+        print(f"conflicting off-family: {conflict_track}, {len(conflict_tls)} timelines")
 
     print()
     weak = (args.weak_model, args.weak_provider)
     front = (args.frontier_model, args.frontier_provider)
     all_arms = {
-        "weak_alone": (weak, None, None),
-        "weak_plus_skills": (weak, store, args.track),
-        "weak_plus_hand": (weak, make_handwritten_store(), None),
-        "weak_plus_offfamily": (weak, off_store, args.offfamily_track),
-        "frontier_alone": (front, None, None),
+        "weak_alone": (weak, None, None, dev),
+        "weak_plus_skills": (weak, store, args.track, dev),
+        "weak_plus_desconly": (weak, desc_store, args.track, dev),
+        "weak_plus_descpoor": (weak, poor_store, args.track, dev),
+        "weak_plus_targeted": (weak, targeted_store, args.track, dev),
+        "weak_plus_generic": (weak, make_handwritten_store(), None, dev),
+        "frontier_alone": (front, None, None, dev),
     }
+    if conflict_tls:
+        all_arms["conflict_alone"] = (weak, None, None, conflict_tls)
+        all_arms["conflict_plus_skills"] = (weak, conflict_store, conflict_track, conflict_tls)
     chosen = args.arms or list(all_arms)
     results = {}
     for name in chosen:
         if name not in all_arms:
             continue
-        (mdl, prov), st_, fam = all_arms[name]
-        results[name] = run_arm(args, name, dev, mdl, prov, st_, fam)
+        (mdl, prov), store_, fam, tls = all_arms[name]
+        results[name] = run_arm(args, name, tls, mdl, prov, store_, fam)
 
     report = {
         "track": args.track,
@@ -204,13 +280,28 @@ def main() -> None:
             f"\n  weak→frontier gap {100*gap:+.1f}pp | skills gain {100*(sk-lo):+.1f}pp"
             + (f" | closure {100*report['gap_closure']:.0f}%" if report["gap_closure"] is not None else "")
         )
-        if "weak_plus_hand" in results:
-            hand = results["weak_plus_hand"]["decision_accuracy"]
-            print(f"  hand-written control gain {100*(hand-lo):+.1f}pp"
-                  f"  → distillation adds {100*(sk-hand):+.1f}pp over prompt engineering")
-        if "weak_plus_offfamily" in results:
-            off = results["weak_plus_offfamily"]["decision_accuracy"]
-            print(f"  off-family delta {100*(off-lo):+.1f}pp (negative = artifacts harm)")
+        print("\n  controls (gain over weak_alone):")
+        for arm, label in (("weak_plus_desconly", "description-only (rich), no episodes"),
+                           ("weak_plus_descpoor", "description-only (impoverished)"),
+                           ("weak_plus_targeted", "hand-written, task-targeted"),
+                           ("weak_plus_generic", "hand-written, generic")):
+            if arm in results:
+                v = results[arm]["decision_accuracy"]
+                print(f"    {label:32s} {100*(v-lo):+6.1f}pp"
+                      f"   → episodes add {100*(sk-v):+.1f}pp")
+        if {"conflict_alone", "conflict_plus_skills"} <= results.keys():
+            ca = results["conflict_alone"]["decision_accuracy"]
+            cs = results["conflict_plus_skills"]["decision_accuracy"]
+            report["over_generalization_delta"] = cs - ca
+            print(f"\n  over-generalization on a CONFLICTING family:"
+                  f" {100*(cs-ca):+.1f}pp (negative = skills harm, as predicted)")
+        if "tokens" in results.get("weak_plus_skills", {}):
+            wt = results["weak_plus_skills"]["tokens"]
+            ft = results.get("frontier_alone", {}).get("tokens", 0)
+            if ft:
+                report["token_ratio_vs_frontier"] = wt / ft
+                print(f"  token ratio skills:frontier {wt/ft:.2f}x"
+                      " (tokens only; not price-weighted)")
 
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
