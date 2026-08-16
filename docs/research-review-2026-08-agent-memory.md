@@ -1,411 +1,362 @@
 # Research Review: Agent Memory, August 2026
 
-A review of *Rethinking Memory Mechanisms of Foundation Agents in the Second Half:
-A Survey* (Huang et al., arXiv:2602.06052) and the cluster of 2026 work it points at,
-read against StateBench's design, claims, and open questions.
+A review of **Huang et al., *A Survey of Agent Memory in the Second Half: Towards
+Self-Evolving and Long-Horizon Agents***, TMLR 07/2026 (arXiv:2602.06052 v4; v1–v3
+titled *Rethinking Memory Mechanisms of Foundation Agents in the Second Half*), read
+against StateBench's tracks, metrics, and claims.
+
+Read from the primary PDF: 90 pages, ~60 authors across 27 institutions, TMLR
+camera-ready. Section and table references below are to that document. §8 is the only
+section not read closely.
+
+> Provenance note. §7 of this document lists adjacent 2026 work found via web search
+> and **not** read in the original — that section is flagged, and nothing in it may be
+> cited until source-checked. Everything in §1–§6 comes from the survey PDF itself.
 
 ---
 
-## 0. Provenance and confidence — read this first
+## 1. What the survey actually is
 
-**I was not able to obtain the paper's primary text.** This session's egress proxy
-denies `arxiv.org`, `openreview.net`, `alphaxiv.org`, `huggingface.co`,
-`researchgate.net`, and every other mirror attempted — CONNECT returns 403 at the
-gateway, and the fetch tool reports `EGRESS_BLOCKED` for the same hosts. The only
-working channel was the web-search tool, which returns model-written summaries over
-search results rather than source text.
+**Thesis.** AI has moved "from prioritizing model innovations and benchmark scores
+towards emphasizing problem definition and rigorous real-world evaluation." In the
+"second half," the central challenge is *real utility in long-horizon, dynamic, and
+user-dependent settings such as agentic coding, deep research, and computer use*,
+where agents face "context explosion beyond fixed context windows." Memory is framed
+not as passive storage but as **the substrate through which agents self-evolve**.
 
-Everything below is therefore **second-hand**. Each claim carries a confidence tag:
+**Structure.**
 
-- **[direct]** — appears verbatim or near-verbatim in abstract text surfaced by search;
-  high confidence it reflects the source.
-- **[reported]** — asserted by a search summary, consistent across more than one query,
-  but not read in the original.
-- **[single]** — asserted once, by one summary. Treat as a lead, not a fact.
-- **[ours]** — my inference or judgement, not a claim about any paper.
-
-**No number or claim in this document may be cited in a StateBench paper until it has
-been checked against the primary source.** That rule matters more here than usual:
-the whole point of `paper-measurement-validity` is that instruments get believed
-without being checked. A citation chain that terminates in a search snippet is the
-same failure at a different layer. §6 lists what to verify and how.
-
-Also note a title discrepancy: the PDF the request was made against is titled
-*A Survey of Agent Memory in the Second Half: Towards Self-Evolving and Long-Horizon
-Agents* (v4, 4 Aug 2026), while search indexes v1–v3 under *Rethinking Memory
-Mechanisms of Foundation Agents in the Second Half: A Survey* (Jan 14 2026, revised
-Feb 10 2026). Same arXiv ID, same author block, retitled at v4. Everything retrieved
-below describes **v3 or earlier**. The v4 retitling — foregrounding *self-evolving* and
-*long-horizon* — is itself a signal about where the authors think the field moved
-between February and August, and the v4-only material is exactly the material I could
-not read.
-
----
-
-## 1. The survey in brief
-
-**Scope.** ~60 authors across ~27 institutions, synthesizing 200+ papers on memory in
-LLM agents. [reported]
-
-**Framing.** The field is moving "from prioritizing model innovations over benchmark
-scores towards emphasizing problem definition and rigorous real-world evaluation." In
-the "second half," the central challenge is *real utility in long-horizon, dynamic,
-user-dependent environments*, where agents face context explosion and must
-continuously accumulate, manage, and selectively reuse information across extended
-interactions. [direct]
-
-**The three-dimensional taxonomy.** [direct]
-
-| Dimension | Values |
+| § | Content |
 |---|---|
-| Memory substrate | internal (parametric) / external (non-parametric) / mixed |
-| Cognitive mechanism | working, episodic, semantic, procedural, sensory |
-| Memory subject | agent-centric / user-centric |
+| 3 | Taxonomy: substrates (§3.1), cognitive mechanisms (§3.2), subjects (§3.3) |
+| 4 | Operations: five single-agent ops (§4.1), multi-agent architecture / routing / isolation (§4.2) |
+| 5 | Learning policies over memory: prompting, fine-tuning, RL |
+| 6 | Context-limited vs context-exploded environments |
+| 7 | Evaluation: metrics (Table 3), user-centric benchmarks (Table 4), agent-centric (Table 5) |
+| 8 | Applications by domain |
+| 9 | Six open challenges (9.1–9.6) |
 
-**Memory operations (single-agent).** Storage & index; loading & retrieval; update &
-refresh; compression & summarization; forgetting & retention. [reported]
+**The three dimensions.** Substrate (internal parametric / external non-parametric /
+mixed); cognitive mechanism (sensory, working, episodic, semantic, procedural);
+subject (user-centric personalization / agent-centric experience).
 
-**Memory operations (multi-agent).** Memory architecture definition; routing protocols;
-isolation and conflict-resolution strategies. [reported]
+**Five single-agent operations** (Figure 6): storage & index; loading & retrieval;
+update & refresh; compression & summarization; forgetting & retention.
 
-**Evaluation.** Benchmarks split into user-centric (MSC, MemoryBank — persona
-retention, preference recall, cross-session consistency) and agent-centric (OSWorld,
-WebArena — task success under multi-hop reasoning and tool use). The survey notes that
-"designing benchmarks to evaluate agents in real environments has become one of the
-most important challenges." [reported]
+**Six open challenges** (§9, Figure 9): continual learning and self-evolving agents;
+multi-human-agent memory organization; memory infrastructure and efficiency; lifelong
+personalization and trustworthy memory; multimodal/embodied/world-model memory;
+real-world benchmarking and evaluation.
 
-**Open challenges.** Six of them, oriented toward "reliable, scalable, self-evolving,
-and trustworthy memory infrastructures." I could not recover the enumeration. [single]
+For our purposes the survey is a **map, not a result**. Its value is vocabulary,
+positioning, and one section — §9.6 — that reads like a specification for StateBench.
 
 ---
 
-## 2. Where StateBench sits in the survey's coordinate system
+## 2. The headline finding: our central term does not appear in the field's survey
 
-Mapping our work onto their axes, because being locatable in a field's taxonomy is how
-work gets cited: [ours]
+Word counts across all 90 pages:
+
+| Term | Occurrences |
+|---|---|
+| "supersed*" (supersession, superseded, supersede) | **0** |
+| "authority" | **0** |
+| "provenance" | 10 |
+| "conflict" | 25 |
+| "governance" | 5 |
+| "access control" | 3 |
+| "stale" | 3 |
+
+Zero. In a 90-page, 200+-paper synthesis of exactly our problem area, the word
+StateBench is built around never occurs. The field's term for the same operation is
+**Update & Refresh (UR)**, one of ten defined user-centric memory abilities (§7.2.1),
+and §4.1.3 "Update and Refresh" describes precisely what we call supersession:
+"previously stored memory may become incomplete, outdated, or misaligned with newly
+observed information, making static or append-only memory representations
+insufficient."
+
+Two readings, both true. **We are invisible to keyword search from the field's
+mainstream.** Nobody surveying agent memory will find StateBench by searching their
+own vocabulary. And **we are not a rediscovery** — the survey's UR is a one-line
+ability tag inside a benchmark table; our whole instrument decomposes what they treat
+as a single checkbox.
+
+"Authority" scoring zero is sharper still. The survey's multi-agent treatment (§4.2.3)
+covers *isolation* and *conflict* between peer agents, and §9.2 raises "questions of
+ownership, access, responsibility." But **the idea that memory writes carry differing
+authority, and that a lower-authority write must not override a higher-authority
+policy, does not appear anywhere.** Our `authority_hierarchy` track has no counterpart
+in the field's survey of the field.
+
+**Action.** Keep our vocabulary — it is more precise — but gloss it against theirs on
+first use in every paper, and put "update and refresh," "memory conflict," and
+"knowledge update" in the abstracts and keywords. This is a pure-upside edit.
+
+---
+
+## 3. Where StateBench sits, by the survey's own axes
 
 | Axis | StateBench / Memgine |
 |---|---|
-| Substrate | **External**, non-parametric, explicitly so. Memgine is an external engine; we test no parametric-memory baseline at all. |
-| Cognitive mechanism | **Semantic** (facts, constraints, policies) and **episodic** (commitments, corrections, interruption/resumption). No working-memory, no sensory, no procedural coverage. |
-| Subject | **Mixed**, and unusually so. `scope_permission`, `enterprise_privacy`, and `authority_hierarchy` are *multi-principal* — several parties writing one memory under different roles. Most of the field's user-centric work assumes a single user. |
-| Operations | Memgine covers storage & index, loading & retrieval (query-relevance sorting), update & refresh (supersession, adaptive inline repair), compression (threshold-based compaction / Summary DAG). **Forgetting & retention: absent.** |
+| Substrate (§3.1) | **External**, non-parametric. We test no parametric-memory baseline at all — the survey devotes substantial space to internal/parametric and mixed substrates, so this is a stated scope, not an oversight to hide. |
+| Cognitive mechanism (§3.2) | **Semantic** (facts, constraints, policies) and **episodic** (commitments, corrections, interruption/resumption). No sensory, no working, no procedural. |
+| Subject (§3.3) | **Mixed and multi-principal.** The survey notes user-centric and agent-centric "are conceptual orientations rather than mutually exclusive," and that "current benchmarks rarely require both simultaneously." Ours requires both, plus multiple *human* principals with distinct roles. |
+| Operations (§4.1) | Memgine covers storage & index, loading & retrieval (query-relevance sorting), update & refresh (supersession, adaptive inline repair), compression & summarization (Summary DAG compaction). **Forgetting & retention: absent.** |
 
-Three observations fall out of this.
+### 3.1 Map onto the survey's ten user-centric abilities
 
-**(a) Multi-principal is our differentiator, and we under-sell it.** The README leads
-with resurrection. But the survey's own framing treats multi-principal governance as
-an open frontier, and GateMem (§3.6) exists specifically because "memory benchmarks
-for LLM agents largely assume single-user settings." Our `scope_permission`,
-`enterprise_privacy`, and `authority_hierarchy` tracks predate that framing and are
-directly on it. Memgine's engine-level access control is a *governance* claim, not a
-memory-quality claim, and it should be pitched that way.
+§7.2.1 defines ten abilities. This is the best available instrument for stating what
+StateBench covers, in language the field already uses:
 
-**(b) Procedural memory is the name for what paper 4 is about.** *Worked Examples Are
-Worth Paying For* — skills distilled from episodes beating skills written from a task
-description — is, in the survey's vocabulary, an experiment about **consolidating
-episodic memory into procedural memory**. The survey describes procedural memory as
-"abstracting complex action sequences into reusable patterns" and notes that "as
-execution experience accumulates, short-lived action states can be consolidated into
-reusable skills or routines." [direct] That is paper 4's thesis in the field's own
-words. Adopting the term costs nothing and makes the paper findable.
-
-**(c) Forgetting is a real hole.** We have compaction under token pressure. We have no
-notion of *retention policy* — deletion on request, decay, or the right of a fact to
-be actively removed rather than merely superseded. Superseding a fact keeps it in the
-store with a tombstone; deleting it means it must not be recoverable at all. GateMem
-evaluates exactly this and finds nobody does it well. See §5, P3.
-
----
-
-## 3. Seven things worth acting on
-
-### 3.1 We are no longer alone on supersession, and that is mostly good news
-
-Between February and August 2026 the field independently converged on StateBench's
-core thesis. Instruments and metrics now in the literature that target our failure
-modes: [reported; IDs unverified]
-
-| Work | arXiv | Overlaps |
-|---|---|---|
-| STALE — *Can LLM Agents Know When Their Memories Are No Longer Valid?* | 2605.06527 | supersession, implicit detection, stale-premise queries |
-| Supersede — *Diagnosing and Training the Memory-Update Gap* | 2606.27472 | supersession under bounded memory; RL training env |
-| GateMem — *Memory Governance in Multi-Principal Shared-Memory Agents* | 2606.18829 | scope, access control, deletion/forgetting |
-| *Don't Ask the LLM to Track Freshness* | 2606.01435 | deterministic conflict resolution |
-| TEPA — *Revoking Stale Memories for Conflict-Robust Language Agents* | 2608.07429 | revocation |
-| SubtleMemory | 2606.05761 | fine-grained relational discrimination |
-| MemSyco-Bench | 2607.01071 | sycophancy in memory (an authority-hierarchy cousin) |
-| MemTX — *Transactional Belief Commit* | 2607.23929 | state-machine memory semantics |
-| Memora / **FAMA** metric | — | penalizes reliance on obsolete or invalidated memory — an SFRR analogue |
-| BEAM | — | 10 categories incl. knowledge update, contradiction resolution, abstention |
-
-**Implication.** Two things change. First, our papers need a real related-work section;
-"nobody tests this" is no longer true and reviewers will know it. Second, SFRR is now
-one of several metrics measuring the same construct, and **FAMA got there in the
-literature**. We should state the relationship explicitly — SFRR is a per-response
-violation rate over `must_not_mention` constraints, which is a stricter and more
-brittle instrument than a penalized-accuracy metric, as our own measurement-validity
-audit demonstrates at length. Being the strict instrument is defensible. Being the
-strict instrument *without saying so* looks like ignorance of the alternative.
-
-### 3.2 STALE has a probing dimension we lack, and it collides with our scoring bug
-
-STALE's framing: the hard case is **Implicit Conflict** — "a later observation
-invalidates an earlier memory without explicit negation." It probes three dimensions:
-[direct]
-
-1. **State Resolution** — detecting that a prior belief is outdated.
-2. **Premise Resistance** — rejecting queries that falsely presuppose a stale state.
-3. **Implicit Policy Adaptation** — proactively applying updated state downstream.
-
-Map to us: (1) ≈ `supersession_detection`, (3) ≈ `repair_propagation`.
-**(2) has no StateBench equivalent.**
-
-And a premise-resistance track is not merely missing — it is the exact case our own
-instrument mis-scores. To reject a false presupposition, a correct answer must *name
-the stale fact in order to refuse it*: "You haven't moved back to Portland — your
-address is 456 Oak Ave." That answer contains the forbidden phrase. Under phrase-list
-`must_not_mention` scoring it is a resurrection. This is precisely the defect
-`paper-measurement-validity` documents — **100% of correct rejecting answers scored as
-violations** — arrived at from the opposite direction: they designed the question type
-that our instrument cannot score, while we found that our instrument cannot score it.
-
-**Implication.** A `premise_resistance` track is the highest-value single addition
-available, *and* it is a natural second empirical section for the measurement-validity
-paper: a track built specifically to break naive phrase-list scoring, scored correctly
-under the v2.0 negation-aware rules. It converts a defect writeup into a contribution.
-
-### 3.3 Supersede's result is in tension with our gpt-5.6 conclusion
-
-Supersede reports, on LongMemEval's knowledge-update subset: [reported]
-
-- Replacing full context with a bounded self-maintained memory drops accuracy
-  **92% → 77%** on a frontier model, McNemar p<0.005.
-- The gap **persists across model scale**, while full-context accuracy saturates ~92%.
-- Scaling the conversation **24×** drops accuracy **68% → 28%**.
-- Granting proportionally more memory budget yields **no recovery** (28% → 28%).
-- Conclusion: "the bottleneck is memory maintenance, not comprehension, and is not
-  closed by a stronger model."
-
-Our README, from the gpt-5.6-sol refresh, says the opposite-ish: "Stronger models need
-less context curation" — Memgine's dev-split lead over `state_based` falling 9.1pp →
-0.7pp, and `state_based` pulling level on test.
-
-These are not necessarily contradictory. Ours is measured at a **fixed, short timeline
-length**; Supersede's persistence claim is measured **across a length sweep**. If the
-architecture premium is length-dependent, both are true and ours is the special case.
-But as written, our sentence is a general claim about models, supported by a
-single-length experiment. [ours]
-
-**Implication.** This is a live risk to a published claim, and it is testable with code
-we already have — `budget-sweep` exists, and the generator can emit longer timelines.
-See §5, P1.
-
-### 3.4 "Tenure crossover" may be the mechanism, and it is a bigger deal than the fix
-
-*Ground Truth First* (2607.21962) reports what its title calls a **tenure crossover in
-memory-architecture rankings**: which architecture wins depends on how long the agent
-has been running. [single — title-level, mechanism unverified]
-
-If that holds, then §3.3 is not a caveat to bolt onto our claim — it is the finding.
-"Architectures rank differently at different interaction lengths, and every published
-memory leaderboard reports a single length" is a stronger, more useful result than
-either "Memgine wins" or "stronger models need less curation." StateBench is unusually
-well positioned to test it: we control timeline generation, so we can sweep tenure
-directly rather than inferring it.
-
-The same paper independently validates our generator design. It "inverts the pipeline":
-a seeded sampler emits facts with **validity intervals**, volatility classes, and
-source channels *before any text exists*; an LLM renders the text from per-event fact
-manifests; a fidelity verifier confirms every planted fact; questions are instantiated
-mechanically from the script. Its stated motivation is that generate-then-extract
-pipelines have "documented label-error and contamination problems." [direct]
-
-That is StateBench's architecture, described by someone else, with two features we
-lack: **per-fact validity intervals** (we have `environmental_freshness` as a track,
-not as a schema primitive) and **an explicit fidelity-verification pass** confirming
-every planted fact actually landed in the rendered text. The second is cheap and would
-close a real hole — right now nothing checks that our generator's facts survive
-rendering.
-
-### 3.5 Deterministic conflict resolution: independent corroboration of Memgine
-
-*Don't Ask the LLM to Track Freshness* (2606.01435) tests on MemoryAgentBench's
-`FactConsolidation` task, where facts carry serial numbers and **agents are explicitly
-told that newer facts have larger serials**. Reported results: [reported — numbers
-unverified]
-
-| System | Single-hop accuracy |
+| Ability | StateBench coverage |
 |---|---|
-| HippoRAG-v2 | 54% |
-| BM25 | 48% |
-| Mem0 | 18% |
-| Zep / Graphiti | 7% |
+| **UR** — Update & Refresh: "explicitly revising memory when new evidence contradicts old content (overwriting outdated facts and following the latest state under conflicts)" | **Our core.** `supersession`, `supersession_detection`, `repair_propagation`. We decompose UR into detection, handling, and downstream propagation; the survey treats it as one tag. |
+| **TR** — Temporal Reasoning, incl. "selecting the correct state when information changes" | `environmental_freshness`, and the temporal half of supersession. |
+| **AB** — Abstain & Boundary Handling: "recognizing unknown or unanswerable cases, conflicts, **or false premises** and avoiding fabrication" | `hallucination_resistance` is an AB instrument. **False premises we do not test** — see §5. |
+| **FR** — Forgetting & Retention | **Not covered.** We supersede (tombstone); we never delete. |
+| **CS** — Compression & Summarization | Only as a baseline mechanism (`rolling_summary`), never as a scored ability. |
+| FE, MR, UP, AS, IC | Partial and incidental; not what we are for. |
+| *(none)* | **Scope/permission, authority hierarchy, privacy containment — four of our fourteen tracks map to no ability in their list at all.** |
 
-Their diagnosis: "the bottleneck is the assembly step" — baselines leave conflict
-resolution to LLM-mediated retrieval or generation instead of explicit version-aware
-aggregation. Their fix: retrieve with BM25, extract matching candidates with an LLM,
-then pick the winner with a deterministic `max(serial)` in Python.
+Two observations from the survey's own analysis of Table 4:
 
-**This is Memgine's thesis, replicated externally, on a different benchmark, by an
-unrelated group.** Our claim — that determinism at the engine layer beats asking the
-model to sort it out — now has outside support. The 7–18% figures for popular
-production memory systems, if they hold up, are also the strongest available answer to
-"why not just use Mem0/Zep?"
+- "**CS and FR remain comparatively under-evaluated**... selective forgetting or
+  retention is frequently partial or absent, despite being essential for long-horizon
+  assistants operating under finite memory budgets and evolving user states."
+- "**AB is also inconsistently required.** Only a few benchmarks explicitly reward
+  abstention under missing evidence, leaving a gap for evaluating safe memory behavior
+  that prevents confident hallucinations."
 
-### 3.6 GateMem is the external validity test for Memgine's access-control claim
+Our `hallucination_resistance` track sits squarely in the second gap. Worth saying so.
 
-GateMem jointly evaluates three things: utility on legitimate long-horizon requests
-with state updates; **access control across contextual authorization boundaries**; and
-**agent-facing active forgetting after explicit deletion requests**. Domains: medical,
-office, education, household. Design: long-form multi-party episodes, incremental
-memory injection, hidden checkpoints, structured judging, leak-target annotations.
-Headline: **"no method simultaneously achieves strong utility, robust access control,
-and reliable forgetting."** [direct]
-
-We claim Memgine does two of those three. Our README: "Engine-level access control
-eliminates scope leakage that prompt-based approaches cannot prevent," with a 1.9%
-leakage rate — the lowest of any baseline.
-
-**Implication.** GateMem is a ready-made external test of our strongest architectural
-claim, run by people with no stake in it. If Memgine clears it, that is worth more than
-any number produced on our own benchmark — self-evaluated benchmarks are exactly the
-thing a skeptical reviewer discounts. If Memgine does *not* clear it, we need to know
-before someone else finds out.
-
-Caveat worth being honest about: our leakage claim is architecturally near-tautological
-on our own data. If the engine deletes restricted facts before the model sees them, and
-our leak test asks whether restricted facts appear, low leakage is close to a property
-of the construction, not a discovery. GateMem's contextual authorization boundaries are
-harder than our role flags, and that is the point.
-
-### 3.7 The benchmark-to-deployment gap cuts both ways
-
-MemoryArena (2602.16313) evaluates memory inside multi-session **agentic loops**, where
-memorization and action are coupled — agents must distill experience from earlier
-sessions to satisfy constraints in later ones. Reported: systems scoring ~95% on LoCoMo
-fall to **40–60%** on MemoryArena. [reported]
-
-Read one way, this is support: passive recall benchmarks overstate real competence,
-which is StateBench's founding complaint. Read another way, it is a warning aimed at
-us. **StateBench is a passive-query benchmark.** We build context, ask a question,
-score the text. Nothing is *executed*; no action is taken; no downstream state changes
-as a result of the answer. Our `repair_propagation` track propagates corrections into
-*a stated conclusion*, not into *a taken action*.
-
-**Implication.** The honest framing is that StateBench measures state correctness in
-the *reasoning* substrate, and that this is a necessary but not sufficient condition
-for agentic competence. Worth saying explicitly in the papers rather than waiting to be
-told. An action-coupled track is a v2 conversation, not a quick fix.
+*Caveat on Table 4:* the table distinguishes fully-covered from partially-covered with
+two different check glyphs, and **that distinction does not survive text extraction** —
+both render identically. Do not quote per-benchmark coverage from this review; read the
+rendered table.
 
 ---
 
-## 4. Terminology alignment
+## 4. §9.6 is, effectively, StateBench's problem statement
 
-Cheap, high-leverage, no experiments required. Our vocabulary is idiosyncratic and it
-is costing us citations. [ours]
+The Real-World Benchmarking challenge (§9.6) is worth quoting at length because it
+names our failure taxonomy almost item for item. On user-centric benchmarks:
 
-| StateBench term | Field term(s) | Where |
+> Benchmarks such as LoCoMo emphasize long-context retrieval accuracy, yet implicitly
+> assume stationary user intent and unambiguous ground truth, **overlooking critical
+> failure modes such as stale preference reuse, incorrect overwriting of long-term user
+> state, or unsafe retention of sensitive information.** Even PersonaMem, which
+> explicitly targets evolving preferences, evaluates them over fully simulated sessions
+> and **does not assess memory update or refresh**.
+
+Stale reuse → our `supersession`. Incorrect overwriting → `commitment_durability`,
+`repair_propagation`. Unsafe retention of sensitive information → `enterprise_privacy`,
+`scope_permission`.
+
+On agent-centric benchmarks:
+
+> agents may optimize for short-horizon success while silently failing at
+> memory-critical competencies such as **provenance tracking, contradiction resolution,
+> and long-term policy consistency**.
+
+Contradiction resolution → supersession. Long-term policy consistency →
+`authority_hierarchy`. Provenance tracking → our `Source` objects in `ContextResult`.
+
+And on what to build:
+
+> Execution-based frameworks like OSWorld can be extended with **memory-sensitive
+> invariants, requiring agents to version, audit, and roll back persistent state, and
+> to attach provenance metadata to stored knowledge.** [...] benchmarks should
+> explicitly quantify **resource–utility trade-offs, measuring memory quality as a
+> function of token budget**, storage cost, and latency.
+
+That last clause is `statebench budget-sweep`, which already exists and which we have
+never made a headline result. The survey asks for exactly it.
+
+**This is the single most valuable paragraph in the survey for us.** It is a
+top-venue, 60-author, 27-institution statement that the failure modes StateBench
+measures are unmeasured by the field's standard benchmarks — written by people who
+have never heard of us. Every StateBench paper's introduction should cite §9.6.
+
+The equivalent endorsement for Memgine's architecture is in §6.2:
+
+> Externalized memory enables **schema-aware retrieval, versioning, targeted edits, and
+> access control — operations that are difficult or infeasible within prompt-based
+> context alone.**
+
+That is Memgine's engine-level thesis, in the survey's words, cited to third parties.
+
+---
+
+## 5. Six things to do
+
+### P1 — Add a `premise_resistance` track
+
+The survey's **AB** ability explicitly includes "**false premises**," and the survey
+says only a few benchmarks reward abstention at all. We test fabrication
+(`hallucination_resistance`) but never the harder case: a query that *presupposes*
+superseded state. "Since you're back in Portland, should I ship there?"
+
+This is the highest-value single addition, and it lands on a defect we have already
+documented. To reject a false premise, a correct answer **must name the stale fact in
+order to refuse it** — "You're not in Portland; your address is 456 Oak Ave." Under
+phrase-list `must_not_mention` scoring that is a resurrection. This is precisely the
+finding in `paper-measurement-validity` (100% of correct rejecting answers scored as
+violations), arrived at from the opposite direction: the field has defined a question
+type our v1 instrument structurally cannot score, and our v2.0 negation-aware scoring
+is what makes it scoreable.
+
+So the track is simultaneously (a) coverage of a named field ability we lack, (b) a
+second empirical section for the measurement-validity paper, and (c) a demonstration
+that the v2.0 correction was load-bearing rather than cosmetic. Build it.
+
+### P1 — Report dependency distance, and sweep it
+
+§7.2.2 closes by naming two dimensions "crucial" for memory-centric analysis:
+
+> (1) **dependency distance** — how far apart the required information and its later
+> use occur, such as within-turn, cross-turn, or cross-session, and (2) **memory
+> correctness under interaction** — whether stored items remain faithful,
+> non-contradictory, and policy-consistent as the environment evolves.
+
+We are a pure (2) instrument and we do not report (1) at all. Every StateBench result
+is quoted at a single, short timeline length.
+
+This matters beyond taxonomy. Our published claim from the gpt-5.6-sol refresh —
+"stronger models need less context curation," with Memgine's dev-split lead over
+`state_based` collapsing 9.1pp → 0.7pp — is measured at one dependency distance. If
+the architecture premium is a function of distance, that sentence is a special case
+stated as a general one. Since we own the generator, sweeping timeline length is a
+generation-parameter change plus a `budget-sweep`-shaped run.
+
+**This is the experiment most likely to qualify a published claim, which makes it the
+most important one on the list.** Report every future result as a curve over
+dependency distance, not a scalar.
+
+### P2 — Related-work sections in all five papers
+
+Our papers read as though the field is empty. The survey proves it is not, and gives
+us the citation spine: §4.1.3 for update/refresh, §7.2.1 for the ability taxonomy,
+§7.2.2 for dependency distance, §9.6 for the evaluation gap, §6.2 for externalized
+memory. Cite the survey as the field's own statement of the gap we fill.
+
+Correct one thing while doing it: **the survey's memory-integrity metrics are Memory
+Integrity (MI) and False Memory Rate (FMR), from HaluMem** (Table 3) — not the "FAMA"
+metric an earlier draft of this review attributed to the field. FMR — "rate of
+introducing hallucinated memories, including fabricated or incorrect updates" — is the
+closest published relative of SFRR, and MI is the closest relative of Must-Mention.
+Position SFRR against **FMR**, and note the difference: FMR scores the *memory store*,
+SFRR scores the *response*. Both are needed; they fail differently.
+
+### P2 — Name paper 4 as procedural memory, and cite the survey's own version of its finding
+
+§3.2's procedural-memory subsection describes skills "packaged as composable bundles of
+instructions, code, and resources that agents load on demand," citing Anthropic's Agent
+Skills, and frames the abstract's "explicit, portable, and shareable agent skills
+surfaced through agent harnesses, context engineering, and standardized tool-mediation
+protocols."
+
+Then this:
+
+> Empirically, **self-generated skills still underperform human-curated ones**,
+> suggesting that fully autonomous skill induction remains an open challenge for
+> self-evolving agents (Li et al., 2026).
+
+That is *Worked Examples Are Worth Paying For*'s thesis, stated independently in a
+survey that does not know we exist. Reframing paper 4 as **episodic→procedural
+consolidation via experience distillation** costs an abstract rewrite and buys
+placement in a live debate with an independent corroborating citation.
+
+### P3 — Forgetting & retention track
+
+The one survey operation Memgine does not implement, and one of the two the survey
+calls under-evaluated. Distinct from supersession: superseding tombstones a fact,
+deletion must make it unrecoverable. Explicit user deletion requests, with the
+requirement that the fact is gone from context *and* from the store, are a natural
+extension of our scope machinery and land on a named gap.
+
+### P3 — Generator fidelity verifier
+
+§9.6's call for "provenance metadata" and the survey's repeated emphasis on
+attribution point at a hole we have not checked: `paper-measurement-validity` audited
+the *scorer*, never the *generator*. Nothing currently asserts that every planted fact
+actually appears in the rendered timeline text, or that every superseded fact is
+actually superseded there. If facts silently fail to land, every downstream number is
+wrong and nothing would tell us.
+
+---
+
+## 6. Smaller notes worth keeping
+
+- **§4.2.3 classifies conflict handling into exactly two families**: *write control*
+  (Memory-R1's ADD/UPDATE/DELETE/NOOP, where "the memory manager agent is the only
+  agent allowed to mutate memory") and *feedback-loop consistency* (EvoMem's iterative
+  verifier). **Memgine is a write-control system**, and saying so places it in a named
+  family rather than presenting it as sui generis.
+- **§4.2.1 states that memory-architecture choices determine "whether systemic issues
+  such as information leakage may arise."** Direct support for our claim that scope
+  leakage is architectural, not promptable-away.
+- **§9.2 raises "memory governance... ownership, access, responsibility, and how
+  divergent perspectives or human corrections should be handled"** as an open challenge
+  for multi-human-agent settings. This is the closest the survey comes to our
+  authority/scope tracks — and it is filed under *future work*, not *existing
+  benchmarks*.
+- **§9.6 cites InterruptBench** (Zou et al., 2026), which augments WebArena-Lite with
+  "mid-task additions, revisions, and retractions of the user's goal," reporting these
+  remain hard for strong backbones. That is our `interruption_resumption` and
+  `commitment_durability` in an execution-grounded setting — the nearest published
+  neighbor to two of our tracks, and a natural comparison point.
+- **§7.2.2's four memory-sensitive measurements** are worth adopting as a reporting
+  checklist: retrieval faithfulness/coverage; error modes in state tracking (drift,
+  omission, contradiction); **persistence under interruptions (resume after long
+  gaps)**; efficiency trade-offs. We have the third as a track and the fourth as a CLI;
+  we report neither prominently.
+- **§8, Legal & Consulting** anticipates "verifiable memory architectures that link
+  every retrieved insight back to a cryptographically signed source document." Our
+  `Source` provenance objects and signed leaderboard submissions are early moves in
+  that direction, and the enterprise framing is a ready-made application section.
+- **StateBench appears in neither Table 4 nor Table 5.** Neither does any dedicated
+  update/refresh instrument — UR is covered only as one ability inside general suites
+  (LongMemEval, MemoryAgentBench, HaluMem). The niche is real and currently open.
+
+---
+
+## 7. Adjacent 2026 work — leads only, NOT verified
+
+Found via web search while the PDF was unavailable. **None of these were read in the
+original; titles, IDs, and numbers are unverified and must not be cited until
+source-checked.** They do not appear in the survey's reference list as far as I
+checked, so several likely postdate it.
+
+| Work | arXiv (unverified) | Why it matters to us |
 |---|---|---|
-| Supersession | knowledge update; memory-update gap; belief revision | LongMemEval, Supersede |
-| Implicit supersession | **implicit conflict** | STALE |
-| SFRR | forgetting-aware accuracy family; **FAMA** | Memora |
-| Scope leak / enterprise privacy | **memory governance**; contextual authorization | GateMem |
-| Stale reasoning | failure of **implicit policy adaptation** | STALE |
-| Repair propagation | cascading invalidation; propagated conflict | STALE, TEPA |
-| Environmental freshness | **validity intervals**; volatility class | Ground Truth First |
-| Compaction / Summary DAG | compression & summarization | survey op taxonomy |
-| (absent) | **forgetting & retention** | survey op taxonomy, GateMem |
-| Worked-example skills (paper 4) | **procedural memory**; experience distillation | survey |
+| STALE — *Can LLM Agents Know When Their Memories Are No Longer Valid?* | 2605.06527 | Reported to probe State Resolution / **Premise Resistance** / Implicit Policy Adaptation — the closest published thing to our track list, and the origin of the §5 premise-resistance idea |
+| Supersede — *Diagnosing and Training the Memory-Update Gap* | 2606.27472 | Reported: bounded memory drops knowledge-update accuracy 92%→77%; gap persists across model scale; degrades with conversation length. Bears directly on our "stronger models need less curation" claim |
+| GateMem — *Memory Governance in Multi-Principal Shared-Memory Agents* | 2606.18829 | Reported to jointly test utility + access control + deletion, and to find no method achieves all three. Would be an **external** test of Memgine's access-control claim on data we did not author |
+| *Don't Ask the LLM to Track Freshness* | 2606.01435 | Reported to show deterministic version-aware aggregation beats LLM-mediated conflict resolution — Memgine's thesis, replicated elsewhere |
+| *Ground Truth First* (tenure crossover) | 2607.21962 | Reported to find architecture rankings flip with interaction length — the mechanism behind the P1 dependency-distance sweep |
+| MemoryArena | 2602.16313 | Reported benchmark→deployment gap: ~95% on LoCoMo → 40–60% in agentic loops |
 
-Keep our terms as the primary vocabulary — they are more precise and the papers are
-already written around them — but gloss each one against the field term on first use.
+Verification order: STALE and Supersede first (they touch published claims), then
+GateMem.
 
 ---
 
-## 5. Recommended actions, in priority order
+## 8. Bottom line
 
-**P0 — Verify before citing.** Nothing here is source-checked. Request an egress
-allowlist entry for `arxiv.org` (and ideally `openreview.net`) for this environment,
-then re-read the survey's §Evaluation and §Open Challenges, plus the six papers in
-§3, from primary text. Confirm every arXiv ID; search-returned IDs are frequently
-plausible and wrong. Until then this document is a lead list.
+The survey does not contain a result that changes what StateBench is. It contains
+something more useful: **a 60-author, 27-institution statement, in §9.6, that the exact
+failure modes StateBench measures are not measured by the field's standard
+benchmarks** — stale reuse, incorrect overwriting, unsafe retention, contradiction
+resolution, long-term policy consistency — together with a call for memory-sensitive
+invariants over versioned, audited, provenance-carrying state under measured token
+budgets. That is our product specification, written by strangers, and it should anchor
+every introduction we write from here.
 
-**P1 — Length-scaling / tenure study.** Sweep timeline length (say 1×, 4×, 12×, 24×)
-against Memgine, `state_based`, and `transcript_replay`, on gpt-5.6-sol. Directly tests
-whether "stronger models need less context curation" is a general claim or an artifact
-of short timelines, and whether a tenure crossover exists in our rankings. We own the
-generator, so this is a generation-parameter change and a `budget-sweep`-shaped run,
-not new machinery. **This one can retract or qualify a published claim, which makes it
-the most important experiment on the list.**
+Two gaps of ours are named by the survey's own analysis: forgetting/retention, which we
+do not implement, and abstention/false-premise handling, which we half-implement. Two
+of our differentiators — authority hierarchy and multi-principal scope — have no
+counterpart in the survey at all, appearing only as §9.2 future work.
 
-**P1 — `premise_resistance` track.** Queries that falsely presuppose superseded state;
-correct answers must reject the premise, which necessarily names the stale fact. Scored
-under v2.0 negation-aware rules. Doubles as the second empirical section of
-`paper-measurement-validity` — a question type designed so that the naive instrument
-scores every correct answer as a failure.
-
-**P2 — Related-work sections.** All five papers currently read as if the field is
-empty. It isn't, as of about March 2026. Position SFRR against FAMA, StateBench
-against STALE and GateMem, Memgine against *Don't Ask the LLM to Track Freshness*
-(as corroboration, not competition).
-
-**P2 — External validity runs.** Memgine on GateMem, and on MemoryAgentBench
-`FactConsolidation`. Two benchmarks we did not build, testing the two claims we care
-most about. Cheap relative to their evidentiary value.
-
-**P2 — Generator fidelity verifier.** A post-render pass asserting every planted fact
-is present and every superseded fact is superseded in the rendered text. Closes a hole
-`paper-measurement-validity` did not look at: the audit checked the *scorer*, not the
-*generator*. If facts silently fail to land, every downstream number is off and nothing
-currently would tell us.
-
-**P3 — Forgetting & retention track.** Explicit deletion requests, with the requirement
-that deleted facts are unrecoverable rather than tombstoned. Distinct from supersession;
-GateMem finds it unsolved across the board; it maps to a survey operation we do not
-implement at all.
-
-**P3 — Frame paper 4 as procedural memory.** Retitle or re-abstract *Worked Examples
-Are Worth Paying For* in the survey's terms: episodic-to-procedural consolidation via
-experience distillation. Same content, findable by anyone reading the survey.
-
----
-
-## 6. Verification checklist
-
-Before any of this reaches a paper:
-
-- [ ] Survey primary text read — confirm the three-dimensional taxonomy wording, the
-      five memory operations, the enumeration of the six open challenges, and whether
-      v4's *self-evolving / long-horizon* retitling reflects new sections.
-- [ ] Confirm all arXiv IDs in §3.1 resolve to the titles given.
-- [ ] Supersede: confirm 92→77, 68→28, 28→28, and the McNemar p-value, from the paper.
-- [ ] *Don't Ask the LLM to Track Freshness*: confirm the 54/48/18/7 table and that the
-      task grants explicit serial-number semantics.
-- [ ] GateMem: confirm the "no method achieves all three" claim and check whether a
-      Memgine-shaped baseline was already evaluated.
-- [ ] STALE: confirm the three probing dimensions and the 400-scenario / 1,200-query
-      scale.
-- [ ] *Ground Truth First*: confirm what "tenure crossover" actually measures — this
-      is the load-bearing citation for P1 and it is currently **[single]**.
-- [ ] FAMA: find the defining paper (Memora?) and read its formulation before comparing
-      it to SFRR.
-
----
-
-## 7. Bottom line
-
-The survey itself is a map, not a result — its value to us is vocabulary, positioning,
-and the citation graph it exposes. The real finding of this review is what sits in that
-graph: **between February and August 2026 the field independently converged on
-StateBench's thesis**, produced at least four instruments overlapping our tracks, and
-externally replicated Memgine's core design claim on a benchmark we did not build.
-
-That is validating and it is a deadline. Our differentiators — multi-principal
-governance, deterministic engine-level enforcement, generate-state-then-render — are
-real and are now contested territory. Two specific exposures need attention: the
-"stronger models need less curation" claim rests on a single timeline length, and
-tenure-crossover evidence suggests that is exactly the variable that decides it; and
-our strongest architectural claim (engine-level access control) has never been tested
-on data we did not author, while a benchmark purpose-built to test it now exists and
-reports that nobody passes.
+The one live risk is §5's second item. "Stronger models need less context curation" is
+published, and it rests on a single dependency distance in a survey that names
+dependency distance a crucial analysis dimension. Sweep it before someone else does.
