@@ -207,7 +207,13 @@ is what makes it scoreable.
 
 So the track is simultaneously (a) coverage of a named field ability we lack, (b) a
 second empirical section for the measurement-validity paper, and (c) a demonstration
-that the v2.0 correction was load-bearing rather than cosmetic. Build it.
+that the v2.0 correction was load-bearing rather than cosmetic.
+
+**Status: built.** `premise_resistance` and its `premise_maintain` guardrail twin ship
+in `generator/templates/premise.py`, with paired generation, `superseded`-tagged
+forbidden phrases, and `evaluation/premise_metrics.py` reporting PRR, False Rejection
+Rate, and the v1.0-vs-v2.0 instrument comparison. 47 tests, no model calls. What
+remains is running it — see the P0 note about API access.
 
 ### P1 — Report dependency distance, and sweep it
 

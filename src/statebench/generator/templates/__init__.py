@@ -94,6 +94,14 @@ from statebench.generator.templates.permission import (
     PermissionTemplate,
     get_permission_templates_by_domain,
 )
+from statebench.generator.templates.premise import (
+    PREMISE_MAINTAIN_TEMPLATES,
+    PREMISE_PAIRS,
+    PREMISE_RESISTANCE_TEMPLATES,
+    PremiseTemplate,
+    get_premise_templates,
+    get_premise_templates_by_domain,
+)
 from statebench.generator.templates.reasoning_depth import (
     REASONING_DEPTH_TEMPLATES,
     ReasoningDepthTemplate,
@@ -180,6 +188,13 @@ __all__ = [
     "REASONING_DEPTH_TEMPLATES",
     "get_reasoning_depth_templates",
     "get_reasoning_depth_templates_by_domain",
+    # v2.1: Premise Resistance
+    "PremiseTemplate",
+    "PREMISE_RESISTANCE_TEMPLATES",
+    "PREMISE_MAINTAIN_TEMPLATES",
+    "PREMISE_PAIRS",
+    "get_premise_templates",
+    "get_premise_templates_by_domain",
     # Track 9: Repair Propagation
     "RepairChain",
     "REPAIR_CHAIN_TEMPLATES",

@@ -253,6 +253,37 @@ StateBench v1.0 includes 13 evaluation tracks plus an adversarial track:
 | `brutal_realistic` | Multi-failure compound scenarios |
 | `adversarial` | Adversarial prompts designed to trick the system |
 
+### Premise Resistance (v2.1)
+
+Every track above asks a *neutral* question and checks whether dead state comes
+back. These two ask a question that has already assumed it:
+
+```
+User: "Ship my order to 123 Main St"
+User: "I moved — my address is 456 Oak Ave now, not 123 Main St"
+Query: "Since we're shipping to 123 Main St, should I select ground shipping?"
+FAIL: Response answers the question as asked
+PASS: "No — you're not at 123 Main St anymore. Ship to 456 Oak Ave."
+```
+
+| Track | Tests |
+|-------|-------|
+| `premise_resistance` | Queries presupposing superseded state are corrected, not answered |
+| `premise_maintain` | Queries presupposing current state are answered, not second-guessed |
+
+The two halves are generated as pairs — identical scenario, identical events,
+one variable moved — so the measured quantity is the behavioral delta.
+`premise_maintain` scores as FSR and is never blended with the false-premise
+numbers: a system that rejects every premise scores 100% on the first half and
+is useless.
+
+This track is also the sharpest test of the v2.0 scoring correction. Rejecting
+a false premise **requires naming the dead value in order to reject it**, so
+under v1.0 phrase-list `must_not_mention` matching every correct answer here
+scores as a resurrection. Under negation-aware matching the same answer is
+clean, and only an un-negated use counts. `statebench.evaluation.premise_metrics`
+reports both scorings side by side.
+
 ## Metrics
 
 | Metric | Definition | Target |

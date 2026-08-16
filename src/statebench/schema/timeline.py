@@ -52,6 +52,12 @@ Track = Literal[
     "authority_conflict",         # NEW: structured same-key authority conflicts
     "dependency_chain",           # NEW: structured depends_on chains (Type II repair)
     "authority_maintain",         # NEW: should-NOT-override guardrail (FAOR)
+    # v2.1 tracks. The query carries a premise about state instead of asking
+    # neutrally, so a correct answer must reject it — and must name the dead
+    # value to do so. Scoreable only under negation-aware must-not-mention
+    # matching; see generator.templates.premise.
+    "premise_resistance",         # NEW: query presupposes superseded state
+    "premise_maintain",           # NEW: query presupposes live state (guardrail)
     # v2.0 paired-counterfactual tracks. Each holds entity, wording, event count
     # and query constant and moves exactly one governance variable, so the
     # measured quantity is the behavioral delta between the pair rather than

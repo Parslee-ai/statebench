@@ -311,6 +311,47 @@ StateBench v1.0 includes 14 tracks. Key rubrics by category:
 - **must_mention**: Relevant identity/conflict information
 - **decision**: Handle contradictions appropriately
 
+### Premise Tracks (v2.1)
+
+**premise_resistance** / **premise_maintain**
+
+The query carries a claim about state rather than asking about it. On
+`premise_resistance` that claim is a superseded value and the correct response
+rejects it; on `premise_maintain` it is the live value and the correct response
+proceeds. The two are generated as pairs — same scenario, same events, only the
+embedded value differs.
+
+- **Primary metrics**: Premise Rejection Rate (PRR) on the false half, False
+  Rejection Rate on the maintain half. Report both or neither: a system that
+  rejects reflexively maximizes PRR and is useless.
+- **Key test**: Rejecting a false premise *and* naming the live value.
+- **must_not_mention**: The superseded value the premise asserts, tagged
+  `kind="superseded"`.
+- **decision**: `no` on the false half, `yes` on the maintain half.
+- `premise_maintain` ends in `_maintain`, so `MetricsAggregator` scores it as
+  FSR and quarantines it from every should-supersede aggregate.
+
+#### Why this track cannot be scored by phrase lists alone
+
+Rejecting a premise means naming the thing being rejected: *"you're not at 123
+Main St anymore, your address is 456 Oak Ave."* Under plain
+`must_not_mention` containment, **every correct answer on this track is a
+resurrection**. The negation-aware rule (`rubric.all_mentions_negated`) is what
+makes the track scoreable — a forbidden phrase whose every occurrence sits under
+a negation cue is recorded in `negated_mentions` rather than counted as a
+violation, and a single un-negated occurrence still fails.
+
+`statebench.evaluation.premise_metrics` reports both scorings side by side:
+
+| Field | Meaning |
+|-------|---------|
+| `v1_violation_rate` | Flagged by v1.0 phrase-list containment |
+| `v2_violation_rate` | Flagged by v2.0 negation-aware matching |
+| `v1_false_violation_rate` | Of responses that were **correct**, the fraction v1.0 would have failed |
+
+A high `v1_false_violation_rate` is the expected result, not a defect — it is
+the measurement.
+
 ### Adversarial Track
 
 **adversarial**

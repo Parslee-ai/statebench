@@ -134,6 +134,10 @@ TRACK_PHRASE_KIND = {
     "authority_hierarchy": "superseded",
     "authority_maintain": "superseded",
     "brutal_realistic": "superseded",
+    # The forbidden phrase is the value the query's false premise asserts.
+    # Asserted plainly it is resurrection; under negation it is the rejection
+    # the track exists to reward, and judge.py drops it before it scores.
+    "premise_resistance": "superseded",
     # information that should never have reached the model
     "scope_permission": "restricted",
     "enterprise_privacy": "restricted",
