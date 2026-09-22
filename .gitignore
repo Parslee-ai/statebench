@@ -50,6 +50,11 @@ htmlcov/
 dmypy.json
 
 # Generated data (keep templates, ignore large generated files)
+# The recursive form matters: commands that organise their output into
+# subdirectories -- `distance-sweep --data-dir data/generated/distance` writes
+# one file per profile -- landed several MB of seed-reproducible timelines
+# outside the non-recursive pattern and straight into `git status`.
+data/generated/**/*.jsonl
 data/generated/*.jsonl
 data/hf-staging/
 
