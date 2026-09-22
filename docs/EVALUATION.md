@@ -181,6 +181,46 @@ Answer with just one of the options, nothing else.
 
 ---
 
+## Dependency Distance (v2.1)
+
+Results are only comparable when they were measured at the same distance
+between the deciding fact and the query. Every StateBench result published
+through v2.0 was measured at `within_turn` — unpadded, a handful of events per
+timeline.
+
+`statebench distance-sweep` holds the scenario, the baseline, the model and the
+token budget fixed and moves only the distance. A result reported without a
+distance should be assumed to be `within_turn`; a result reported at any other
+distance must say so, because the two are not comparable.
+
+### What padding may and may not do
+
+Padding must leave the measurement intact. The implementation
+(`statebench.generator.distance`) enforces three rules, each of which would
+otherwise corrupt scoring in a way that no assertion would catch at run time:
+
+| Rule | What it prevents |
+|------|------------------|
+| Only `ConversationTurn` events are inserted | Filler silently changing state, which would rewrite the correct answer |
+| Every filler line is checked against every `must_mention` and `must_not_mention` phrase, using `rubric.contains_phrase` | Padding manufacturing must-mention hits and must-not-mention violations out of irrelevant chatter |
+| Session gaps do not advance the clock on time-sensitive tracks | Expiry ground truth (`environmental_freshness`, `cf_temporal_validity`) flipping because days passed |
+
+Ground truth objects are copied through untouched, event order is preserved,
+timestamps stay monotonic, and the profile is recorded on each timeline's
+`dependency_distance` field so a dataset can always state what it is.
+
+When the filler pool is smaller than the requested exchange count the pool
+cycles, and `PaddingReport.exhausted_filler` is set. Repetition is honest
+padding — long conversations repeat — but it is declared rather than hidden.
+
+### Reporting
+
+Report distance alongside token budget. A claim of the form "architecture A
+beats architecture B" or "model M needs less context curation" is a claim about
+one point unless a sweep is shown; the survey that motivated this axis
+(arXiv:2602.06052 §7.2.2) names dependency distance one of two dimensions
+crucial to attributing a result to the memory mechanism at all.
+
 ## Evaluation Rules
 
 ### Official Test Protocol

@@ -238,6 +238,18 @@ generation-parameter change plus a `budget-sweep`-shaped run.
 most important one on the list.** Report every future result as a curve over
 dependency distance, not a scalar.
 
+**Status: harness built, not yet run.** `generator/distance.py` defines four profiles
+(`within_turn` → `long_horizon`, roughly 7 → 200 events per timeline); `statebench
+generate --distance` and `statebench distance-sweep` drive them, and every timeline now
+records the profile it was padded to in a `dependency_distance` field, so a padded
+dataset can never be mistaken for an unpadded one. Padding inserts conversation only,
+is checked against every ground-truth phrase with the judge's own matcher so it cannot
+manufacture must-mention hits or must-not-mention violations, and holds the clock still
+on time-sensitive tracks rather than silently rewriting their expiry ground truth. 30
+tests, no model calls; `--generate-only` builds and inspects the datasets offline. The
+README caveat on the gpt-5.6 claim now states that it was measured at `within_turn`.
+Running the sweep needs API access — see P0.
+
 ### P2 — Related-work sections in all five papers
 
 Our papers read as though the field is empty. The survey proves it is not, and gives

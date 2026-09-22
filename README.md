@@ -89,6 +89,13 @@ Passing is rare. Most transcript-replay systems fail Track 1 (Causality) at mean
 > architecture premium narrows sharply — `memgine`'s dev-split lead over
 > `state_based` falls from 9.1pp to 0.7pp, and on the test split `state_based`
 > pulls level. Stronger models need less context curation.
+> **Caveat, added v2.1:** that last sentence is measured at a single
+> dependency distance — the `within_turn` profile, a few turns between the
+> deciding fact and the query. Published work reports the memory-maintenance
+> gap widening with conversation length and architecture rankings crossing
+> over as interaction length grows, so it may be a special case stated as a
+> general one. `statebench distance-sweep` exists to settle it; until that
+> sweep runs, read the sentence as scoped to short horizons.
 >
 > These tables are retained as the published record.
 
@@ -283,6 +290,52 @@ under v1.0 phrase-list `must_not_mention` matching every correct answer here
 scores as a resurrection. Under negation-aware matching the same answer is
 clean, and only an un-negated use counts. `statebench.evaluation.premise_metrics`
 reports both scorings side by side.
+
+## Dependency Distance (v2.1)
+
+Every StateBench number published so far was measured with the deciding fact a
+few turns from the query. The agent-memory survey (arXiv:2602.06052 §7.2.2)
+names **dependency distance** — "how far apart the required information and its
+later use occur" — one of two dimensions crucial to memory-centric analysis,
+alongside the memory-correctness axis StateBench already measures. We had no
+knob for it, which means every published comparison describes one point on a
+curve nobody had plotted.
+
+```bash
+# Generate at a chosen distance
+statebench generate -t supersession --distance cross_session -n 100 -o data/far.jsonl
+
+# Sweep a baseline across the whole axis
+statebench distance-sweep -t supersession -b memgine -m gpt-5.2
+
+# Build the datasets and inspect their shape without calling a model
+statebench distance-sweep -t supersession -b memgine --generate-only
+```
+
+| Profile | Filler exchanges | Session gaps | Typical events/timeline |
+|---------|------------------|--------------|-------------------------|
+| `within_turn` | 0 | 0 | ~7 (every release through v2.0) |
+| `cross_turn` | 8 | 0 | ~22 |
+| `cross_session` | 28 | 1 | ~64 |
+| `long_horizon` | 96 | 4 | ~200 |
+
+Padding inserts irrelevant conversation between the last state-changing event
+and the query. Three invariants keep it a measurement rather than a different
+test:
+
+- **Filler carries no state** — only conversation turns, never a write or a
+  supersession.
+- **Filler cannot become signal** — every candidate line is checked against
+  every `must_mention` and `must_not_mention` phrase using the judge's own
+  boundary-aware matcher, and colliding lines are dropped. Without this, padding
+  would manufacture hits and violations out of nothing.
+- **Time-sensitive tracks keep their clock** — session gaps advance days, which
+  would rewrite `environmental_freshness` ground truth. Those tracks get the
+  same token load as turns, and the substitution is reported rather than applied
+  silently.
+
+Ground truth is never modified, and each timeline records the profile it was
+padded to in its `dependency_distance` field.
 
 ## Metrics
 

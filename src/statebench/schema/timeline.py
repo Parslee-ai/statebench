@@ -482,6 +482,16 @@ class Timeline(BaseModel):
         description="How supersession is represented (explicit events vs NL)"
     )
 
+    # v2.1: where this timeline sits on the dependency-distance axis — how far
+    # the deciding fact is from the query that needs it. It lives on the
+    # timeline rather than in metadata because metadata is optional and often
+    # absent, and a padded dataset that cannot say it is padded is a trap.
+    # None means unpadded, which is every release through v2.0.
+    dependency_distance: str | None = Field(
+        default=None,
+        description="Distance profile applied, e.g. 'cross_session'"
+    )
+
     actors: Actors = Field(description="Actors in this timeline")
     initial_state: InitialState = Field(description="State at timeline start")
     events: list[Event] = Field(description="Sequence of events")

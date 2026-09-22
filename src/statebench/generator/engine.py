@@ -14,6 +14,7 @@ from statebench.generator.adversarial import (
     AdversarialGenerator,
     TimelinePerturbator,
 )
+from statebench.generator.distance import DEFAULT_DISTANCE, get_profile, pad_timeline
 
 # v1.0: Enterprise Track
 from statebench.generator.templates.authority import (
@@ -3003,6 +3004,7 @@ def generate_dataset(
     tracks: list[str],
     count_per_track: int = 100,
     seed: int | None = None,
+    distance: str = DEFAULT_DISTANCE,
 ) -> int:
     """Generate a complete benchmark dataset.
 
@@ -3011,16 +3013,25 @@ def generate_dataset(
         tracks: List of track names to generate
         count_per_track: Number of timelines per track
         seed: Random seed for reproducibility
+        distance: Dependency-distance profile to pad to. The default leaves
+            timelines unpadded, which is what every release through v2.0
+            contains. Padding inserts irrelevant conversation between the
+            deciding fact and the query; ground truth is untouched. See
+            :mod:`statebench.generator.distance`.
 
     Returns:
         Total number of timelines generated
     """
     generator = TimelineGenerator(seed=seed)
+    profile = get_profile(distance)
+    pad_rng = random.Random(seed if seed is not None else 0)
     total = 0
 
     with open(output_path, "w") as f:
         for track in tracks:
             for timeline in generator.generate_track(track, count=count_per_track):
+                if profile.exchanges or profile.session_gaps:
+                    timeline, _ = pad_timeline(timeline, profile, rng=pad_rng)
                 f.write(timeline.model_dump_json() + "\n")
                 total += 1
 
