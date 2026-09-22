@@ -301,6 +301,39 @@ actually appears in the rendered timeline text, or that every superseded fact is
 actually superseded there. If facts silently fail to land, every downstream number is
 wrong and nothing would tell us.
 
+**Status: built, and it found things.** `generator/fidelity.py` plus `statebench
+audit-dataset` (non-zero exit on errors, so it can gate a release). Over the shipped
+`v1.0/full.jsonl` — 1,400 timelines, 1,667 queries — it reports **107 errors and 3,352
+warnings**:
+
+- **2,026 unreachable forbidden phrases.** The phrase appears nowhere in its own
+  timeline. Must-not-mention scoring is deterministic with no paraphrase fallback, so
+  nothing can ever violate them — yet they sit in the denominator and deflate the
+  phrase-level violation rate. SFRR is computed per query, so SFRR is *not* affected;
+  `must_not_mention_violation_rate` is.
+- **889 unsupported must-mention phrases**, which a correct answer can only reach by
+  paraphrase, making the score a function of the judge rather than of the system.
+- **105 non-monotonic event sequences**, all on `supersession_detection`: a baseline
+  that sorts events by timestamp sees a different timeline than one that uses list
+  order.
+- **2 unpassable queries.** In `DET-001030` and `DET-001091` the hourly rate "changes"
+  from $150 to $150, so `$150` is both the required answer and a forbidden superseded
+  value. Every response scores as a resurrection.
+
+The dominant pattern is *near miss, not absent fact*: the timeline says "Reset MFA for
+CEO" while the forbidden list says `"MFA reset"`; it says "They have 500 active users"
+while `"500 users"` is required. Same species as the v1.0 forbidden-phrase defects, one
+stage earlier in the pipeline — which is a second, independent instance of the
+measurement-validity paper's thesis and probably belongs in it.
+
+Two caveats before any of this is cited. The checker's first run produced 145 errors,
+of which 124 were **its own** false positives — it did not know that `Write.supersedes`
+holds a fact key in some generators and a fact ID in others, nor that
+`cf_temporal_validity` invalidates by an expiry embedded in the value text rather than
+by a supersession event. Both are fixed and tested. And warnings are warnings: a
+must-mention phrase the model is meant to infer rather than quote is legitimate, so the
+889 needs sampling before it becomes a number in a paper.
+
 ---
 
 ## 6. Smaller notes worth keeping

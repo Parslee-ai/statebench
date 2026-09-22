@@ -20,6 +20,7 @@ from statebench.generator.distance import (
     DISTANCE_PROFILES,
 )
 from statebench.generator.engine import generate_dataset
+from statebench.generator.fidelity import check_dataset, format_fidelity_report
 from statebench.release import RELEASE_CONFIG, generate_release, verify_release
 from statebench.runner.harness import EvaluationHarness, load_timelines
 from statebench.schema.timeline import Track
@@ -1941,6 +1942,68 @@ def distance_sweep(
             indent=2,
         )
     console.print(f"\n[green]Results written to {output_path}[/green]")
+
+
+@main.command("audit-dataset")
+@click.option(
+    "--dataset",
+    "-d",
+    type=click.Path(exists=True),
+    required=True,
+    help="Path to JSONL dataset",
+)
+@click.option(
+    "--output",
+    "-o",
+    type=click.Path(),
+    default=None,
+    help="Write the full markdown report here",
+)
+@click.option(
+    "--examples",
+    type=int,
+    default=5,
+    help="Examples to show per issue code (default: 5)",
+)
+@click.option(
+    "--strict",
+    is_flag=True,
+    help="Exit non-zero if any warning is found, not just errors",
+)
+def audit_dataset(
+    dataset: str, output: str | None, examples: int, strict: bool
+) -> None:
+    """Check that a dataset's ground truth is satisfiable from its own text.
+
+    The measurement-validity audit checked the scorer. This checks the
+    generator: whether every required phrase is actually present in the
+    timeline, whether every forbidden phrase is reachable at all, and whether
+    supersessions point at facts that exist. A phrase that does not match the
+    text it was meant to describe produces numbers that look exactly like model
+    failures.
+
+    Exits non-zero when errors are found, so it can gate a release.
+    """
+    timelines = load_timelines(Path(dataset))
+    report = check_dataset(timelines)
+
+    console.print(format_fidelity_report(report, max_examples=examples))
+
+    if output:
+        output_path = Path(output)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(format_fidelity_report(report, max_examples=10_000))
+        console.print(f"\n[green]Full report written to {output_path}[/green]")
+
+    if report.errors:
+        console.print(f"\n[red]{len(report.errors)} error(s) found[/red]")
+        raise SystemExit(1)
+    if strict and report.warnings:
+        console.print(
+            f"\n[yellow]{len(report.warnings)} warning(s) found (--strict)[/yellow]"
+        )
+        raise SystemExit(1)
+    console.print("\n[green]No errors found[/green]")
 
 
 if __name__ == "__main__":

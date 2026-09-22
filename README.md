@@ -291,6 +291,46 @@ scores as a resurrection. Under negation-aware matching the same answer is
 clean, and only an un-negated use counts. `statebench.evaluation.premise_metrics`
 reports both scorings side by side.
 
+## Dataset Fidelity Audit (v2.1)
+
+`paper-measurement-validity` audited the scorer and found six defects. It never
+audited the **generator** — whether a timeline's ground truth is satisfiable
+from that timeline's own text. Nothing checked it, and a mis-specified template
+produces numbers indistinguishable from model failure.
+
+```bash
+statebench audit-dataset -d data/releases/v1.0/full.jsonl
+statebench audit-dataset -d data/releases/v1.0/test.jsonl --strict -o report.md
+```
+
+Exits non-zero on errors, so it can gate a release.
+
+### What the shipped v1.0 release contains
+
+Running it over `data/releases/v1.0/full.jsonl` (1,400 timelines, 1,667 queries):
+
+| Code | Severity | Count | Effect |
+|------|----------|-------|--------|
+| `unreachable_forbidden_phrase` | warning | 2,026 | Forbidden phrase appears nowhere in its own timeline. Must-not-mention scoring is deterministic, so nothing can ever violate it — yet it counts in the denominator and **deflates the phrase-level violation rate**. SFRR is per-query and unaffected. |
+| `unsupported_must_mention` | warning | 889 | Required phrase appears nowhere in its own timeline, so a correct answer can only match by paraphrase — the score depends on the judge, not the system. |
+| `inadmissible_forbidden_phrase` | warning | 437 | Ordinary vocabulary a correct answer may use; already skipped at judging since v2.0. |
+| `events_out_of_order` | **error** | 105 | Event timestamps are not monotonic (all on `supersession_detection`), so a baseline that sorts by timestamp sees a different timeline than one using list order. |
+| `phrase_required_and_forbidden` | **error** | 2 | The same phrase is both required and forbidden. **No response can pass**, and every response scores as a resurrection. |
+
+Most of these are **near misses rather than absent facts** — the fact was
+planted, the phrase just doesn't match it. A timeline says "Reset MFA for CEO"
+while the forbidden list says `"MFA reset"`; another says "They have 500 active
+users" while `"500 users"` is required. That is the same species of defect the
+measurement-validity paper found in the forbidden-phrase lists, one stage
+earlier in the pipeline.
+
+The two hard errors are worth seeing: in `DET-001030` and `DET-001091` the
+hourly rate "changes" from $150 to $150, so `$150` is simultaneously the
+required answer and a forbidden superseded value.
+
+The `premise_resistance` and `premise_maintain` tracks audit completely clean —
+no errors and no warnings — and a test keeps them that way.
+
 ## Dependency Distance (v2.1)
 
 Every StateBench number published so far was measured with the deciding fact a
@@ -477,6 +517,8 @@ statebench create-splits  # Create train/dev/test/hidden splits
 statebench split-stats    # Show split statistics
 statebench budget-sweep   # Test across token budgets
 statebench variance-report # Multi-seed stability
+statebench audit-dataset  # Check ground truth is satisfiable from the timeline text
+statebench distance-sweep # Evaluate across dependency distances
 ```
 
 ## Project Structure
