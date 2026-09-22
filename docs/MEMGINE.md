@@ -136,6 +136,56 @@ Key design principles inherited from the LCM paper (Voltropy PBC, Feb 2026):
 - **Hierarchical DAG**: Per-layer summary trees with provenance pointers enabling lossless expansion.
 - **Deterministic compaction**: Three-level escalation with layer-specific rules. Level 2 (deterministic) requires no LLM calls and guarantees convergence.
 
+## Where Memgine Sits in the Field's Operation Taxonomy
+
+Added after reading Huang et al. (2026), *A Survey of Agent Memory in the Second Half*
+(TMLR 07/2026, arXiv:2602.06052) — a 90-page synthesis of 200+ papers. This section is
+positioning, not a change to any published claim; the Memgine paper itself is a
+historical artifact and is not edited.
+
+The survey defines **five core memory operations** for single-agent systems. Memgine
+implements four:
+
+| Survey operation | Memgine |
+|---|---|
+| Storage & index | Typed layer store with metadata indexing |
+| Loading & retrieval | Query-relevance sorting |
+| Update & refresh | Supersession tracking, adaptive inline repair |
+| Compression & summarization | Threshold-based compaction over a Summary DAG |
+| **Forgetting & retention** | **Absent** |
+
+The gap is deliberate but worth naming. A superseded fact in Memgine is tombstoned and
+excluded from assembled context; it is never deleted from the store, because auditability
+requires that a retired fact stay inspectable. That is a defensible scope boundary, but
+it means Memgine does not address an operation the survey singles out as
+under-evaluated across the whole field, alongside compression: "selective forgetting or
+retention is frequently partial or absent, despite being essential for long-horizon
+assistants operating under finite memory budgets and evolving user states." Deletion on
+request — where the requirement is that the fact becomes *unrecoverable*, not merely
+inactive — is a different operation from supersession and we do not implement or test it.
+
+**The survey states our architectural thesis in its own words.** On externalized memory
+(its §6.2): externalization "enables schema-aware retrieval, versioning, targeted edits,
+and access control — operations that are difficult or infeasible within prompt-based
+context alone." Memgine's engine-level access control is one instance of that general
+claim, and the survey attributes the claim to externalization itself rather than to any
+particular engine — which is useful, because it means the argument does not rest on our
+own benchmark.
+
+**Memgine belongs to a named family.** The survey's treatment of multi-agent memory
+conflict (§4.2.3) separates two approaches: *write control*, where one component is the
+only thing permitted to mutate memory and does so through a closed set of edit operations
+(its example is Memory-R1's ADD/UPDATE/DELETE/NOOP), and *feedback-loop consistency*,
+where conflicts are resolved by iterative verification against a stored constraint
+memory. **Memgine is a write-control system.** Saying so matters because the two families
+fail differently — write control fails by admitting a bad write, feedback loops fail by
+converging slowly or not at all — and a design that does not declare its family invites
+comparison against the wrong baseline.
+
+**One vocabulary note.** The survey never uses the word *supersession* in 90 pages; its
+term for the same operation is **Update & Refresh**. It never uses *authority* at all.
+Memgine's authority resolution has no counterpart in the field's own map of the field.
+
 ## The Bottom Line
 
 The paper's thesis is that state-based context management is fundamentally better than conversation replay. Memgine's contribution is showing that the *quality of state assembly* — how you order, filter, annotate, and budget the state you've already extracted — provides a second, independent axis of improvement. The paper demonstrated the value of *having* structured state. Memgine demonstrates the value of *intelligently composing* it.

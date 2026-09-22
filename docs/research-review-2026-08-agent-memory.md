@@ -252,10 +252,17 @@ Running the sweep needs API access — see P0.
 
 ### P2 — Related-work sections in all five papers
 
-Our papers read as though the field is empty. The survey proves it is not, and gives
-us the citation spine: §4.1.3 for update/refresh, §7.2.1 for the ability taxonomy,
-§7.2.2 for dependency distance, §9.6 for the evaluation gap, §6.2 for externalized
-memory. Cite the survey as the field's own statement of the gap we fill.
+**Correction to this item.** It originally said our papers "read as though the field is
+empty." Having since read them, that was wrong and unfair. `paper-measurement-validity`
+§2 covers LoCoMo, LongMemEval and MemDelta with a scoring-family analysis; paper 3 §2
+covers MemHarness, the Always-On Agents survey, MemGPT, Zep/Graphiti and Mem0; paper 4
+§2 covers instruction retrieval, step-by-step distillation and ReliableEval. These are
+substantive sections.
+
+The real gap was narrower and entirely citable: **no paper cited the field's own
+survey**, and none positioned our metrics against their nearest published relatives. The
+citation spine is §4.1.3 for update/refresh, §7.2.1 for the ability taxonomy, §7.2.2 for
+dependency distance, §9.6 for the evaluation gap, §6.2 for externalized memory.
 
 Correct one thing while doing it: **the survey's memory-integrity metrics are Memory
 Integrity (MI) and False Memory Rate (FMR), from HaluMem** (Table 3) — not the "FAMA"
@@ -264,6 +271,26 @@ introducing hallucinated memories, including fabricated or incorrect updates" �
 closest published relative of SFRR, and MI is the closest relative of Must-Mention.
 Position SFRR against **FMR**, and note the difference: FMR scores the *memory store*,
 SFRR scores the *response*. Both are needed; they fail differently.
+
+**Status: done for the three drafts.** `paper-measurement-validity` §2 gains the survey's
+three-family metric taxonomy, a HaluMem row in its scoring-family table, and an explicit
+SFRR-vs-FMR positioning (store-level metrics are immune to the negation defect; response-
+level metrics measure something store-level ones cannot; reporting either alone leaves a
+system unfalsified in one of the two places it can fail). Paper 3 §2 gains the survey's
+statement that memory architecture determines "whether systemic issues such as
+information leakage may arise" — the architectural claim it tests — plus the observation
+that governance is filed under *future directions* there, and that *authority* appears
+nowhere in 90 pages. Paper 4 §2 gains the procedural-memory framing and the survey's
+independent statement of its result. All three PDFs rebuilt.
+
+**Deliberately not done for the two published papers.** `build_papers.py` treats
+`memgine-...pdf` and `state-based-...pdf` as historical artifacts that are never
+re-rendered — for the 2025 paper no markdown source exists at all. Editing their
+markdown would produce a version of a published paper saying things the published PDF
+does not. The Memgine positioning went into `docs/MEMGINE.md` instead: the four of five
+survey operations it implements, the forgetting-and-retention gap, §6.2 as an external
+statement of its architectural thesis, and its placement in the survey's *write-control*
+conflict family.
 
 ### P2 — Name paper 4 as procedural memory, and cite the survey's own version of its finding
 

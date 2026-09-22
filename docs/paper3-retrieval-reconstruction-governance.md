@@ -132,6 +132,26 @@ our contribution. Ours is the experimental separation — holding semantic relev
 constant, moving one governance variable, and measuring whether a reconstruction stage
 tracks it.
 
+**Governance is still future work in the field's own survey.** Huang et al. (2026)
+synthesize 200+ papers on foundation-agent memory across three dimensions and five
+operations. Two facts about that synthesis matter here. It states that a multi-agent
+system's memory architecture — "which layer it is stored, how read and write permissions
+are defined across agents" — determines "whether systemic issues such as information
+leakage may arise", which is the architectural claim this paper tests experimentally.
+And it files memory governance under *future directions* rather than existing practice:
+§9.2 names "ownership, access, responsibility, and how divergent perspectives or human
+corrections should be handled" as open problems for multi-human-agent settings.
+
+The vocabulary gap is sharper than the citation gap. Across all 90 pages the survey never
+uses the word *authority*, and never raises the possibility that memory writes carry
+differing authority such that a lower-authority write must not override a
+higher-authority policy. Its treatment of conflict (§4.2.3) is peer-symmetric: write
+control and iterative consistency between agents of equal standing. The asymmetric case —
+a CFO policy and an intern's request writing to the same key — has no counterpart in the
+field's own map of the field. We take that as evidence the axis is under-explored rather
+than settled, and as a caution that our results will not be found by anyone searching the
+literature in its own terms.
+
 **Virtual context and knowledge graphs.** MemGPT (Packer et al., 2023) treats context as
 a managed resource with the model doing its own paging; we externalize assembly instead.
 Zep/Graphiti (Rasmussen et al., 2025) contribute bi-temporal episodic/semantic separation.
@@ -614,6 +634,10 @@ rewrite it into a violation.
 ## References
 
 Ehrlich, C. & Blackman, T. (2026). *LCM: Lossless Context Management.* arXiv preprint.
+
+Huang, W.-C., Zhang, W., Liang, Y., et al. (2026). *A Survey of Agent Memory in the
+Second Half: Towards Self-Evolving and Long-Horizon Agents.* Transactions on Machine
+Learning Research (07/2026). arXiv:2602.06052.
 
 Liotta, M. (2025). *Beyond Conversation: A State-Based Context Architecture for Enterprise
 AI Agents.*
