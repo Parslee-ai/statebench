@@ -57,6 +57,8 @@ AVAILABLE_TRACKS = [
     # v2.1 tracks: the query presupposes state instead of asking about it
     "premise_resistance",      # query presupposes superseded state
     "premise_maintain",        # query presupposes live state (guardrail)
+    "deletion_compliance",     # revoked data must not be reused or restated
+    "deletion_maintain",       # unrevoked siblings must survive (over-forgetting)
     # v2.0 tracks: paired counterfactuals (one governance variable moves per
     # pair) plus the governance x applicability factorial.
     "cf_access_control",

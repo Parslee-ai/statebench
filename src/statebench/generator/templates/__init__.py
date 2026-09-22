@@ -45,6 +45,16 @@ from statebench.generator.templates.commitment import (
     get_commitment_templates_by_domain,
 )
 
+# v2.1: Deletion Compliance (Forgetting & Retention)
+from statebench.generator.templates.deletion import (
+    DELETION_COMPLIANCE_TEMPLATES,
+    DELETION_MAINTAIN_TEMPLATES,
+    DELETION_PAIRS,
+    DeletionTemplate,
+    get_deletion_templates,
+    get_deletion_templates_by_domain,
+)
+
 # v1.0: Detection Track
 from statebench.generator.templates.detection import (
     DETECTION_TEMPLATES,
@@ -188,6 +198,13 @@ __all__ = [
     "REASONING_DEPTH_TEMPLATES",
     "get_reasoning_depth_templates",
     "get_reasoning_depth_templates_by_domain",
+    # v2.1: Deletion Compliance (Forgetting & Retention)
+    "DeletionTemplate",
+    "DELETION_COMPLIANCE_TEMPLATES",
+    "DELETION_MAINTAIN_TEMPLATES",
+    "DELETION_PAIRS",
+    "get_deletion_templates",
+    "get_deletion_templates_by_domain",
     # v2.1: Premise Resistance
     "PremiseTemplate",
     "PREMISE_RESISTANCE_TEMPLATES",

@@ -142,6 +142,9 @@ TRACK_PHRASE_KIND = {
     "scope_permission": "restricted",
     "enterprise_privacy": "restricted",
     "scope_leak": "restricted",
+    # Data the user asked to have deleted. Reusing it is a governance failure,
+    # not a resurrection, so it feeds leakage_rate and never SFRR.
+    "deletion_compliance": "restricted",
     # details the system invented
     "hallucination_resistance": "fabricated",
     # off-topic content resurfacing: a real failure, but not resurrection

@@ -319,6 +319,29 @@ deletion must make it unrecoverable. Explicit user deletion requests, with the
 requirement that the fact is gone from context *and* from the store, are a natural
 extension of our scope machinery and land on a named gap.
 
+**Status: built.** `deletion_compliance` and `deletion_maintain`, five paired scenarios
+across support/HR/sales/project/procurement, in `generator/templates/deletion.py`. Three
+design points were not obvious going in and are worth recording:
+
+1. **A leak here is `restricted`, not `superseded`.** Reusing revoked data is a
+   governance failure; counting it in SFRR would re-create the "SFRR means any
+   violation" defect the measurement-validity paper exists to fix. It feeds
+   `leakage_rate`.
+2. **Negation credit had to be switched off.** `all_mentions_negated` is right for
+   supersession — naming a dead value to reject it is the rewarded behavior — and wrong
+   here, because *"I no longer have card ending 4471 on file"* has displayed the card. A
+   new opt-in `MentionRequirement.negation_exempt` handles it; it defaults to `False`
+   and bare strings are never exempt, so no existing release changes. This is a real
+   refinement of the v2.0 rule and belongs in the measurement-validity paper: negation
+   credit is a property of *what the phrase is*, not of the scorer.
+3. **The revoked value stays in the transcript.** The user had to name it to ask for its
+   removal, so a replay baseline can still see it and only a system that honors the
+   revocation withholds it — the same shape as `scope_leak`.
+
+49 tests, no model calls, and the track audits clean under `statebench audit-dataset`
+(zero errors, zero warnings). Memgine still does not implement the operation; that gap
+is now documented in `docs/MEMGINE.md` rather than merely true.
+
 ### P3 — Generator fidelity verifier
 
 §9.6's call for "provenance metadata" and the survey's repeated emphasis on
