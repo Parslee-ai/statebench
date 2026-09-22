@@ -354,6 +354,123 @@ def test_red_herring_insertion_keeps_events_ordered():
         assert stamps == sorted(stamps), [str(t) for t in stamps]
 
 
+def _with_adjacent_filler(timeline):
+    """Splice two adjacent filler turns onto the front of a timeline.
+
+    Generated tracks rarely produce adjacent filler pairs, so the shuffle has
+    nothing to act on; constructing the case is the only way to exercise it.
+    """
+    from copy import deepcopy
+
+    variant = deepcopy(timeline)
+    t0 = variant.events[0].ts
+    variant.events = [
+        ConversationTurn(
+            ts=t0 - timedelta(minutes=4), speaker="user", text="Thanks for the update."
+        ),
+        ConversationTurn(
+            ts=t0 - timedelta(minutes=2),
+            speaker="assistant",
+            text="No problem, happy to help.",
+        ),
+    ] + list(variant.events)
+    return variant
+
+
+def test_temporal_shuffle_reorders_content_but_not_time():
+    """The timestamps belong to the slots, not to the turns.
+
+    Letting them travel with the turns made the timeline contradict itself:
+    list order said A then B while timestamps said B then A. A system sorting
+    by timestamp then saw the *unshuffled* order and was not perturbed at all,
+    so the perturbation's strength depended on how the system under test reads
+    events — which is exactly what an adversarial control must not do.
+    """
+    import random
+
+    from statebench.generator.adversarial import TimelinePerturbator
+
+    base = _with_adjacent_filler(
+        list(TimelineGenerator(seed=3).generate_track("supersession", count=1))[0]
+    )
+    shuffled = TimelinePerturbator(rng=random.Random(7)).temporal_shuffle(base)
+
+    # The two filler turns changed places...
+    assert [e.text for e in shuffled.events[:2]] == [
+        base.events[1].text,
+        base.events[0].text,
+    ]
+    # ...while every timestamp stayed exactly where it was.
+    assert [e.ts for e in shuffled.events] == [e.ts for e in base.events]
+    stamps = [e.ts for e in shuffled.events]
+    assert stamps == sorted(stamps)
+
+
+def test_temporal_shuffle_never_moves_a_supersession_cue():
+    """A cue turn is not filler, whatever politeness markers it contains.
+
+    `_is_filler` matches on "okay"/"got it"/"sure" regardless of substance, so
+    a correction phrased "Okay, make that Thursday instead" would otherwise be
+    shufflable — and moving the correction moves the answer.
+    """
+    import random
+
+    from statebench.generator.adversarial import TimelinePerturbator
+    from statebench.schema.timeline import ImplicitSupersession
+
+    base = _with_adjacent_filler(
+        list(TimelineGenerator(seed=3).generate_track("supersession", count=1))[0]
+    )
+    base.events[1].implicit_supersession = ImplicitSupersession(
+        detection_cue="No problem, happy to help", difficulty="obvious"
+    )
+
+    perturbator = TimelinePerturbator(rng=random.Random(7))
+    for _ in range(20):
+        shuffled = perturbator.temporal_shuffle(base)
+        assert [e.text for e in shuffled.events[:2]] == [
+            e.text for e in base.events[:2]
+        ], "a turn carrying a supersession cue was shuffled"
+
+
+def test_stacked_perturbations_stay_ordered():
+    """Ordering has to survive composition, not just one perturbation at a time.
+
+    The bug that motivated the shared insertion helper only appeared when two
+    perturbations composed: add_red_herrings shifted a supersession forward,
+    then emphasis_invert inserted ahead of it at `supersession.ts - 1 minute`,
+    a time that was now in the past.
+    """
+    import random
+
+    from statebench.generator.adversarial import TimelinePerturbator
+
+    names = [
+        "paraphrase",
+        "temporal_shuffle",
+        "name_substitute",
+        "emphasis_invert",
+        "add_red_herrings",
+    ]
+    bases = list(TimelineGenerator(seed=3).generate_track("supersession", count=3))
+    bases += list(
+        TimelineGenerator(seed=4).generate_track("supersession_detection", count=3)
+    )
+
+    picker = random.Random(0)
+    for trial in range(120):
+        perturbator = TimelinePerturbator(rng=random.Random(trial))
+        timeline = picker.choice(bases)
+        applied = []
+        for _ in range(picker.randint(2, 5)):
+            name = picker.choice(names)
+            applied.append(name)
+            timeline = getattr(perturbator, name)(timeline)
+
+        stamps = [e.ts for e in timeline.events]
+        assert stamps == sorted(stamps), f"trial {trial} after {applied}"
+
+
 def test_premise_tracks_have_no_warnings_either():
     """The premise templates are literal, so every phrase must be in the text."""
     timelines = []

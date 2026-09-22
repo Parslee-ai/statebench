@@ -404,10 +404,25 @@ data now audits with zero errors on every track**, and a test asserts it, so
   before/after always differs, and raises if a pool makes that impossible. The
   constraint belongs in the generator rather than the template data: otherwise
   the next person to widen a pool reintroduces it.
-- **`add_red_herrings` inserted distractions without shifting what followed**, so
-  chatter could be stamped later than a supersession still ahead of it in list
-  order. Subsequent events now move out of the way. (`temporal_shuffle`
-  deliberately reorders adjacent filler turns and is left alone.)
+- **The adversarial perturbations each computed insertion timestamps from
+  whichever event they were reasoning about** — `event.ts - 1 minute`,
+  `nearby.ts + 30 seconds` — and then inserted the turn somewhere else in the
+  list. That arithmetic is only correct while nothing else has moved, which
+  stopped being true the moment two perturbations composed: one shifted a
+  supersession forward, the next inserted ahead of it at a time now in the past.
+  Both insertion sites now share a helper that places a turn between its actual
+  neighbours and pushes the tail back when the gap is too narrow, so ordering
+  survives however many perturbations stack.
+- **`temporal_shuffle` let timestamps travel with the turns it swapped**, which
+  made the timeline contradict itself: list order said A-then-B while timestamps
+  said B-then-A. A system that sorts events by timestamp therefore saw the
+  *unshuffled* order and was not perturbed at all, so the strength of the
+  perturbation depended on how the system under test happens to read events —
+  precisely what an adversarial control must not do. Timestamps now stay with
+  the slots, so both readings agree the filler occurred in the swapped order.
+  A turn carrying a supersession cue is also no longer eligible, since
+  `_is_filler` matches politeness markers regardless of substance and moving a
+  correction moves the answer.
 
 **The shipped `data/releases/v1.0/` files are deliberately unchanged.** They are
 the published record that the leaderboard was computed against; regenerating them
