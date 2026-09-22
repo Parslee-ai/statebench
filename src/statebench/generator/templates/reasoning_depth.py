@@ -14,7 +14,7 @@ Inspired by Honcho's emphasis on reasoning over retrieval — static
 retrieval can't surface implicit connections.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 
@@ -53,7 +53,11 @@ BUDGET_LOOKUP = ReasoningDepthTemplate(
     fact_chain=[
         {"key": "project_budget", "value": "$200,000", "source": "finance_system", "depends_on": []},
     ],
-    root_change={"key": "project_budget", "new_value": "$175,000 (revised after Q3 cuts)", "reason": "Budget reduction"},
+    root_change={
+        "key": "project_budget",
+        "new_value": "$175,000 (revised after Q3 cuts)",
+        "reason": "Budget reduction",
+    },
     query="What is the current project budget?",
     expected_decision="$175,000",
     must_mention=["175,000", "$175,000"],
@@ -68,7 +72,11 @@ VENDOR_STATUS_LOOKUP = ReasoningDepthTemplate(
     fact_chain=[
         {"key": "vendor_status", "value": "Approved for Phase 1", "source": "procurement_system", "depends_on": []},
     ],
-    root_change={"key": "vendor_status", "new_value": "Suspended pending compliance review", "reason": "Compliance issue"},
+    root_change={
+        "key": "vendor_status",
+        "new_value": "Suspended pending compliance review",
+        "reason": "Compliance issue",
+    },
     query="What is the current vendor status?",
     expected_decision="Suspended pending compliance review",
     must_mention=["suspended", "compliance"],
@@ -84,9 +92,18 @@ BUDGET_TO_HEADCOUNT = ReasoningDepthTemplate(
     description="Budget change propagates to hiring capacity",
     fact_chain=[
         {"key": "team_budget", "value": "$500,000 annual", "source": "finance_system", "depends_on": []},
-        {"key": "hiring_capacity", "value": "Can hire 5 engineers at $100K each", "source": "hr_system", "depends_on": ["team_budget"]},
+        {
+            "key": "hiring_capacity",
+            "value": "Can hire 5 engineers at $100K each",
+            "source": "hr_system",
+            "depends_on": ["team_budget"],
+        },
     ],
-    root_change={"key": "team_budget", "new_value": "$300,000 annual (post-restructuring)", "reason": "Org restructuring"},
+    root_change={
+        "key": "team_budget",
+        "new_value": "$300,000 annual (post-restructuring)",
+        "reason": "Org restructuring",
+    },
     query="How many engineers can we hire now?",
     expected_decision="3 engineers",
     must_mention=["3", "300,000", "$300,000"],
@@ -100,9 +117,18 @@ TIMELINE_TO_DELIVERY = ReasoningDepthTemplate(
     description="Start date change propagates to delivery date",
     fact_chain=[
         {"key": "project_start", "value": "March 1, 2025", "source": "project_system", "depends_on": []},
-        {"key": "delivery_date", "value": "June 1, 2025 (3 months after start)", "source": "project_system", "depends_on": ["project_start"]},
+        {
+            "key": "delivery_date",
+            "value": "June 1, 2025 (3 months after start)",
+            "source": "project_system",
+            "depends_on": ["project_start"],
+        },
     ],
-    root_change={"key": "project_start", "new_value": "April 15, 2025 (delayed by resource constraints)", "reason": "Resource delay"},
+    root_change={
+        "key": "project_start",
+        "new_value": "April 15, 2025 (delayed by resource constraints)",
+        "reason": "Resource delay",
+    },
     query="What is the expected delivery date now?",
     expected_decision="July 15, 2025",
     must_mention=["July 15", "July"],
@@ -116,7 +142,12 @@ RATE_TO_INVOICE = ReasoningDepthTemplate(
     description="Hourly rate change propagates to invoice total",
     fact_chain=[
         {"key": "hourly_rate", "value": "$200/hour", "source": "contracts", "depends_on": []},
-        {"key": "monthly_invoice", "value": "$32,000 (160 hours at $200/hour)", "source": "billing_system", "depends_on": ["hourly_rate"]},
+        {
+            "key": "monthly_invoice",
+            "value": "$32,000 (160 hours at $200/hour)",
+            "source": "billing_system",
+            "depends_on": ["hourly_rate"],
+        },
     ],
     root_change={"key": "hourly_rate", "new_value": "$250/hour (renegotiated)", "reason": "Contract renegotiation"},
     query="What should the monthly invoice be now?",
@@ -134,10 +165,24 @@ EXCHANGE_TO_BUDGET_TO_HEADCOUNT = ReasoningDepthTemplate(
     description="Exchange rate change propagates through budget to hiring",
     fact_chain=[
         {"key": "exchange_rate", "value": "1 USD = 0.85 EUR", "source": "finance_system", "depends_on": []},
-        {"key": "euro_budget", "value": "€425,000 (converted from $500,000 at 0.85)", "source": "finance_system", "depends_on": ["exchange_rate"]},
-        {"key": "eu_hiring", "value": "Can hire 5 EU engineers at €85,000 each", "source": "hr_system", "depends_on": ["euro_budget"]},
+        {
+            "key": "euro_budget",
+            "value": "€425,000 (converted from $500,000 at 0.85)",
+            "source": "finance_system",
+            "depends_on": ["exchange_rate"],
+        },
+        {
+            "key": "eu_hiring",
+            "value": "Can hire 5 EU engineers at €85,000 each",
+            "source": "hr_system",
+            "depends_on": ["euro_budget"],
+        },
     ],
-    root_change={"key": "exchange_rate", "new_value": "1 USD = 0.75 EUR (currency weakened)", "reason": "Market movement"},
+    root_change={
+        "key": "exchange_rate",
+        "new_value": "1 USD = 0.75 EUR (currency weakened)",
+        "reason": "Market movement",
+    },
     query="How many EU engineers can we hire now with the same $500K USD budget?",
     expected_decision="4 engineers",
     must_mention=["4", "0.75", "375,000"],
@@ -151,10 +196,24 @@ CAPACITY_TO_TIMELINE_TO_COST = ReasoningDepthTemplate(
     description="Team capacity change propagates through timeline to total cost",
     fact_chain=[
         {"key": "team_size", "value": "8 engineers", "source": "hr_system", "depends_on": []},
-        {"key": "project_duration", "value": "4 months (32 person-months / 8 engineers)", "source": "project_system", "depends_on": ["team_size"]},
-        {"key": "total_cost", "value": "$640,000 (4 months × 8 engineers × $20K/month)", "source": "finance_system", "depends_on": ["project_duration"]},
+        {
+            "key": "project_duration",
+            "value": "4 months (32 person-months / 8 engineers)",
+            "source": "project_system",
+            "depends_on": ["team_size"],
+        },
+        {
+            "key": "total_cost",
+            "value": "$640,000 (4 months × 8 engineers × $20K/month)",
+            "source": "finance_system",
+            "depends_on": ["project_duration"],
+        },
     ],
-    root_change={"key": "team_size", "new_value": "6 engineers (2 reassigned to critical project)", "reason": "Resource reallocation"},
+    root_change={
+        "key": "team_size",
+        "new_value": "6 engineers (2 reassigned to critical project)",
+        "reason": "Resource reallocation",
+    },
     query="What is the expected total cost now with the reduced team?",
     expected_decision="$640,000 but over ~5.3 months",
     must_mention=["6 engineer", "32 person-month"],
@@ -167,11 +226,30 @@ DISCOUNT_TO_PRICE_TO_REVENUE = ReasoningDepthTemplate(
     depth=3,
     description="Discount change propagates through unit price to quarterly revenue",
     fact_chain=[
-        {"key": "volume_discount", "value": "15% discount for orders over 1000 units", "source": "sales_policy", "depends_on": []},
-        {"key": "effective_price", "value": "$85 per unit ($100 list price minus 15%)", "source": "pricing_system", "depends_on": ["volume_discount"]},
-        {"key": "q4_revenue_forecast", "value": "$425,000 (5,000 units at $85 each)", "source": "finance_system", "depends_on": ["effective_price"]},
+        {
+            "key": "volume_discount",
+            "value": "15% discount for orders over 1000 units",
+            "source": "sales_policy",
+            "depends_on": [],
+        },
+        {
+            "key": "effective_price",
+            "value": "$85 per unit ($100 list price minus 15%)",
+            "source": "pricing_system",
+            "depends_on": ["volume_discount"],
+        },
+        {
+            "key": "q4_revenue_forecast",
+            "value": "$425,000 (5,000 units at $85 each)",
+            "source": "finance_system",
+            "depends_on": ["effective_price"],
+        },
     ],
-    root_change={"key": "volume_discount", "new_value": "10% discount (reduced from 15% per new policy)", "reason": "Margin improvement initiative"},
+    root_change={
+        "key": "volume_discount",
+        "new_value": "10% discount (reduced from 15% per new policy)",
+        "reason": "Margin improvement initiative",
+    },
     query="What is the updated Q4 revenue forecast?",
     expected_decision="$450,000",
     must_mention=["$450,000", "450,000", "$90", "10%"],

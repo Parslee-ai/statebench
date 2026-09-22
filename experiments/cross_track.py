@@ -68,10 +68,10 @@ def main():
     # Overall (query-weighted)
     def overall(arm):
         allrs = [(out[arm][t]["n"], out[arm][t]) for t in by_track]
-        N = sum(n for n, _ in allrs)
+        total = sum(n for n, _ in allrs)
         return (
-            sum(n * m["acc"] for n, m in allrs) / N,
-            sum(n * m["sfrr"] for n, m in allrs) / N,
+            sum(n * m["acc"] for n, m in allrs) / total,
+            sum(n * m["sfrr"] for n, m in allrs) / total,
         )
     fa, fs = overall("frontier")
     sa, ss = overall("safe")

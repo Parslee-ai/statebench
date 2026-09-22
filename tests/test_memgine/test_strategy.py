@@ -8,12 +8,10 @@ from statebench.schema.state import (
     IdentityRole,
     PersistentFact,
     Source,
-    WorkingSetItem,
 )
 from statebench.schema.timeline import (
     ConversationTurn,
     InitialState,
-    StateWrite,
     Supersession,
     Write,
 )
@@ -139,7 +137,6 @@ def test_reset() -> None:
 
 def test_format_prompt() -> None:
     strategy = MemgineStrategy()
-    ts = datetime(2024, 1, 1)
 
     initial = InitialState(
         identity_role=IdentityRole(user_name="Alice", authority="Manager"),

@@ -35,7 +35,6 @@ All inference routes through CAR (local models).
 
 from __future__ import annotations
 
-from datetime import datetime
 from typing import Any
 
 from statebench.baselines.base import ContextResult, MemoryStrategy

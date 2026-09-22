@@ -34,15 +34,15 @@ from statebench.generator.templates.causality import (
     get_hard_causality_templates,
     get_paired_test,
 )
-from statebench.generator.templates.contradiction import (
-    CONTRADICTION_TEMPLATES,
-    ContradictionTemplate,
-    get_contradiction_templates,
-)
 from statebench.generator.templates.commitment import (
     COMMITMENT_TEMPLATES,
     CommitmentTemplate,
     get_commitment_templates_by_domain,
+)
+from statebench.generator.templates.contradiction import (
+    CONTRADICTION_TEMPLATES,
+    ContradictionTemplate,
+    get_contradiction_templates,
 )
 
 # v2.1: Deletion Compliance (Forgetting & Retention)

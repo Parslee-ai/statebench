@@ -51,7 +51,9 @@ class SupersessionTemplate:
     # (FSR): wrongly retiring a still-valid fact. Templates without these fields
     # generate no maintain cases. FSR is scored behaviorally (did the system still
     # affirm the fact? decision="yes"), not by forbidden vocabulary.
-    maintain_event_template: str | None = None  # update-flavored, non-invalidating NL, e.g. "finalized the {entity} renewal paperwork"
+    # update-flavored, non-invalidating NL,
+    # e.g. "finalized the {entity} renewal paperwork"
+    maintain_event_template: str | None = None
     maintain_reasons: list[str] = field(default_factory=list)
     maintain_query_template: str | None = None  # asks about the ORIGINAL (still-valid) fact
     maintain_must_mention: str | None = None  # surviving value the system should still affirm

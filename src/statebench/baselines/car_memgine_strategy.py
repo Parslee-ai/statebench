@@ -7,13 +7,12 @@ and receiving context responses. This tests the actual Rust code path.
 from __future__ import annotations
 
 import json
-import subprocess
 import os
+import subprocess
 from datetime import datetime
 from typing import Any
 
-from statebench.baselines.base import ContextResult, FactMetadata, MemoryStrategy
-from statebench.schema.state import IdentityRole, Source
+from statebench.baselines.base import ContextResult, MemoryStrategy
 from statebench.schema.timeline import (
     ConversationTurn,
     Event,

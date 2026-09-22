@@ -82,7 +82,7 @@ def test_is_constraint_formal_language() -> None:
 def test_is_constraint_correction_excluded() -> None:
     source = Source(type="policy", authority="policy")
     # Even from policy source, corrections are not constraints
-    assert is_constraint("CORRECTION: budget changed", Source(type="user", authority="peer")) is False
+    assert is_constraint("CORRECTION: budget changed", source) is False
 
 
 def test_infer_scope() -> None:

@@ -1,6 +1,6 @@
 """Tests for CompactionEngine."""
 
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from statebench.memgine.compaction import CompactionEngine
 from statebench.memgine.config import CompactionThresholds, MemgineConfig
@@ -80,7 +80,7 @@ def test_superseded_facts_discarded() -> None:
 
     layers.invalidate_fact("F-001", "F-002")
 
-    result = compactor.compact_level2()
+    compactor.compact_level2()
     assert entry1.id in compactor.discarded_entries
 
 
@@ -102,7 +102,7 @@ def test_constraints_never_compacted() -> None:
         entry_id=entry.id, fact_id="F-001", fact_key="policy", is_constraint=True
     )
 
-    result = compactor.compact_level2()
+    compactor.compact_level2()
     # Constraint should NOT be compacted or discarded
     assert entry.id not in compactor.compacted_entries
     assert entry.id not in compactor.discarded_entries
@@ -150,7 +150,7 @@ def test_environment_expired_discarded() -> None:
     )
     layers.register_environment("deadline", entry.id)
 
-    result = compactor.compact_level2(now=now)
+    compactor.compact_level2(now=now)
     assert entry.id in compactor.discarded_entries
 
 

@@ -59,6 +59,13 @@ line-length = 120
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP"]
 
+[tool.ruff.lint.per-file-ignores]
+# The over-long lines in this module are inside the `_EXTRACT_PROMPT` string
+# literal, not code. Rewrapping them would change the prompt the model is sent,
+# which is a behavioural change wearing a lint fix as a disguise, and a `noqa`
+# comment placed on those lines would land inside the prompt text itself.
+"src/statebench/baselines/memgine_distill.py" = ["E501"]
+
 [tool.mypy]
 python_version = "3.11"
 strict = true

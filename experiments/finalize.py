@@ -62,26 +62,26 @@ def run(dataset, model, baselines, tracks, label, out):
 
 
 def main():
-    DATA = "data/releases/v1.0/dev.jsonl"
+    data_path = "data/releases/v1.0/dev.jsonl"
     out = {}
 
     # A. regression + supersession confirm @ 4b
     run(
-        DATA, "mlx/qwen3-4b:4bit",
+        data_path, "mlx/qwen3-4b:4bit",
         ["memgine", "memgine_safe_supersession"],
         ["supersession", "repair_propagation", "causality"],
         "A_regression_4b", out,
     )
     # B. capability @ 30b (supersession only)
     run(
-        DATA, "mlx/qwen3-30b-a3b:4bit",
+        data_path, "mlx/qwen3-30b-a3b:4bit",
         ["memgine", "memgine_safe_supersession"],
         ["supersession"],
         "B_capability_30b", out,
     )
     # C. distill front-end @ 4b (implicit)
     run(
-        DATA, "mlx/qwen3-4b:4bit",
+        data_path, "mlx/qwen3-4b:4bit",
         ["memgine", "memgine_distill"],
         ["supersession_detection"],
         "C_distill_4b", out,

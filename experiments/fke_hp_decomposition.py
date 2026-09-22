@@ -98,7 +98,8 @@ def run(dataset, model, budget, tracks, pad_facts=0):
 def report(label, rows):
     n = len(rows)
     if not n:
-        print(f"{label}: no queries"); return
+        print(f"{label}: no queries")
+        return
     hp = sum(1 for _, c, _, _ in rows if c) / n
     fke = sum(f for f, *_ in rows) / n
     compaction = sum(1 for _, _, cp, _ in rows if cp) / n
