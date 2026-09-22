@@ -370,6 +370,13 @@ warnings**:
   from $150 to $150, so `$150` is both the required answer and a forbidden superseded
   value. Every response scores as a resurrection.
 
+**Both error classes are now fixed at the generator** (see the README's Generator
+Fixes section): the detection track's two-clock event assembly, the overlapping
+paired-value pools behind the unpassable queries, and a red-herring insertion that
+did not shift subsequent events. Newly generated data audits with zero errors on
+every track and a test holds that line. The shipped `v1.0` files are left alone on
+purpose — they are the published record the leaderboard was computed against.
+
 The dominant pattern is *near miss, not absent fact*: the timeline says "Reset MFA for
 CEO" while the forbidden list says `"MFA reset"`; it says "They have 500 active users"
 while `"500 users"` is required. Same species as the v1.0 forbidden-phrase defects, one

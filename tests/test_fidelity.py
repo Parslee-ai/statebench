@@ -318,6 +318,42 @@ def test_generated_tracks_have_no_fidelity_errors(track):
     assert report.errors == [], "\n".join(str(i) for i in report.errors[:5])
 
 
+def test_no_generated_track_produces_a_fidelity_error():
+    """The gate has to be passable, or `audit-dataset --strict` is decoration.
+
+    This caught two real generator defects: non-monotonic timestamps on
+    `supersession_detection`, and red-herring insertion on `adversarial`
+    stamping chatter later than the supersession that still followed it.
+    """
+    from statebench.cli import AVAILABLE_TRACKS
+
+    failures: dict[str, list[str]] = {}
+    for track in AVAILABLE_TRACKS:
+        timelines = list(TimelineGenerator(seed=2026).generate_track(track, count=10))
+        errors = check_dataset(timelines).errors
+        if errors:
+            failures[track] = [str(e) for e in errors[:3]]
+
+    assert not failures, "\n".join(
+        f"{track}: {'; '.join(msgs)}" for track, msgs in failures.items()
+    )
+
+
+def test_red_herring_insertion_keeps_events_ordered():
+    """Adding a distraction must not reorder the state changes around it."""
+    import random
+
+    from statebench.generator.adversarial import TimelinePerturbator
+
+    base = list(TimelineGenerator(seed=3).generate_track("supersession", count=1))[0]
+    perturbator = TimelinePerturbator(rng=random.Random(11))
+
+    for _ in range(20):
+        variant = perturbator.add_red_herrings(base)
+        stamps = [e.ts for e in variant.events]
+        assert stamps == sorted(stamps), [str(t) for t in stamps]
+
+
 def test_premise_tracks_have_no_warnings_either():
     """The premise templates are literal, so every phrase must be in the text."""
     timelines = []

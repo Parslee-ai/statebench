@@ -380,6 +380,40 @@ required answer and a forbidden superseded value.
 The `premise_resistance` and `premise_maintain` tracks audit completely clean —
 no errors and no warnings — and a test keeps them that way.
 
+### Generator fixes (v2.1)
+
+Both error classes were generator defects, and both are fixed. **Newly generated
+data now audits with zero errors on every track**, and a test asserts it, so
+`audit-dataset` can gate a release.
+
+- **`supersession_detection` built its timelines with two clocks.** Conversation
+  turns advanced one counter while state writes derived their timestamps from a
+  second, and every write was appended after the whole conversation. Beyond the
+  non-monotonic timestamps, that put the write recording the *original* value
+  after the turn that corrected it — on a track whose subject is detecting a
+  correction, the superseded value was the most recent thing written down. The
+  generator now assembles events in causal order and timestamps them in a single
+  increasing pass. It also stopped discarding the `implicit_supersession` markers
+  the templates declare, so `get_implicit_supersessions()` is no longer empty on
+  every detection timeline, and `must_detect` now lands in the structured
+  `supersession_detection` field instead of only inside a prose string.
+- **`DET-TMP-RAT-002` drew paired values from overlapping pools.** `rate_a` and
+  `rate_b` were sampled independently and both pools contain `$150`, so roughly
+  one case in nine "changed" a value to itself — making the same string both
+  required and forbidden. The generator now redraws the partner so a paired
+  before/after always differs, and raises if a pool makes that impossible. The
+  constraint belongs in the generator rather than the template data: otherwise
+  the next person to widen a pool reintroduces it.
+- **`add_red_herrings` inserted distractions without shifting what followed**, so
+  chatter could be stamped later than a supersession still ahead of it in list
+  order. Subsequent events now move out of the way. (`temporal_shuffle`
+  deliberately reorders adjacent filler turns and is left alone.)
+
+**The shipped `data/releases/v1.0/` files are deliberately unchanged.** They are
+the published record that the leaderboard was computed against; regenerating them
+would invalidate their hashes and the reproducibility they exist to provide. The
+numbers in the table above are what that release contains, and they stand.
+
 ## Dependency Distance (v2.1)
 
 Every StateBench number published so far was measured with the deciding fact a

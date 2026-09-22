@@ -906,6 +906,17 @@ class TimelinePerturbator:
             )
             variant.events.insert(insertion_idx + 2, response_turn)
 
+            # Everything after the insertion has to move out of the way.
+            # Without this the herrings can be stamped later than the event
+            # that still follows them in list order -- a supersession would
+            # sit at 14:47:00 behind chatter at 14:47:45, so a baseline that
+            # sorts by timestamp and one that reads list order see different
+            # timelines. Adding a distraction is not supposed to reorder the
+            # state changes around it.
+            shift = timedelta(seconds=60)
+            for event in variant.events[insertion_idx + 3:]:
+                event.ts = event.ts + shift
+
         return variant
 
     def generate_variants(

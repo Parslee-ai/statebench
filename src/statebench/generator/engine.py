@@ -5,6 +5,7 @@ controlled randomization of names, dates, amounts, and supersession patterns.
 """
 
 import random
+import re
 from collections.abc import Iterator
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -78,11 +79,13 @@ from statebench.schema.timeline import (
     Actors,
     ConversationTurn,
     GroundTruth,
+    ImplicitSupersession,
     InitialState,
     MentionRequirement,
     Query,
     StateWrite,
     Supersession,
+    SupersessionDetection,
     Timeline,
     Write,
 )
@@ -2477,6 +2480,89 @@ class TimelineGenerator:
     # v1.0: Detection Track Generator
     # -------------------------------------------------------------------------
 
+    def _draw_detection_variables(
+        self,
+        template: DetectionTemplate,
+    ) -> dict[str, str]:
+        """Draw one value per template variable, keeping paired values distinct.
+
+        Detection templates name the before/after values of a change ``x_a`` and
+        ``x_b``, and their pools are allowed to overlap -- ``$150`` is a
+        plausible old rate and a plausible new one. Drawing them independently
+        therefore produced cases where a value "changed" to itself, and because
+        the ground truth requires ``x_b`` and forbids ``x_a``, the same string
+        landed in must_mention and must_not_mention. No response could pass:
+        omit it and miss the required phrase, state it and register a
+        resurrection. Two such cases shipped in the v1.0 release.
+
+        The pairing is a property of the scenario, not of the pools, so the
+        constraint belongs here rather than in the template data -- otherwise
+        the next person to widen a pool reintroduces it.
+        """
+        variables: dict[str, str] = {}
+        for var_name, var_pool in template.variables.items():
+            variables[var_name] = self.rng.choice(var_pool)
+
+        for var_name in list(variables):
+            if not var_name.endswith("_a"):
+                continue
+            partner = var_name[:-2] + "_b"
+            if partner not in variables:
+                continue
+            if variables[partner] != variables[var_name]:
+                continue
+
+            alternatives = [
+                v for v in template.variables[partner] if v != variables[var_name]
+            ]
+            if not alternatives:
+                raise ValueError(
+                    f"{template.id}: {partner!r} cannot differ from {var_name!r} "
+                    f"-- its pool holds only {variables[var_name]!r}, so the "
+                    "scenario has no change to detect"
+                )
+            variables[partner] = self.rng.choice(alternatives)
+
+        return variables
+
+    @staticmethod
+    def _placeholders(text: str) -> list[str]:
+        """The ``{var}`` placeholders appearing in a template string, in order."""
+        return re.findall(r"\{(\w+)\}", text)
+
+    def _detection_write_positions(
+        self,
+        template: DetectionTemplate,
+    ) -> dict[int, list[int]]:
+        """Which turn each state write belongs after, as ``{turn_idx: [write_idx]}``.
+
+        The templates declare conversation turns and state writes as two separate
+        lists with no explicit linkage, but the relationship is not arbitrary: a
+        write records a value the user just stated, so it belongs immediately
+        after the turn that states it.
+
+        The link is recovered from the placeholders. A write valued
+        ``"{amount_a} (Manager approved)"`` is matched on ``amount_a``, not on the
+        whole string, because the annotation is the generator's own commentary and
+        never appears in the dialogue.
+
+        A write whose placeholders match no turn is anchored to the first turn.
+        That keeps it ahead of any correction, which is the property that matters:
+        the recorded value must never look newer than the cue that supersedes it.
+        """
+        positions: dict[int, list[int]] = {}
+        for write_idx, write in enumerate(template.state_writes):
+            wanted = set(self._placeholders(write.value)) | set(
+                self._placeholders(write.key)
+            )
+            anchor = 0
+            for turn_idx, turn in enumerate(template.conversation_pattern):
+                if wanted & set(self._placeholders(turn.content)):
+                    anchor = turn_idx
+                    break
+            positions.setdefault(anchor, []).append(write_idx)
+        return positions
+
     def generate_detection_timeline(
         self,
         template: DetectionTemplate,
@@ -2485,9 +2571,17 @@ class TimelineGenerator:
 
         v1.0: This tests whether systems can DETECT supersession from
         natural language cues, not just handle explicit supersession events.
+
+        The event sequence is assembled in causal order first and timestamped
+        afterwards, in a single increasing pass. Building it the other way round
+        -- advancing one clock for turns and deriving another for writes -- let
+        the two drift apart, and the writes were appended after the whole
+        conversation rather than interleaved with it. The recorded original value
+        then sat *after* the turn that corrected it, which on a detection track
+        is the worst possible ordering: the superseded value looked like the most
+        recent state anyone had written down.
         """
         base_time = self._base_time()
-        current_time = base_time
 
         user_name = self._random_name()
         org = self._random_org()
@@ -2500,10 +2594,12 @@ class TimelineGenerator:
             organization=org,
         )
 
-        # Generate random variable values from template pools
-        variables: dict[str, str] = {}
-        for var_name, var_pool in template.variables.items():
-            variables[var_name] = self.rng.choice(var_pool)
+        variables = self._draw_detection_variables(template)
+
+        def substitute(text: str) -> str:
+            for var_name, var_value in variables.items():
+                text = text.replace("{" + var_name + "}", var_value)
+            return text
 
         # Build initial state with no facts (facts come from conversation)
         initial_state = InitialState(
@@ -2513,98 +2609,88 @@ class TimelineGenerator:
             environment={"now": base_time.isoformat()},
         )
 
+        # --- 1. Assemble the sequence in causal order, without timestamps ----
+        write_positions = self._detection_write_positions(template)
         events: list[ConversationTurn | StateWrite | Supersession | Query] = []
-        fact_counter = 0
 
-        # Process conversation pattern
-        for turn in template.conversation_pattern:
-            current_time += timedelta(minutes=2)
+        def emit_write(write_idx: int) -> None:
+            write_template = template.state_writes[write_idx]
+            fact_id = substitute(write_template.id)
+            write = Write(
+                id=fact_id,
+                layer=write_template.layer,  # type: ignore[arg-type]
+                key=substitute(write_template.key),
+                value=substitute(write_template.value),
+                supersedes=(
+                    substitute(write_template.supersedes)
+                    if write_template.supersedes
+                    else None
+                ),
+            )
+            # ts is filled in by the stamping pass below.
+            if write_template.supersedes:
+                events.append(Supersession(ts=base_time, writes=[write]))
+            else:
+                events.append(StateWrite(ts=base_time, writes=[write]))
 
-            # Substitute variables in content
-            content = turn.content
-            for var_name, var_value in variables.items():
-                content = content.replace("{" + var_name + "}", var_value)
+        for turn_idx, turn in enumerate(template.conversation_pattern):
+            # The template marks which turn carries the supersession cue. The
+            # generator used to discard it, so get_implicit_supersessions() came
+            # back empty for every detection timeline and the ground truth the
+            # track is named after existed only in the template file.
+            marker = None
+            if turn.implicit_supersession:
+                marker = ImplicitSupersession(
+                    detection_cue=substitute(
+                        turn.implicit_supersession.get("detection_cue", "")
+                    ),
+                    supersedes_fact_id=substitute(
+                        turn.implicit_supersession.get("supersedes_fact_id") or ""
+                    )
+                    or None,
+                    difficulty=turn.implicit_supersession.get(  # type: ignore[arg-type]
+                        "difficulty", template.difficulty
+                    ),
+                )
 
             events.append(ConversationTurn(
-                ts=current_time,
+                ts=base_time,
                 speaker="user" if turn.role == "user" else "assistant",
-                text=content,
+                text=substitute(turn.content),
+                implicit_supersession=marker,
             ))
 
-        # Process state writes from template
-        for write_template in template.state_writes:
-            fact_counter += 1
+            for write_idx in write_positions.get(turn_idx, []):
+                emit_write(write_idx)
 
-            # Substitute variables
-            fact_value = write_template.value
-            fact_key = write_template.key
-            for var_name, var_value in variables.items():
-                fact_value = fact_value.replace("{" + var_name + "}", var_value)
-                fact_key = fact_key.replace("{" + var_name + "}", var_value)
-
-            # Generate fact ID
-            fact_id = write_template.id
-            for var_name, var_value in variables.items():
-                fact_id = fact_id.replace("{" + var_name + "}", var_value)
-
-            if write_template.supersedes:
-                # This is a supersession
-                supersedes_id = write_template.supersedes
-                for var_name, var_value in variables.items():
-                    supersedes_id = supersedes_id.replace(
-                        "{" + var_name + "}", var_value
-                    )
-
-                events.append(Supersession(
-                    ts=base_time + timedelta(minutes=fact_counter),
-                    writes=[Write(
-                        id=fact_id,
-                        layer=write_template.layer,  # type: ignore[arg-type]
-                        key=fact_key,
-                        value=fact_value,
-                        supersedes=supersedes_id,
-                    )],
-                ))
-            else:
-                events.append(StateWrite(
-                    ts=base_time + timedelta(minutes=fact_counter),
-                    writes=[Write(
-                        id=fact_id,
-                        layer=write_template.layer,  # type: ignore[arg-type]
-                        key=fact_key,
-                        value=fact_value,
-                        supersedes=None,
-                    )],
-                ))
-
-        # Build query with ground truth
-        current_time += timedelta(minutes=5)
-
+        # --- 2. Ground truth --------------------------------------------------
         if template.ground_truth:
-            # Substitute variables in ground truth
-            decision = template.ground_truth.decision
-            must_mention = list(template.ground_truth.must_mention)
-            must_not_mention = list(template.ground_truth.must_not_mention)
-            must_detect = list(template.ground_truth.must_detect)
-
-            for var_name, var_value in variables.items():
-                decision = decision.replace("{" + var_name + "}", var_value)
-                must_mention = [
-                    m.replace("{" + var_name + "}", var_value)
-                    for m in must_mention
-                ]
-                must_not_mention = [
-                    m.replace("{" + var_name + "}", var_value)
-                    for m in must_not_mention
-                ]
-
+            must_detect = [
+                substitute(m) for m in template.ground_truth.must_detect
+            ]
             ground_truth = GroundTruth(
-                decision=decision,
-                must_mention=must_mention,  # type: ignore[arg-type]
-                must_not_mention=must_not_mention,  # type: ignore[arg-type]
+                decision=substitute(template.ground_truth.decision),
+                must_mention=[  # type: ignore[arg-type]
+                    substitute(m) for m in template.ground_truth.must_mention
+                ],
+                must_not_mention=[  # type: ignore[arg-type]
+                    substitute(m) for m in template.ground_truth.must_not_mention
+                ],
                 allowed_sources=["persistent_facts"],
-                reasoning=f"Detection test: {template.cue_type} ({template.difficulty}). "
-                          f"Must detect supersession of: {must_detect}",
+                # must_detect used to be formatted into this prose string and
+                # nowhere else, so the structured field the schema provides for
+                # it was always None and DetectionScorer had nothing to read.
+                supersession_detection=SupersessionDetection(
+                    must_detect=must_detect,
+                    detection_evidence=(
+                        "Response reflects the corrected value and does not "
+                        "restate the superseded one."
+                    ),
+                ),
+                reasoning=(
+                    f"Detection test: {template.cue_type} ({template.difficulty}). "
+                    f"Must detect supersession of: {must_detect}"
+                ),
             )
         else:
             ground_truth = GroundTruth(
@@ -2615,16 +2701,25 @@ class TimelineGenerator:
                 reasoning="Detection test",
             )
 
-        # Substitute variables in query template
-        query_text = template.query_template
-        for var_name, var_value in variables.items():
-            query_text = query_text.replace("{" + var_name + "}", var_value)
-
         events.append(Query(
-            ts=current_time,
-            prompt=query_text,
+            ts=base_time,
+            prompt=substitute(template.query_template),
             ground_truth=ground_truth,
         ))
+
+        # --- 3. Stamp the assembled sequence, strictly increasing -------------
+        # Writes land seconds after the turn that prompted them; turns and the
+        # final query are minutes apart. Monotonicity is a property of this pass
+        # rather than something the callers above have to preserve.
+        current_time = base_time
+        for event in events:
+            if isinstance(event, (StateWrite, Supersession)):
+                current_time += timedelta(seconds=30)
+            elif isinstance(event, Query):
+                current_time += timedelta(minutes=5)
+            else:
+                current_time += timedelta(minutes=2)
+            event.ts = current_time
 
         # Map detection difficulty to timeline difficulty
         difficulty_map = {
