@@ -5,6 +5,7 @@ controlled randomization of names, dates, amounts, and supersession patterns.
 """
 
 import random
+import re
 from collections.abc import Iterator
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -14,6 +15,7 @@ from statebench.generator.adversarial import (
     AdversarialGenerator,
     TimelinePerturbator,
 )
+from statebench.generator.distance import DEFAULT_DISTANCE, get_profile, pad_timeline
 
 # v1.0: Enterprise Track
 from statebench.generator.templates.authority import (
@@ -31,6 +33,11 @@ from statebench.generator.templates.causality import (
     MultiConstraintTemplate,
 )
 from statebench.generator.templates.commitment import COMMITMENT_TEMPLATES, CommitmentTemplate
+from statebench.generator.templates.deletion import (
+    DELETION_COMPLIANCE_TEMPLATES,
+    DELETION_MAINTAIN_TEMPLATES,
+    DeletionTemplate,
+)
 
 # v1.0: Detection Track
 from statebench.generator.templates.detection import (
@@ -53,6 +60,11 @@ from statebench.generator.templates.hallucination import (
 )
 from statebench.generator.templates.interruption import INTERRUPTION_TEMPLATES, InterruptionTemplate
 from statebench.generator.templates.permission import PERMISSION_TEMPLATES, PermissionTemplate
+from statebench.generator.templates.premise import (
+    PREMISE_MAINTAIN_TEMPLATES,
+    PREMISE_RESISTANCE_TEMPLATES,
+    PremiseTemplate,
+)
 from statebench.generator.templates.repair import REPAIR_CHAIN_TEMPLATES, RepairChain
 from statebench.generator.templates.scope_leak import SCOPE_LEAK_TEMPLATES, ScopeLeakTemplate
 from statebench.generator.templates.structured import (
@@ -67,10 +79,13 @@ from statebench.schema.timeline import (
     Actors,
     ConversationTurn,
     GroundTruth,
+    ImplicitSupersession,
     InitialState,
+    MentionRequirement,
     Query,
     StateWrite,
     Supersession,
+    SupersessionDetection,
     Timeline,
     Write,
 )
@@ -1211,6 +1226,264 @@ class TimelineGenerator:
             events=events,
         )
 
+    def generate_premise_timeline(
+        self,
+        template: PremiseTemplate,
+    ) -> Timeline:
+        """Generate a timeline whose query presupposes a specific state.
+
+        Both halves of the track share this builder and produce byte-identical
+        event sequences; only the query differs. That is deliberate — it makes
+        the false-premise and maintain numbers a clean behavioral delta rather
+        than a comparison across two differently-shaped scenarios.
+        """
+        user_name = self._random_name()
+        org = self._random_org()
+        role = self._random_role(template.domain)
+        base_time = self._base_time()
+        current_time = base_time
+
+        fmt = {"stale": template.stale_value, "live": template.live_value}
+
+        identity = IdentityRole(
+            user_name=user_name.split()[0],
+            authority=role,
+            department=template.domain.title(),
+            organization=org,
+        )
+
+        initial_state = InitialState(
+            identity_role=identity,
+            persistent_facts=[],
+            working_set=[],
+            environment={"now": base_time.isoformat()},
+        )
+
+        events: list[ConversationTurn | StateWrite | Supersession | Query] = []
+        prefix = template.fact_key.upper()[:8]
+
+        # 1. The stale value is established.
+        current_time += timedelta(minutes=2)
+        events.append(ConversationTurn(
+            ts=current_time,
+            speaker="user",
+            text=template.initial_turn.format(**fmt),
+        ))
+        current_time += timedelta(minutes=1)
+        events.append(StateWrite(
+            ts=current_time,
+            writes=[Write(
+                id=f"F-{prefix}-001",
+                layer="persistent_facts",
+                key=template.fact_key,
+                value=template.stale_value,
+                supersedes=None,
+            )],
+        ))
+
+        # 2. It is superseded, explicitly and in the clear.
+        current_time += timedelta(minutes=self.rng.randint(5, 60))
+        events.append(ConversationTurn(
+            ts=current_time,
+            speaker="user",
+            text=template.supersession_turn.format(**fmt),
+        ))
+        current_time += timedelta(seconds=30)
+        events.append(Supersession(
+            ts=current_time,
+            writes=[Write(
+                id=f"F-{prefix}-002",
+                layer="persistent_facts",
+                key=f"{template.fact_key}_v2",
+                value=template.live_value,
+                supersedes=template.fact_key,
+            )],
+        ))
+        current_time += timedelta(seconds=30)
+        events.append(ConversationTurn(
+            ts=current_time,
+            speaker="assistant",
+            text=template.ack_turn.format(**fmt),
+        ))
+
+        # 3. The query, carrying its premise.
+        current_time += timedelta(minutes=self.rng.randint(3, 20))
+        false_premise = template.presupposes == "stale"
+        ground_truth = GroundTruth(
+            decision=template.correct_decision,
+            must_mention=list(template.must_mention),  # type: ignore[arg-type]
+            # A correct rejection must utter the stale value to reject it, so
+            # this phrase is scoreable only under negation-aware matching (see
+            # judge.ResponseJudge.judge_response step 3). Under plain
+            # containment every correct answer here is a false violation.
+            must_not_mention=[
+                MentionRequirement(
+                    phrase=p,
+                    kind="superseded",
+                    rationale=(
+                        "Superseded value embedded in the query's premise. "
+                        "Permitted under negation (rejecting the premise), a "
+                        "violation when asserted plainly."
+                    ),
+                )
+                for p in template.forbidden
+            ],  # type: ignore[arg-type]
+            allowed_sources=["persistent_facts"],
+            reasoning=template.rationale,
+            failure_category="resurrection" if false_premise else None,
+        )
+
+        events.append(Query(
+            ts=current_time,
+            prompt=template.query,
+            ground_truth=ground_truth,
+        ))
+
+        return Timeline(
+            id=self._next_id("PR" if false_premise else "PM"),
+            domain=template.domain,  # type: ignore[arg-type]
+            track="premise_resistance" if false_premise else "premise_maintain",
+            actors=Actors(
+                user=Actor(id="u1", role=role, org=org.lower().replace(" ", "_")),
+                assistant_role="AI_Agent",
+            ),
+            initial_state=initial_state,
+            events=events,
+        )
+
+    def generate_deletion_timeline(
+        self,
+        template: DeletionTemplate,
+    ) -> Timeline:
+        """Generate a timeline in which the user revokes one of two facts.
+
+        Both halves share this builder and emit identical events; only the
+        query differs. The revoked value stays in the conversation text — the
+        user had to name it to ask for its removal — so the track separates
+        systems that honour the revocation from systems that merely replay.
+        """
+        user_name = self._random_name()
+        org = self._random_org()
+        role = self._random_role(template.domain)
+        base_time = self._base_time()
+        current_time = base_time
+
+        fmt = {"revoked": template.revoked_value, "retained": template.retained_value}
+        revoked_target = template.target == "revoked"
+
+        identity = IdentityRole(
+            user_name=user_name.split()[0],
+            authority=role,
+            department=template.domain.title(),
+            organization=org,
+        )
+
+        initial_state = InitialState(
+            identity_role=identity,
+            persistent_facts=[],
+            working_set=[],
+            environment={"now": base_time.isoformat()},
+        )
+
+        events: list[ConversationTurn | StateWrite | Supersession | Query] = []
+        prefix = template.revoked_key.upper()[:8]
+
+        # 1. Both facts are established.
+        for i, (turn, key, value) in enumerate(
+            (
+                (template.revoked_turn, template.revoked_key, template.revoked_value),
+                (template.retained_turn, template.retained_key, template.retained_value),
+            )
+        ):
+            current_time += timedelta(minutes=2)
+            events.append(ConversationTurn(
+                ts=current_time,
+                speaker="user",
+                text=turn.format(**fmt),
+            ))
+            current_time += timedelta(seconds=30)
+            events.append(StateWrite(
+                ts=current_time,
+                writes=[Write(
+                    id=f"F-{prefix}-{i + 1:03d}",
+                    layer="persistent_facts",
+                    key=key,
+                    value=value,
+                    supersedes=None,
+                )],
+            ))
+
+        # 2. One of them is revoked, explicitly, by the user.
+        current_time += timedelta(minutes=self.rng.randint(4, 30))
+        events.append(ConversationTurn(
+            ts=current_time,
+            speaker="user",
+            text=template.deletion_turn.format(**fmt),
+        ))
+        current_time += timedelta(seconds=30)
+        # Revocation is modelled as a supersession to an explicit tombstone.
+        # There is no successor value: the point is the absence, and a system
+        # that treats the tombstone as a fact to report is also wrong.
+        events.append(Supersession(
+            ts=current_time,
+            writes=[Write(
+                id=f"F-{prefix}-DEL",
+                layer="persistent_facts",
+                key=f"{template.revoked_key}_deleted",
+                value="[deleted at user request]",
+                supersedes=template.revoked_key,
+            )],
+        ))
+        current_time += timedelta(seconds=30)
+        events.append(ConversationTurn(
+            ts=current_time,
+            speaker="assistant",
+            text=template.ack_turn.format(**fmt),
+        ))
+
+        # 3. The query, about the revoked fact or the surviving one.
+        current_time += timedelta(minutes=self.rng.randint(3, 20))
+        ground_truth = GroundTruth(
+            decision=template.correct_decision,
+            must_mention=list(template.must_mention),  # type: ignore[arg-type]
+            must_not_mention=[
+                MentionRequirement(
+                    phrase=p,
+                    kind="restricted",
+                    # Reusing a revoked value is a governance failure, not a
+                    # resurrection: it feeds leakage_rate, never SFRR.
+                    negation_exempt=True,
+                    rationale=(
+                        "Value the user asked to have deleted. Repeating it is "
+                        "the leak however it is framed, so negation earns no "
+                        "credit here."
+                    ),
+                )
+                for p in template.forbidden
+            ],  # type: ignore[arg-type]
+            allowed_sources=["persistent_facts"],
+            reasoning=template.rationale,
+            failure_category="privacy_leak" if revoked_target else None,
+        )
+
+        events.append(Query(
+            ts=current_time,
+            prompt=template.query,
+            ground_truth=ground_truth,
+        ))
+
+        return Timeline(
+            id=self._next_id("DC" if revoked_target else "DM"),
+            domain=template.domain,  # type: ignore[arg-type]
+            track="deletion_compliance" if revoked_target else "deletion_maintain",
+            actors=Actors(
+                user=Actor(id="u1", role=role, org=org.lower().replace(" ", "_")),
+                assistant_role="AI_Agent",
+            ),
+            initial_state=initial_state,
+            events=events,
+        )
+
     def generate_scope_leak_timeline(
         self,
         template: ScopeLeakTemplate,
@@ -2207,6 +2480,89 @@ class TimelineGenerator:
     # v1.0: Detection Track Generator
     # -------------------------------------------------------------------------
 
+    def _draw_detection_variables(
+        self,
+        template: DetectionTemplate,
+    ) -> dict[str, str]:
+        """Draw one value per template variable, keeping paired values distinct.
+
+        Detection templates name the before/after values of a change ``x_a`` and
+        ``x_b``, and their pools are allowed to overlap -- ``$150`` is a
+        plausible old rate and a plausible new one. Drawing them independently
+        therefore produced cases where a value "changed" to itself, and because
+        the ground truth requires ``x_b`` and forbids ``x_a``, the same string
+        landed in must_mention and must_not_mention. No response could pass:
+        omit it and miss the required phrase, state it and register a
+        resurrection. Two such cases shipped in the v1.0 release.
+
+        The pairing is a property of the scenario, not of the pools, so the
+        constraint belongs here rather than in the template data -- otherwise
+        the next person to widen a pool reintroduces it.
+        """
+        variables: dict[str, str] = {}
+        for var_name, var_pool in template.variables.items():
+            variables[var_name] = self.rng.choice(var_pool)
+
+        for var_name in list(variables):
+            if not var_name.endswith("_a"):
+                continue
+            partner = var_name[:-2] + "_b"
+            if partner not in variables:
+                continue
+            if variables[partner] != variables[var_name]:
+                continue
+
+            alternatives = [
+                v for v in template.variables[partner] if v != variables[var_name]
+            ]
+            if not alternatives:
+                raise ValueError(
+                    f"{template.id}: {partner!r} cannot differ from {var_name!r} "
+                    f"-- its pool holds only {variables[var_name]!r}, so the "
+                    "scenario has no change to detect"
+                )
+            variables[partner] = self.rng.choice(alternatives)
+
+        return variables
+
+    @staticmethod
+    def _placeholders(text: str) -> list[str]:
+        """The ``{var}`` placeholders appearing in a template string, in order."""
+        return re.findall(r"\{(\w+)\}", text)
+
+    def _detection_write_positions(
+        self,
+        template: DetectionTemplate,
+    ) -> dict[int, list[int]]:
+        """Which turn each state write belongs after, as ``{turn_idx: [write_idx]}``.
+
+        The templates declare conversation turns and state writes as two separate
+        lists with no explicit linkage, but the relationship is not arbitrary: a
+        write records a value the user just stated, so it belongs immediately
+        after the turn that states it.
+
+        The link is recovered from the placeholders. A write valued
+        ``"{amount_a} (Manager approved)"`` is matched on ``amount_a``, not on the
+        whole string, because the annotation is the generator's own commentary and
+        never appears in the dialogue.
+
+        A write whose placeholders match no turn is anchored to the first turn.
+        That keeps it ahead of any correction, which is the property that matters:
+        the recorded value must never look newer than the cue that supersedes it.
+        """
+        positions: dict[int, list[int]] = {}
+        for write_idx, write in enumerate(template.state_writes):
+            wanted = set(self._placeholders(write.value)) | set(
+                self._placeholders(write.key)
+            )
+            anchor = 0
+            for turn_idx, turn in enumerate(template.conversation_pattern):
+                if wanted & set(self._placeholders(turn.content)):
+                    anchor = turn_idx
+                    break
+            positions.setdefault(anchor, []).append(write_idx)
+        return positions
+
     def generate_detection_timeline(
         self,
         template: DetectionTemplate,
@@ -2215,9 +2571,17 @@ class TimelineGenerator:
 
         v1.0: This tests whether systems can DETECT supersession from
         natural language cues, not just handle explicit supersession events.
+
+        The event sequence is assembled in causal order first and timestamped
+        afterwards, in a single increasing pass. Building it the other way round
+        -- advancing one clock for turns and deriving another for writes -- let
+        the two drift apart, and the writes were appended after the whole
+        conversation rather than interleaved with it. The recorded original value
+        then sat *after* the turn that corrected it, which on a detection track
+        is the worst possible ordering: the superseded value looked like the most
+        recent state anyone had written down.
         """
         base_time = self._base_time()
-        current_time = base_time
 
         user_name = self._random_name()
         org = self._random_org()
@@ -2230,10 +2594,12 @@ class TimelineGenerator:
             organization=org,
         )
 
-        # Generate random variable values from template pools
-        variables: dict[str, str] = {}
-        for var_name, var_pool in template.variables.items():
-            variables[var_name] = self.rng.choice(var_pool)
+        variables = self._draw_detection_variables(template)
+
+        def substitute(text: str) -> str:
+            for var_name, var_value in variables.items():
+                text = text.replace("{" + var_name + "}", var_value)
+            return text
 
         # Build initial state with no facts (facts come from conversation)
         initial_state = InitialState(
@@ -2243,98 +2609,88 @@ class TimelineGenerator:
             environment={"now": base_time.isoformat()},
         )
 
+        # --- 1. Assemble the sequence in causal order, without timestamps ----
+        write_positions = self._detection_write_positions(template)
         events: list[ConversationTurn | StateWrite | Supersession | Query] = []
-        fact_counter = 0
 
-        # Process conversation pattern
-        for turn in template.conversation_pattern:
-            current_time += timedelta(minutes=2)
+        def emit_write(write_idx: int) -> None:
+            write_template = template.state_writes[write_idx]
+            fact_id = substitute(write_template.id)
+            write = Write(
+                id=fact_id,
+                layer=write_template.layer,  # type: ignore[arg-type]
+                key=substitute(write_template.key),
+                value=substitute(write_template.value),
+                supersedes=(
+                    substitute(write_template.supersedes)
+                    if write_template.supersedes
+                    else None
+                ),
+            )
+            # ts is filled in by the stamping pass below.
+            if write_template.supersedes:
+                events.append(Supersession(ts=base_time, writes=[write]))
+            else:
+                events.append(StateWrite(ts=base_time, writes=[write]))
 
-            # Substitute variables in content
-            content = turn.content
-            for var_name, var_value in variables.items():
-                content = content.replace("{" + var_name + "}", var_value)
+        for turn_idx, turn in enumerate(template.conversation_pattern):
+            # The template marks which turn carries the supersession cue. The
+            # generator used to discard it, so get_implicit_supersessions() came
+            # back empty for every detection timeline and the ground truth the
+            # track is named after existed only in the template file.
+            marker = None
+            if turn.implicit_supersession:
+                marker = ImplicitSupersession(
+                    detection_cue=substitute(
+                        turn.implicit_supersession.get("detection_cue", "")
+                    ),
+                    supersedes_fact_id=substitute(
+                        turn.implicit_supersession.get("supersedes_fact_id") or ""
+                    )
+                    or None,
+                    difficulty=turn.implicit_supersession.get(  # type: ignore[arg-type]
+                        "difficulty", template.difficulty
+                    ),
+                )
 
             events.append(ConversationTurn(
-                ts=current_time,
+                ts=base_time,
                 speaker="user" if turn.role == "user" else "assistant",
-                text=content,
+                text=substitute(turn.content),
+                implicit_supersession=marker,
             ))
 
-        # Process state writes from template
-        for write_template in template.state_writes:
-            fact_counter += 1
+            for write_idx in write_positions.get(turn_idx, []):
+                emit_write(write_idx)
 
-            # Substitute variables
-            fact_value = write_template.value
-            fact_key = write_template.key
-            for var_name, var_value in variables.items():
-                fact_value = fact_value.replace("{" + var_name + "}", var_value)
-                fact_key = fact_key.replace("{" + var_name + "}", var_value)
-
-            # Generate fact ID
-            fact_id = write_template.id
-            for var_name, var_value in variables.items():
-                fact_id = fact_id.replace("{" + var_name + "}", var_value)
-
-            if write_template.supersedes:
-                # This is a supersession
-                supersedes_id = write_template.supersedes
-                for var_name, var_value in variables.items():
-                    supersedes_id = supersedes_id.replace(
-                        "{" + var_name + "}", var_value
-                    )
-
-                events.append(Supersession(
-                    ts=base_time + timedelta(minutes=fact_counter),
-                    writes=[Write(
-                        id=fact_id,
-                        layer=write_template.layer,  # type: ignore[arg-type]
-                        key=fact_key,
-                        value=fact_value,
-                        supersedes=supersedes_id,
-                    )],
-                ))
-            else:
-                events.append(StateWrite(
-                    ts=base_time + timedelta(minutes=fact_counter),
-                    writes=[Write(
-                        id=fact_id,
-                        layer=write_template.layer,  # type: ignore[arg-type]
-                        key=fact_key,
-                        value=fact_value,
-                        supersedes=None,
-                    )],
-                ))
-
-        # Build query with ground truth
-        current_time += timedelta(minutes=5)
-
+        # --- 2. Ground truth --------------------------------------------------
         if template.ground_truth:
-            # Substitute variables in ground truth
-            decision = template.ground_truth.decision
-            must_mention = list(template.ground_truth.must_mention)
-            must_not_mention = list(template.ground_truth.must_not_mention)
-            must_detect = list(template.ground_truth.must_detect)
-
-            for var_name, var_value in variables.items():
-                decision = decision.replace("{" + var_name + "}", var_value)
-                must_mention = [
-                    m.replace("{" + var_name + "}", var_value)
-                    for m in must_mention
-                ]
-                must_not_mention = [
-                    m.replace("{" + var_name + "}", var_value)
-                    for m in must_not_mention
-                ]
-
+            must_detect = [
+                substitute(m) for m in template.ground_truth.must_detect
+            ]
             ground_truth = GroundTruth(
-                decision=decision,
-                must_mention=must_mention,  # type: ignore[arg-type]
-                must_not_mention=must_not_mention,  # type: ignore[arg-type]
+                decision=substitute(template.ground_truth.decision),
+                must_mention=[  # type: ignore[arg-type]
+                    substitute(m) for m in template.ground_truth.must_mention
+                ],
+                must_not_mention=[  # type: ignore[arg-type]
+                    substitute(m) for m in template.ground_truth.must_not_mention
+                ],
                 allowed_sources=["persistent_facts"],
-                reasoning=f"Detection test: {template.cue_type} ({template.difficulty}). "
-                          f"Must detect supersession of: {must_detect}",
+                # must_detect used to be formatted into this prose string and
+                # nowhere else, so the structured field the schema provides for
+                # it was always None and DetectionScorer had nothing to read.
+                supersession_detection=SupersessionDetection(
+                    must_detect=must_detect,
+                    detection_evidence=(
+                        "Response reflects the corrected value and does not "
+                        "restate the superseded one."
+                    ),
+                ),
+                reasoning=(
+                    f"Detection test: {template.cue_type} ({template.difficulty}). "
+                    f"Must detect supersession of: {must_detect}"
+                ),
             )
         else:
             ground_truth = GroundTruth(
@@ -2345,16 +2701,25 @@ class TimelineGenerator:
                 reasoning="Detection test",
             )
 
-        # Substitute variables in query template
-        query_text = template.query_template
-        for var_name, var_value in variables.items():
-            query_text = query_text.replace("{" + var_name + "}", var_value)
-
         events.append(Query(
-            ts=current_time,
-            prompt=query_text,
+            ts=base_time,
+            prompt=substitute(template.query_template),
             ground_truth=ground_truth,
         ))
+
+        # --- 3. Stamp the assembled sequence, strictly increasing -------------
+        # Writes land seconds after the turn that prompted them; turns and the
+        # final query are minutes apart. Monotonicity is a property of this pass
+        # rather than something the callers above have to preserve.
+        current_time = base_time
+        for event in events:
+            if isinstance(event, (StateWrite, Supersession)):
+                current_time += timedelta(seconds=30)
+            elif isinstance(event, Query):
+                current_time += timedelta(minutes=5)
+            else:
+                current_time += timedelta(minutes=2)
+            event.ts = current_time
 
         # Map detection difficulty to timeline difficulty
         difficulty_map = {
@@ -2712,6 +3077,26 @@ class TimelineGenerator:
                 template = self.rng.choice(templates)
                 yield self.generate_hallucination_timeline(template)  # type: ignore[arg-type]
 
+        elif track in ("deletion_compliance", "deletion_maintain"):
+            templates = (  # type: ignore[assignment]
+                DELETION_COMPLIANCE_TEMPLATES
+                if track == "deletion_compliance"
+                else DELETION_MAINTAIN_TEMPLATES
+            )
+            for i in range(count):
+                template = self.rng.choice(templates)
+                yield self.generate_deletion_timeline(template)  # type: ignore[arg-type]
+
+        elif track in ("premise_resistance", "premise_maintain"):
+            templates = (  # type: ignore[assignment]
+                PREMISE_RESISTANCE_TEMPLATES
+                if track == "premise_resistance"
+                else PREMISE_MAINTAIN_TEMPLATES
+            )
+            for i in range(count):
+                template = self.rng.choice(templates)
+                yield self.generate_premise_timeline(template)  # type: ignore[arg-type]
+
         elif track == "scope_leak":
             templates = SCOPE_LEAK_TEMPLATES  # type: ignore[assignment]
             for i in range(count):
@@ -2852,7 +3237,9 @@ class TimelineGenerator:
                 f"interruption_resumption, scope_permission, environmental_freshness, "
                 f"hallucination_resistance, scope_leak, causality, repair_propagation, "
                 f"brutal_realistic, supersession_detection, adversarial, "
-                f"enterprise_privacy, authority_hierarchy"
+                f"enterprise_privacy, authority_hierarchy, "
+                f"premise_resistance, premise_maintain, "
+                f"deletion_compliance, deletion_maintain"
             )
 
 
@@ -2861,6 +3248,7 @@ def generate_dataset(
     tracks: list[str],
     count_per_track: int = 100,
     seed: int | None = None,
+    distance: str = DEFAULT_DISTANCE,
 ) -> int:
     """Generate a complete benchmark dataset.
 
@@ -2869,16 +3257,25 @@ def generate_dataset(
         tracks: List of track names to generate
         count_per_track: Number of timelines per track
         seed: Random seed for reproducibility
+        distance: Dependency-distance profile to pad to. The default leaves
+            timelines unpadded, which is what every release through v2.0
+            contains. Padding inserts irrelevant conversation between the
+            deciding fact and the query; ground truth is untouched. See
+            :mod:`statebench.generator.distance`.
 
     Returns:
         Total number of timelines generated
     """
     generator = TimelineGenerator(seed=seed)
+    profile = get_profile(distance)
+    pad_rng = random.Random(seed if seed is not None else 0)
     total = 0
 
     with open(output_path, "w") as f:
         for track in tracks:
             for timeline in generator.generate_track(track, count=count_per_track):
+                if profile.exchanges or profile.session_gaps:
+                    timeline, _ = pad_timeline(timeline, profile, rng=pad_rng)
                 f.write(timeline.model_dump_json() + "\n")
                 total += 1
 

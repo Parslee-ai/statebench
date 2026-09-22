@@ -770,6 +770,21 @@ class TimelinePerturbator:
         """Reorder non-dependent conversation turns.
 
         Only shuffles adjacent filler conversations, not state-changing events.
+
+        The timestamps stay with the *slots* rather than travelling with the
+        turns. Letting them travel produced a timeline that contradicted
+        itself -- list order said A then B, timestamps said B then A -- with
+        two consequences. A system that sorts events by timestamp saw the
+        original, unshuffled order and was therefore not perturbed at all,
+        so the strength of the perturbation depended on an implementation
+        detail of the system under test. And an adversarial variant is
+        supposed to leave the correct answer intact; a timeline whose two
+        orderings disagree has no single answer to leave intact.
+
+        Keeping the timestamps in place makes both readings agree that the
+        filler genuinely occurred in the swapped order, which is what
+        "reorder non-dependent turns" is supposed to mean, and keeps the
+        sequence monotonic by construction.
         """
         variant = deepcopy(timeline)
 
@@ -782,15 +797,67 @@ class TimelinePerturbator:
             ev_j = events[i + 1]
             if (isinstance(ev_i, ConversationTurn) and
                 isinstance(ev_j, ConversationTurn) and
-                self._is_filler(ev_i) and self._is_filler(ev_j)):
+                self._is_filler(ev_i) and self._is_filler(ev_j) and
+                # A turn carrying a supersession cue is never filler, whatever
+                # politeness markers it happens to contain. Moving one would
+                # change where the correction lands, and with it the answer.
+                ev_i.implicit_supersession is None and
+                ev_j.implicit_supersession is None):
                 filler_pairs.append((i, i + 1))
 
         # Swap one random pair if any exist
         if filler_pairs:
             i, j = self.rng.choice(filler_pairs)
+            ts_i, ts_j = events[i].ts, events[j].ts
             events[i], events[j] = events[j], events[i]
+            events[i].ts, events[j].ts = ts_i, ts_j
 
         return variant
+
+    @staticmethod
+    def _insert_turns(
+        events: list,
+        index: int,
+        turns: list[ConversationTurn],
+    ) -> None:
+        """Splice ``turns`` in at ``index``, keeping timestamps increasing.
+
+        Every perturbation that adds a turn used to compute its timestamp from
+        whichever event it was reasoning about -- ``event.ts - 1 minute``,
+        ``nearby.ts + 30 seconds`` -- and then insert it somewhere else in the
+        list. The arithmetic is only correct if nothing else has moved, which
+        stopped being true as soon as two perturbations composed: one shifted a
+        supersession forward, the next inserted ahead of it at a time that was
+        now in the past.
+
+        Placing an inserted turn between its actual neighbours removes the
+        arithmetic entirely. If the gap is too narrow to subdivide, everything
+        downstream moves out of the way instead, so the sequence stays strictly
+        increasing however many perturbations are stacked.
+        """
+        if not turns:
+            return
+
+        before = events[index - 1].ts if index > 0 else None
+        after = events[index].ts if index < len(events) else None
+
+        step = timedelta(seconds=15)
+        if before is not None and after is not None:
+            gap = after - before
+            needed = step * (len(turns) + 1)
+            if gap > needed:
+                step = gap / (len(turns) + 1)
+            else:
+                # No room: push the tail back far enough to make some.
+                shift = needed - gap + step
+                for event in events[index:]:
+                    event.ts = event.ts + shift
+
+        start = before if before is not None else (after - step * len(turns))
+        for offset, turn in enumerate(turns, start=1):
+            turn.ts = start + step * offset
+
+        events[index:index] = turns
 
     def _is_filler(self, turn: ConversationTurn) -> bool:
         """Check if a turn is filler conversation."""
@@ -863,13 +930,15 @@ class TimelinePerturbator:
                     old_val = old_values[0] if old_values else "that"
                     emphasis = self.rng.choice(emphasis_templates).format(value=old_val)
 
-                    # Insert a turn before this event
+                    # Insert a turn before this event. The timestamp is
+                    # derived from the neighbours it actually lands between,
+                    # not from this event alone -- see _insert_turns.
                     emphasis_turn = ConversationTurn(
-                        ts=event.ts - timedelta(minutes=1),
+                        ts=event.ts,
                         speaker="user",
                         text=emphasis,
                     )
-                    variant.events.insert(i, emphasis_turn)
+                    self._insert_turns(variant.events, i, [emphasis_turn])
                     break
 
         return variant
@@ -889,22 +958,21 @@ class TimelinePerturbator:
             topic = self.rng.choice(self._red_herring_topics)
             herring = self.rng.choice(self._red_herrings).format(topic=topic)
 
-            # Get timestamp from nearby event
             nearby = variant.events[insertion_idx]
-            herring_turn = ConversationTurn(
-                ts=nearby.ts + timedelta(seconds=30),
-                speaker="user",
-                text=herring,
+            self._insert_turns(
+                variant.events,
+                insertion_idx + 1,
+                [
+                    ConversationTurn(
+                        ts=nearby.ts, speaker="user", text=herring
+                    ),
+                    ConversationTurn(
+                        ts=nearby.ts,
+                        speaker="assistant",
+                        text="I'll make a note of that.",
+                    ),
+                ],
             )
-            variant.events.insert(insertion_idx + 1, herring_turn)
-
-            # Add assistant response
-            response_turn = ConversationTurn(
-                ts=nearby.ts + timedelta(seconds=45),
-                speaker="assistant",
-                text="I'll make a note of that.",
-            )
-            variant.events.insert(insertion_idx + 2, response_turn)
 
         return variant
 

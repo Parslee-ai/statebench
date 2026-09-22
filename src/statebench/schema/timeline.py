@@ -52,6 +52,18 @@ Track = Literal[
     "authority_conflict",         # NEW: structured same-key authority conflicts
     "dependency_chain",           # NEW: structured depends_on chains (Type II repair)
     "authority_maintain",         # NEW: should-NOT-override guardrail (FAOR)
+    # v2.1 tracks. The query carries a premise about state instead of asking
+    # neutrally, so a correct answer must reject it — and must name the dead
+    # value to do so. Scoreable only under negation-aware must-not-mention
+    # matching; see generator.templates.premise.
+    "premise_resistance",         # NEW: query presupposes superseded state
+    "premise_maintain",           # NEW: query presupposes live state (guardrail)
+    # v2.1: the survey's Forgetting & Retention operation. A fact is revoked at
+    # the user's request with no successor value; the revoked value stays in the
+    # transcript, so only a system that honours the revocation withholds it.
+    # Leaks feed leakage_rate, not SFRR — revocation is governance, not staleness.
+    "deletion_compliance",        # NEW: revoked data must not be reused or restated
+    "deletion_maintain",          # NEW: unrevoked siblings must survive (over-forgetting)
     # v2.0 paired-counterfactual tracks. Each holds entity, wording, event count
     # and query constant and moves exactly one governance variable, so the
     # measured quantity is the behavioral delta between the pair rather than
@@ -234,6 +246,23 @@ class MentionRequirement(BaseModel):
             "'superseded' violations; lumping restricted-data leaks and "
             "fabrications into it makes SFRR a synonym for 'any violation' "
             "rather than a resurrection measure."
+        ),
+    )
+    # v2.1: negation credit is correct for superseded state and wrong for
+    # revoked data.
+    #
+    # Naming a dead value in order to reject it ("the meeting is NOT Friday,
+    # it moved to Thursday") is the behavior the supersession tracks exist to
+    # reward, so judge.py does not count it as a violation. But when the user
+    # asked for a value to be *deleted*, reproducing it is the harm itself:
+    # "I no longer have card ending 4471 on file" has just displayed the card.
+    # A correct response never needs to repeat it, so there is nothing to
+    # protect. Set this on phrases where the utterance is the failure.
+    negation_exempt: bool = Field(
+        default=False,
+        description=(
+            "Count this phrase as a violation even when every mention is "
+            "negated. For revoked or deleted data, saying it at all is the leak."
         ),
     )
 
@@ -474,6 +503,16 @@ class Timeline(BaseModel):
     detection_mode: DetectionMode = Field(
         default="explicit",
         description="How supersession is represented (explicit events vs NL)"
+    )
+
+    # v2.1: where this timeline sits on the dependency-distance axis — how far
+    # the deciding fact is from the query that needs it. It lives on the
+    # timeline rather than in metadata because metadata is optional and often
+    # absent, and a padded dataset that cannot say it is padded is a trap.
+    # None means unpadded, which is every release through v2.0.
+    dependency_distance: str | None = Field(
+        default=None,
+        description="Distance profile applied, e.g. 'cross_session'"
     )
 
     actors: Actors = Field(description="Actors in this timeline")

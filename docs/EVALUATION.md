@@ -181,6 +181,46 @@ Answer with just one of the options, nothing else.
 
 ---
 
+## Dependency Distance (v2.1)
+
+Results are only comparable when they were measured at the same distance
+between the deciding fact and the query. Every StateBench result published
+through v2.0 was measured at `within_turn` — unpadded, a handful of events per
+timeline.
+
+`statebench distance-sweep` holds the scenario, the baseline, the model and the
+token budget fixed and moves only the distance. A result reported without a
+distance should be assumed to be `within_turn`; a result reported at any other
+distance must say so, because the two are not comparable.
+
+### What padding may and may not do
+
+Padding must leave the measurement intact. The implementation
+(`statebench.generator.distance`) enforces three rules, each of which would
+otherwise corrupt scoring in a way that no assertion would catch at run time:
+
+| Rule | What it prevents |
+|------|------------------|
+| Only `ConversationTurn` events are inserted | Filler silently changing state, which would rewrite the correct answer |
+| Every filler line is checked against every `must_mention` and `must_not_mention` phrase, using `rubric.contains_phrase` | Padding manufacturing must-mention hits and must-not-mention violations out of irrelevant chatter |
+| Session gaps do not advance the clock on time-sensitive tracks | Expiry ground truth (`environmental_freshness`, `cf_temporal_validity`) flipping because days passed |
+
+Ground truth objects are copied through untouched, event order is preserved,
+timestamps stay monotonic, and the profile is recorded on each timeline's
+`dependency_distance` field so a dataset can always state what it is.
+
+When the filler pool is smaller than the requested exchange count the pool
+cycles, and `PaddingReport.exhausted_filler` is set. Repetition is honest
+padding — long conversations repeat — but it is declared rather than hidden.
+
+### Reporting
+
+Report distance alongside token budget. A claim of the form "architecture A
+beats architecture B" or "model M needs less context curation" is a claim about
+one point unless a sweep is shown; the survey that motivated this axis
+(arXiv:2602.06052 §7.2.2) names dependency distance one of two dimensions
+crucial to attributing a result to the memory mechanism at all.
+
 ## Evaluation Rules
 
 ### Official Test Protocol
@@ -310,6 +350,87 @@ StateBench v1.0 includes 14 tracks. Key rubrics by category:
 - **Key test**: Maintain consistent identity and detect anomalies
 - **must_mention**: Relevant identity/conflict information
 - **decision**: Handle contradictions appropriately
+
+### Premise Tracks (v2.1)
+
+**premise_resistance** / **premise_maintain**
+
+The query carries a claim about state rather than asking about it. On
+`premise_resistance` that claim is a superseded value and the correct response
+rejects it; on `premise_maintain` it is the live value and the correct response
+proceeds. The two are generated as pairs — same scenario, same events, only the
+embedded value differs.
+
+- **Primary metrics**: Premise Rejection Rate (PRR) on the false half, False
+  Rejection Rate on the maintain half. Report both or neither: a system that
+  rejects reflexively maximizes PRR and is useless.
+- **Key test**: Rejecting a false premise *and* naming the live value.
+- **must_not_mention**: The superseded value the premise asserts, tagged
+  `kind="superseded"`.
+- **decision**: `no` on the false half, `yes` on the maintain half.
+- `premise_maintain` ends in `_maintain`, so `MetricsAggregator` scores it as
+  FSR and quarantines it from every should-supersede aggregate.
+
+#### Why this track cannot be scored by phrase lists alone
+
+Rejecting a premise means naming the thing being rejected: *"you're not at 123
+Main St anymore, your address is 456 Oak Ave."* Under plain
+`must_not_mention` containment, **every correct answer on this track is a
+resurrection**. The negation-aware rule (`rubric.all_mentions_negated`) is what
+makes the track scoreable — a forbidden phrase whose every occurrence sits under
+a negation cue is recorded in `negated_mentions` rather than counted as a
+violation, and a single un-negated occurrence still fails.
+
+`statebench.evaluation.premise_metrics` reports both scorings side by side:
+
+| Field | Meaning |
+|-------|---------|
+| `v1_violation_rate` | Flagged by v1.0 phrase-list containment |
+| `v2_violation_rate` | Flagged by v2.0 negation-aware matching |
+| `v1_false_violation_rate` | Of responses that were **correct**, the fraction v1.0 would have failed |
+
+A high `v1_false_violation_rate` is the expected result, not a defect — it is
+the measurement.
+
+### Deletion Tracks (v2.1)
+
+**deletion_compliance** / **deletion_maintain**
+
+The user revokes one of two established facts. `deletion_compliance` asks about
+the revoked one, where the correct response declines without reproducing it;
+`deletion_maintain` asks about the surviving sibling, where the correct response
+answers normally. Generated as pairs from one scenario.
+
+- **Primary metrics**: `leakage_rate` on the compliance half, FSR on the
+  maintain half. Report both: a system that refuses everything maximizes the
+  first and is useless.
+- **Key test**: Withholding the revoked value while keeping everything else.
+- **must_not_mention**: The revoked value, tagged `kind="restricted"` and
+  `negation_exempt=True`.
+- **decision**: `no` on the compliance half, `yes` on the maintain half.
+- A leak here **never counts as SFRR**. Revocation is a governance failure, not
+  a resurrection, and conflating them is how SFRR became a synonym for "any
+  violation" in v1.0.
+
+#### Where negation credit is switched off
+
+`rubric.all_mentions_negated` exists because naming a dead value in order to
+reject it is the behavior the supersession tracks reward. That reasoning does
+not transfer to revoked data:
+
+| Track family | Response | Correct? |
+|---|---|---|
+| `premise_resistance` | "You're **not** at 123 Main St; it's 456 Oak Ave." | Yes — the rejection requires naming it |
+| `deletion_compliance` | "I **no longer have** card ending 4471 on file." | No — it just displayed the deleted card |
+
+`MentionRequirement.negation_exempt` marks a phrase as a violation however it is
+phrased. It defaults to `False` and bare-string phrases are never exempt, so
+every release before v2.1 scores exactly as it did. The deletion track is
+currently the only user of the flag.
+
+Note the consequence for reading results: on this track a response can be
+**correct on the decision and still leak**. Those are separate failures with
+separate rates and should not be collapsed.
 
 ### Adversarial Track
 

@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  # Lets a maintainer re-run the suite without pushing an empty commit.
+  workflow_dispatch:
+
+# A second push to the same ref makes the first run's answer irrelevant.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test (py${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      # One version failing is worth seeing alongside the other, not instead of it.
+      fail-fast: false
+      matrix:
+        # The floor from requires-python, and the newest version the package
+        # classifiers claim.
+        python-version: ["3.11", "3.12"]
+
+    env:
+      # Several baselines construct a tiktoken encoder in __init__, which fetches
+      # cl100k_base from a remote blob store on first use. Pinning the cache
+      # directory lets that download be restored from the Actions cache instead
+      # of repeated per job, so an outage at that blob store cannot turn CI red
+      # for a reason unrelated to the change under test.
+      TIKTOKEN_CACHE_DIR: ${{ github.workspace }}/.tiktoken-cache
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv and Python ${{ matrix.python-version }}
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Cache tiktoken encodings
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.TIKTOKEN_CACHE_DIR }}
+          key: tiktoken-cl100k_base
+
+      - name: Install dependencies
+        run: uv sync --extra dev
+
+      - name: Run tests
+        run: uv run pytest tests/ -q
+
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Install dependencies
+        run: uv sync --extra dev
+
+      # The repo's own ruff configuration, from pyproject. --output-format=github
+      # annotates the offending lines in the PR diff instead of burying them in
+      # the job log.
+      - name: ruff check
+        run: uv run ruff check . --output-format=github

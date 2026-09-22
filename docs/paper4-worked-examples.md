@@ -114,6 +114,32 @@ is exactly one artifact and it looks like a fixed object. We show that treating 
 inverts a result (§3), and that its variance exceeds the model-sampling variance that
 evaluations do typically report (6.0pp vs 5.0pp).
 
+**What this is, in the field's vocabulary: procedural memory.** Huang et al. (2026)
+survey foundation-agent memory along three dimensions, one of which is a cognitive
+taxonomy in which **procedural memory** is "a form of long-term memory dedicated to how
+to perform tasks, encoding operational skills, execution strategies, and automated
+routines... abstracting complex action sequences into reusable patterns", accumulated
+because "short-lived action states can be consolidated into reusable skills or routines".
+A skill distilled from episodes is exactly that consolidation; a skill written from a
+task description is the same artifact produced without it. In those terms this paper asks
+whether the *episodic* input to procedural consolidation is load-bearing, and finds that
+it is (+18.7pp, §5).
+
+The survey also describes the ecosystem this work sits in — skills "packaged as
+composable bundles of instructions, code, and resources that agents load on demand",
+which "turns procedural memory from private agent state into portable, human-readable,
+and versionable infrastructure that can be inspected, shared, and reused". That
+inspectability is the same property our §6.2 governance measurement depends on, and it is
+why the artifact form, not a weight update, is what makes the cost measurable.
+
+**An independent statement of our result.** Most usefully, the same survey reports as an
+open problem what we measure directly: "self-generated skills still underperform
+human-curated ones, suggesting that fully autonomous skill induction remains an open
+challenge for self-evolving agents". That is a summary of the field arriving at our
+conclusion from the other end — they observe the gap between generated and curated
+artifacts; we isolate one cause of it by controlling what the generator was shown. The
+survey states the phenomenon; this paper supplies an ablation for it.
+
 **Memory-evaluation confounds.** *MemDelta* (arXiv:2606.29914) finds that reported gains in
 agent memory "often mix changes in the memory method with changes in the language model,
 embedding model, or retrieval pipeline", and that varying one component at a time can flip
@@ -379,6 +405,10 @@ should be measured with an instrument the procedure cannot talk its way past.
 
 Hsieh, C.-Y., et al. (2023). *Distilling Step-by-Step! Outperforming Larger Language Models
 with Less Training Data and Smaller Model Sizes.* arXiv:2305.02301.
+
+Huang, W.-C., Zhang, W., Liang, Y., et al. (2026). *A Survey of Agent Memory in the Second
+Half: Towards Self-Evolving and Long-Horizon Agents.* Transactions on Machine Learning
+Research (07/2026). arXiv:2602.06052.
 
 *Big Reasoning with Small Models: Instruction Retrieval at Inference Time.* (2025).
 arXiv:2510.13935.

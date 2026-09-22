@@ -42,6 +42,10 @@ TRACK_DESCRIPTIONS = {
     "scope_leak": "Hypothetical/draft content stays contained",
     "causality": "Causal chain and dependency reasoning",
     "brutal_realistic": "Multi-failure compound scenarios",
+    "premise_resistance": "Queries that presuppose superseded state are corrected, not answered",
+    "premise_maintain": "Queries that presuppose current state are answered, not second-guessed",
+    "deletion_compliance": "Data the user asked to delete is never reused or restated",
+    "deletion_maintain": "Deleting one fact does not forget the ones beside it",
 }
 
 # Hand-written targeted procedures. Written from the task description and an

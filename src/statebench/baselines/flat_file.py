@@ -15,11 +15,9 @@ Key limitations this baseline demonstrates:
 
 from __future__ import annotations
 
-from datetime import datetime
-
 import tiktoken
 
-from statebench.baselines.base import ContextResult, FactMetadata, MemoryStrategy, wrap_legacy_context
+from statebench.baselines.base import ContextResult, MemoryStrategy
 from statebench.schema.timeline import (
     ConversationTurn,
     Event,

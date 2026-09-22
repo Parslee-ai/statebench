@@ -89,6 +89,13 @@ Passing is rare. Most transcript-replay systems fail Track 1 (Causality) at mean
 > architecture premium narrows sharply — `memgine`'s dev-split lead over
 > `state_based` falls from 9.1pp to 0.7pp, and on the test split `state_based`
 > pulls level. Stronger models need less context curation.
+> **Caveat, added v2.1:** that last sentence is measured at a single
+> dependency distance — the `within_turn` profile, a few turns between the
+> deciding fact and the query. Published work reports the memory-maintenance
+> gap widening with conversation length and architecture rankings crossing
+> over as interaction length grows, so it may be a special case stated as a
+> general one. `statebench distance-sweep` exists to settle it; until that
+> sweep runs, read the sentence as scoped to short horizons.
 >
 > These tables are retained as the published record.
 
@@ -253,6 +260,221 @@ StateBench v1.0 includes 13 evaluation tracks plus an adversarial track:
 | `brutal_realistic` | Multi-failure compound scenarios |
 | `adversarial` | Adversarial prompts designed to trick the system |
 
+### Premise Resistance (v2.1)
+
+Every track above asks a *neutral* question and checks whether dead state comes
+back. These two ask a question that has already assumed it:
+
+```
+User: "Ship my order to 123 Main St"
+User: "I moved — my address is 456 Oak Ave now, not 123 Main St"
+Query: "Since we're shipping to 123 Main St, should I select ground shipping?"
+FAIL: Response answers the question as asked
+PASS: "No — you're not at 123 Main St anymore. Ship to 456 Oak Ave."
+```
+
+| Track | Tests |
+|-------|-------|
+| `premise_resistance` | Queries presupposing superseded state are corrected, not answered |
+| `premise_maintain` | Queries presupposing current state are answered, not second-guessed |
+
+The two halves are generated as pairs — identical scenario, identical events,
+one variable moved — so the measured quantity is the behavioral delta.
+`premise_maintain` scores as FSR and is never blended with the false-premise
+numbers: a system that rejects every premise scores 100% on the first half and
+is useless.
+
+This track is also the sharpest test of the v2.0 scoring correction. Rejecting
+a false premise **requires naming the dead value in order to reject it**, so
+under v1.0 phrase-list `must_not_mention` matching every correct answer here
+scores as a resurrection. Under negation-aware matching the same answer is
+clean, and only an un-negated use counts. `statebench.evaluation.premise_metrics`
+reports both scorings side by side.
+
+### Deletion Compliance (v2.1)
+
+The survey's fifth memory operation is **Forgetting & Retention**, and it reports
+the ability "frequently partial or absent" across benchmarks. StateBench had no
+test for it: every other track replaces one value with another, and none takes a
+value away.
+
+```
+User:  "Save my card ending 4471 for future orders."
+User:  "And ship everything to 88 Larch Road."
+User:  "Delete my saved payment method — remove the card ending 4471 entirely."
+Query: "Can you charge my saved card for this order?"
+FAIL:  Response charges, or repeats, the card
+PASS:  "No — you asked me to delete it, there's nothing on file to charge."
+```
+
+| Track | Tests |
+|-------|-------|
+| `deletion_compliance` | Data the user asked to delete is never reused or restated |
+| `deletion_maintain` | Deleting one fact does not forget the ones beside it |
+
+Three things make this different from supersession, not a rename of it:
+
+**A leak here is governance, not staleness.** Forbidden phrases are tagged
+`restricted`, so reusing revoked data feeds `leakage_rate` and never SFRR.
+Folding it into SFRR would make SFRR mean "any violation" again — the defect
+[The Correct Answer Violates](docs/paper-measurement-validity.pdf) documents.
+
+**Negation earns no credit.** On the supersession tracks, naming a dead value in
+order to reject it is the rewarded behavior. Here it is the harm: *"I no longer
+have card ending 4471 on file"* has just displayed the card. Every forbidden
+phrase sets `negation_exempt`, so it counts however it is phrased — and a correct
+response never needs to say it. This is the one place in StateBench where the
+v2.0 negation rule is deliberately switched off, and the flag is opt-in, so no
+existing release changes.
+
+**Over-forgetting is its own failure.** Every scenario establishes a second fact
+that was *not* revoked, and `deletion_maintain` asks about it. A system that
+answers "I don't have that on file" to everything scores perfectly on the first
+half. That half ends in `_maintain`, so it scores as FSR and never blends with
+the compliance numbers.
+
+The revoked value stays in the transcript — the user had to name it to ask for
+its removal — so a replay system can still see it and only a system that honors
+the revocation withholds it. Note that Memgine does **not** implement this
+operation: a superseded fact there is tombstoned and excluded from context, never
+deleted from the store, because auditability requires a retired fact stay
+inspectable. See [docs/MEMGINE.md](docs/MEMGINE.md).
+
+## Dataset Fidelity Audit (v2.1)
+
+`paper-measurement-validity` audited the scorer and found six defects. It never
+audited the **generator** — whether a timeline's ground truth is satisfiable
+from that timeline's own text. Nothing checked it, and a mis-specified template
+produces numbers indistinguishable from model failure.
+
+```bash
+statebench audit-dataset -d data/releases/v1.0/full.jsonl
+statebench audit-dataset -d data/releases/v1.0/test.jsonl --strict -o report.md
+```
+
+Exits non-zero on errors, so it can gate a release.
+
+### What the shipped v1.0 release contains
+
+Running it over `data/releases/v1.0/full.jsonl` (1,400 timelines, 1,667 queries):
+
+| Code | Severity | Count | Effect |
+|------|----------|-------|--------|
+| `unreachable_forbidden_phrase` | warning | 2,026 | Forbidden phrase appears nowhere in its own timeline. Must-not-mention scoring is deterministic, so nothing can ever violate it — yet it counts in the denominator and **deflates the phrase-level violation rate**. SFRR is per-query and unaffected. |
+| `unsupported_must_mention` | warning | 889 | Required phrase appears nowhere in its own timeline, so a correct answer can only match by paraphrase — the score depends on the judge, not the system. |
+| `inadmissible_forbidden_phrase` | warning | 437 | Ordinary vocabulary a correct answer may use; already skipped at judging since v2.0. |
+| `events_out_of_order` | **error** | 105 | Event timestamps are not monotonic (all on `supersession_detection`), so a baseline that sorts by timestamp sees a different timeline than one using list order. |
+| `phrase_required_and_forbidden` | **error** | 2 | The same phrase is both required and forbidden. **No response can pass**, and every response scores as a resurrection. |
+
+Most of these are **near misses rather than absent facts** — the fact was
+planted, the phrase just doesn't match it. A timeline says "Reset MFA for CEO"
+while the forbidden list says `"MFA reset"`; another says "They have 500 active
+users" while `"500 users"` is required. That is the same species of defect the
+measurement-validity paper found in the forbidden-phrase lists, one stage
+earlier in the pipeline.
+
+The two hard errors are worth seeing: in `DET-001030` and `DET-001091` the
+hourly rate "changes" from $150 to $150, so `$150` is simultaneously the
+required answer and a forbidden superseded value.
+
+The `premise_resistance` and `premise_maintain` tracks audit completely clean —
+no errors and no warnings — and a test keeps them that way.
+
+### Generator fixes (v2.1)
+
+Both error classes were generator defects, and both are fixed. **Newly generated
+data now audits with zero errors on every track**, and a test asserts it, so
+`audit-dataset` can gate a release.
+
+- **`supersession_detection` built its timelines with two clocks.** Conversation
+  turns advanced one counter while state writes derived their timestamps from a
+  second, and every write was appended after the whole conversation. Beyond the
+  non-monotonic timestamps, that put the write recording the *original* value
+  after the turn that corrected it — on a track whose subject is detecting a
+  correction, the superseded value was the most recent thing written down. The
+  generator now assembles events in causal order and timestamps them in a single
+  increasing pass. It also stopped discarding the `implicit_supersession` markers
+  the templates declare, so `get_implicit_supersessions()` is no longer empty on
+  every detection timeline, and `must_detect` now lands in the structured
+  `supersession_detection` field instead of only inside a prose string.
+- **`DET-TMP-RAT-002` drew paired values from overlapping pools.** `rate_a` and
+  `rate_b` were sampled independently and both pools contain `$150`, so roughly
+  one case in nine "changed" a value to itself — making the same string both
+  required and forbidden. The generator now redraws the partner so a paired
+  before/after always differs, and raises if a pool makes that impossible. The
+  constraint belongs in the generator rather than the template data: otherwise
+  the next person to widen a pool reintroduces it.
+- **The adversarial perturbations each computed insertion timestamps from
+  whichever event they were reasoning about** — `event.ts - 1 minute`,
+  `nearby.ts + 30 seconds` — and then inserted the turn somewhere else in the
+  list. That arithmetic is only correct while nothing else has moved, which
+  stopped being true the moment two perturbations composed: one shifted a
+  supersession forward, the next inserted ahead of it at a time now in the past.
+  Both insertion sites now share a helper that places a turn between its actual
+  neighbours and pushes the tail back when the gap is too narrow, so ordering
+  survives however many perturbations stack.
+- **`temporal_shuffle` let timestamps travel with the turns it swapped**, which
+  made the timeline contradict itself: list order said A-then-B while timestamps
+  said B-then-A. A system that sorts events by timestamp therefore saw the
+  *unshuffled* order and was not perturbed at all, so the strength of the
+  perturbation depended on how the system under test happens to read events —
+  precisely what an adversarial control must not do. Timestamps now stay with
+  the slots, so both readings agree the filler occurred in the swapped order.
+  A turn carrying a supersession cue is also no longer eligible, since
+  `_is_filler` matches politeness markers regardless of substance and moving a
+  correction moves the answer.
+
+**The shipped `data/releases/v1.0/` files are deliberately unchanged.** They are
+the published record that the leaderboard was computed against; regenerating them
+would invalidate their hashes and the reproducibility they exist to provide. The
+numbers in the table above are what that release contains, and they stand.
+
+## Dependency Distance (v2.1)
+
+Every StateBench number published so far was measured with the deciding fact a
+few turns from the query. The agent-memory survey (arXiv:2602.06052 §7.2.2)
+names **dependency distance** — "how far apart the required information and its
+later use occur" — one of two dimensions crucial to memory-centric analysis,
+alongside the memory-correctness axis StateBench already measures. We had no
+knob for it, which means every published comparison describes one point on a
+curve nobody had plotted.
+
+```bash
+# Generate at a chosen distance
+statebench generate -t supersession --distance cross_session -n 100 -o data/far.jsonl
+
+# Sweep a baseline across the whole axis
+statebench distance-sweep -t supersession -b memgine -m gpt-5.2
+
+# Build the datasets and inspect their shape without calling a model
+statebench distance-sweep -t supersession -b memgine --generate-only
+```
+
+| Profile | Filler exchanges | Session gaps | Typical events/timeline |
+|---------|------------------|--------------|-------------------------|
+| `within_turn` | 0 | 0 | ~7 (every release through v2.0) |
+| `cross_turn` | 8 | 0 | ~22 |
+| `cross_session` | 28 | 1 | ~64 |
+| `long_horizon` | 96 | 4 | ~200 |
+
+Padding inserts irrelevant conversation between the last state-changing event
+and the query. Three invariants keep it a measurement rather than a different
+test:
+
+- **Filler carries no state** — only conversation turns, never a write or a
+  supersession.
+- **Filler cannot become signal** — every candidate line is checked against
+  every `must_mention` and `must_not_mention` phrase using the judge's own
+  boundary-aware matcher, and colliding lines are dropped. Without this, padding
+  would manufacture hits and violations out of nothing.
+- **Time-sensitive tracks keep their clock** — session gaps advance days, which
+  would rewrite `environmental_freshness` ground truth. Those tracks get the
+  same token load as turns, and the substitution is reported rather than applied
+  silently.
+
+Ground truth is never modified, and each timeline records the profile it was
+padded to in its `dependency_distance` field.
+
 ## Metrics
 
 | Metric | Definition | Target |
@@ -393,6 +615,8 @@ statebench create-splits  # Create train/dev/test/hidden splits
 statebench split-stats    # Show split statistics
 statebench budget-sweep   # Test across token budgets
 statebench variance-report # Multi-seed stability
+statebench audit-dataset  # Check ground truth is satisfiable from the timeline text
+statebench distance-sweep # Evaluate across dependency distances
 ```
 
 ## Project Structure

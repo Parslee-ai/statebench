@@ -601,7 +601,8 @@ class StateBasedStrategy(MemoryStrategy):
             # Memory type abbreviations for compact display
             type_labels = {"organizational": "org", "user": "usr", "capability": "cap"}
             facts_text = "\n".join(
-                f"- [{f.fact_id}] [{type_labels.get(f.memory_type, 'usr')}]{confidence_annotation(f.confidence)} {f.value}"
+                f"- [{f.fact_id}] [{type_labels.get(f.memory_type, 'usr')}]"
+                f"{confidence_annotation(f.confidence)} {f.value}"
                 for f in sorted(valid_other, key=lambda x: x.ts)
             )
             parts.append(f"## Current Facts\n{facts_text}")

@@ -14,7 +14,13 @@ from statebench.baselines import BASELINE_REGISTRY
 from statebench.calibration import create_audit_template, run_calibration
 from statebench.evaluation import format_metrics_table
 from statebench.evaluation.metrics import BenchmarkMetrics
+from statebench.generator.distance import (
+    DEFAULT_DISTANCE,
+    DISTANCE_BY_NAME,
+    DISTANCE_PROFILES,
+)
 from statebench.generator.engine import generate_dataset
+from statebench.generator.fidelity import check_dataset, format_fidelity_report
 from statebench.release import RELEASE_CONFIG, generate_release, verify_release
 from statebench.runner.harness import EvaluationHarness, load_timelines
 from statebench.schema.timeline import Track
@@ -48,6 +54,11 @@ AVAILABLE_TRACKS = [
     "authority_conflict",      # structured same-key authority conflicts
     "dependency_chain",        # structured depends_on chains (Type II repair)
     "authority_maintain",      # should-NOT-override guardrail (FAOR)
+    # v2.1 tracks: the query presupposes state instead of asking about it
+    "premise_resistance",      # query presupposes superseded state
+    "premise_maintain",        # query presupposes live state (guardrail)
+    "deletion_compliance",     # revoked data must not be reused or restated
+    "deletion_maintain",       # unrevoked siblings must survive (over-forgetting)
     # v2.0 tracks: paired counterfactuals (one governance variable moves per
     # pair) plus the governance x applicability factorial.
     "cf_access_control",
@@ -146,7 +157,23 @@ def main() -> None:
     default=None,
     help="Random seed for reproducibility",
 )
-def generate(tracks: tuple[str, ...], count: int, output: str, seed: int | None) -> None:
+@click.option(
+    "--distance",
+    type=click.Choice(list(DISTANCE_BY_NAME)),
+    default=DEFAULT_DISTANCE,
+    help=(
+        "Dependency distance: how far the deciding fact sits from the query. "
+        "Padding is irrelevant conversation only — ground truth is unchanged. "
+        f"Default: {DEFAULT_DISTANCE} (unpadded, as in every release so far)."
+    ),
+)
+def generate(
+    tracks: tuple[str, ...],
+    count: int,
+    output: str,
+    seed: int | None,
+    distance: str,
+) -> None:
     """Generate synthetic benchmark dataset."""
     output_path = Path(output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -158,12 +185,15 @@ def generate(tracks: tuple[str, ...], count: int, output: str, seed: int | None)
 
     console.print(f"[bold]Generating {count} timelines per track...[/bold]")
     console.print(f"Tracks: {', '.join(track_list)}")
+    if distance != DEFAULT_DISTANCE:
+        console.print(f"Dependency distance: {distance}")
 
     total = generate_dataset(
         output_path=output_path,
         tracks=track_list,
         count_per_track=count,
         seed=seed,
+        distance=distance,
     )
 
     console.print(f"\n[green]Generated {total} timelines to {output_path}[/green]")
@@ -1715,6 +1745,267 @@ def hf_push(release: str, repo: str, private: bool, token: str | None) -> None:
         console.print("  1. Run: huggingface-cli login")
         console.print("  2. Or set HF_TOKEN environment variable")
         console.print("  3. Ensure you have write access to the repository")
+
+
+@main.command("distance-sweep")
+@click.option(
+    "--tracks",
+    "-t",
+    multiple=True,
+    default=["supersession"],
+    help="Tracks to sweep. Use 'all' for all tracks.",
+)
+@click.option(
+    "--count",
+    "-n",
+    default=50,
+    help="Timelines per track per distance (default: 50)",
+)
+@click.option(
+    "--baseline",
+    "-b",
+    type=click.Choice(list(BASELINE_REGISTRY.keys())),
+    required=True,
+    help="Baseline strategy to evaluate",
+)
+@click.option("--model", "-m", default="gpt-4o", help="Model under test")
+@click.option(
+    "--provider",
+    "-p",
+    type=click.Choice(["openai", "anthropic", "google"]),
+    default="openai",
+)
+@click.option(
+    "--distances",
+    default=",".join(p.name for p in DISTANCE_PROFILES),
+    help="Comma-separated distance profiles to sweep",
+)
+@click.option("--seed", "-s", type=int, default=None, help="Random seed")
+@click.option(
+    "--token-budget", type=int, default=8000, help="Token budget (default: 8000)"
+)
+@click.option(
+    "--data-dir",
+    type=click.Path(),
+    default="data/generated/distance",
+    help="Where to write the per-distance datasets",
+)
+@click.option(
+    "--output",
+    "-o",
+    type=click.Path(),
+    default="results/distance_sweep.json",
+    help="Output path for results",
+)
+@click.option(
+    "--generate-only",
+    is_flag=True,
+    help="Build the datasets and report their shape without calling any model",
+)
+def distance_sweep(
+    tracks: tuple[str, ...],
+    count: int,
+    baseline: str,
+    model: str,
+    provider: str,
+    distances: str,
+    seed: int | None,
+    token_budget: int,
+    data_dir: str,
+    output: str,
+    generate_only: bool,
+) -> None:
+    """Evaluate the same scenarios at increasing dependency distance.
+
+    Every published StateBench number is measured at one short distance. The
+    survey that prompted this work (arXiv:2602.06052 §7.2.2) names dependency
+    distance one of two crucial dimensions for memory-centric analysis, and
+    independent work reports architecture rankings crossing over as interaction
+    length grows. This sweep holds the scenario, the baseline and the model
+    fixed and moves only the distance, so the result is a curve rather than a
+    point.
+
+    Padding is irrelevant conversation. Ground truth never changes.
+    """
+    profile_names = [d.strip() for d in distances.split(",") if d.strip()]
+    for name in profile_names:
+        if name not in DISTANCE_BY_NAME:
+            raise click.BadParameter(
+                f"unknown distance {name!r}; available: {', '.join(DISTANCE_BY_NAME)}"
+            )
+
+    track_list = list(tracks)
+    if "all" in track_list:
+        track_list = AVAILABLE_TRACKS
+
+    data_root = Path(data_dir)
+    data_root.mkdir(parents=True, exist_ok=True)
+
+    console.print("[bold]Dependency-distance sweep[/bold]")
+    console.print(f"Tracks: {', '.join(track_list)}")
+    console.print(f"Distances: {', '.join(profile_names)}")
+
+    results: dict[str, dict[str, object]] = {}
+
+    for name in profile_names:
+        profile = DISTANCE_BY_NAME[name]
+        dataset_path = data_root / f"{name}.jsonl"
+        console.print(f"\n[bold]Generating at distance={name}...[/bold]")
+        total = generate_dataset(
+            output_path=dataset_path,
+            tracks=track_list,
+            count_per_track=count,
+            seed=seed,
+            distance=name,
+        )
+
+        timelines = list(load_timelines(dataset_path))
+        avg_events = sum(len(t.events) for t in timelines) / max(1, len(timelines))
+        row: dict[str, object] = {
+            "distance": name,
+            "timelines": total,
+            "filler_exchanges": profile.exchanges,
+            "session_gaps": profile.session_gaps,
+            "avg_events_per_timeline": avg_events,
+        }
+
+        if not generate_only:
+            console.print(f"[bold]Evaluating at distance={name}...[/bold]")
+            harness = EvaluationHarness(
+                model=model, provider=provider, token_budget=token_budget
+            )
+            metrics = harness.evaluate(dataset_path, baseline)
+            row.update(
+                {
+                    "decision_accuracy": metrics.overall_decision_accuracy,
+                    "sfrr": metrics.overall_sfrr,
+                    "must_mention_rate": metrics.overall_must_mention_rate,
+                    "false_supersession_rate": metrics.overall_false_supersession_rate,
+                    "avg_tokens_per_query": metrics.avg_tokens_per_query,
+                }
+            )
+
+        results[name] = row
+
+    table = Table(title=f"Distance Sweep: {baseline}")
+    table.add_column("Distance")
+    table.add_column("Timelines", justify="right")
+    table.add_column("Avg Events", justify="right")
+    if not generate_only:
+        table.add_column("Decision Acc", justify="right")
+        table.add_column("SFRR", justify="right")
+        table.add_column("MM Rate", justify="right")
+        table.add_column("Avg Tokens", justify="right")
+
+    for name in profile_names:
+        r = results[name]
+        cells = [
+            str(r["distance"]),
+            str(r["timelines"]),
+            f"{float(r['avg_events_per_timeline']):.1f}",  # type: ignore[arg-type]
+        ]
+        if not generate_only:
+            cells += [
+                f"{float(r['decision_accuracy']):.1%}",  # type: ignore[arg-type]
+                f"{float(r['sfrr']):.1%}",  # type: ignore[arg-type]
+                f"{float(r['must_mention_rate']):.1%}",  # type: ignore[arg-type]
+                f"{float(r['avg_tokens_per_query']):.0f}",  # type: ignore[arg-type]
+            ]
+        table.add_row(*cells)
+
+    console.print("\n")
+    console.print(table)
+
+    if not generate_only and len(profile_names) > 1:
+        first, last = results[profile_names[0]], results[profile_names[-1]]
+        delta = float(last["decision_accuracy"]) - float(first["decision_accuracy"])  # type: ignore[arg-type]
+        console.print(
+            f"\nAccuracy change from {profile_names[0]} to {profile_names[-1]}: "
+            f"[bold]{delta:+.1%}[/bold]"
+        )
+        console.print(
+            "A large negative delta means the published single-distance numbers "
+            "describe the easiest point on the curve."
+        )
+
+    output_path = Path(output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(output_path, "w") as f:
+        json.dump(
+            {
+                "baseline": baseline,
+                "model": model if not generate_only else None,
+                "token_budget": token_budget,
+                "tracks": track_list,
+                "generate_only": generate_only,
+                "results": results,
+            },
+            f,
+            indent=2,
+        )
+    console.print(f"\n[green]Results written to {output_path}[/green]")
+
+
+@main.command("audit-dataset")
+@click.option(
+    "--dataset",
+    "-d",
+    type=click.Path(exists=True),
+    required=True,
+    help="Path to JSONL dataset",
+)
+@click.option(
+    "--output",
+    "-o",
+    type=click.Path(),
+    default=None,
+    help="Write the full markdown report here",
+)
+@click.option(
+    "--examples",
+    type=int,
+    default=5,
+    help="Examples to show per issue code (default: 5)",
+)
+@click.option(
+    "--strict",
+    is_flag=True,
+    help="Exit non-zero if any warning is found, not just errors",
+)
+def audit_dataset(
+    dataset: str, output: str | None, examples: int, strict: bool
+) -> None:
+    """Check that a dataset's ground truth is satisfiable from its own text.
+
+    The measurement-validity audit checked the scorer. This checks the
+    generator: whether every required phrase is actually present in the
+    timeline, whether every forbidden phrase is reachable at all, and whether
+    supersessions point at facts that exist. A phrase that does not match the
+    text it was meant to describe produces numbers that look exactly like model
+    failures.
+
+    Exits non-zero when errors are found, so it can gate a release.
+    """
+    timelines = load_timelines(Path(dataset))
+    report = check_dataset(timelines)
+
+    console.print(format_fidelity_report(report, max_examples=examples))
+
+    if output:
+        output_path = Path(output)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(format_fidelity_report(report, max_examples=10_000))
+        console.print(f"\n[green]Full report written to {output_path}[/green]")
+
+    if report.errors:
+        console.print(f"\n[red]{len(report.errors)} error(s) found[/red]")
+        raise SystemExit(1)
+    if strict and report.warnings:
+        console.print(
+            f"\n[yellow]{len(report.warnings)} warning(s) found (--strict)[/yellow]"
+        )
+        raise SystemExit(1)
+    console.print("\n[green]No errors found[/green]")
 
 
 if __name__ == "__main__":

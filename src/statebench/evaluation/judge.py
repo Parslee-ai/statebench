@@ -79,6 +79,15 @@ def _get_phrase(item: str | MentionRequirement) -> str:
     return item.phrase
 
 
+def _negation_exempt(item: str | MentionRequirement) -> bool:
+    """True if this phrase is a violation even when every mention is negated.
+
+    Bare strings are never exempt, so every pre-existing release keeps its
+    scoring exactly as it was.
+    """
+    return isinstance(item, MentionRequirement) and item.negation_exempt
+
+
 def _get_kind(item: str | MentionRequirement, track: str) -> str:
     """Failure class a forbidden phrase detects.
 
@@ -341,7 +350,13 @@ Answer with just one of the options, nothing else."""
                 # A forbidden phrase used only under negation ("the meeting is
                 # NOT Friday") demonstrates the system distinguishing dead from
                 # live state. Counting it as resurrection inverts the metric.
-                if all_mentions_negated(response, phrase):
+                #
+                # Unless the phrase is revoked data, where reproducing it is
+                # itself the leak and a correct response never needs to say it
+                # (MentionRequirement.negation_exempt).
+                if not _negation_exempt(item) and all_mentions_negated(
+                    response, phrase
+                ):
                     result.negated_mentions.append(phrase)
                     continue
                 result.must_not_mention_violations.append(phrase)

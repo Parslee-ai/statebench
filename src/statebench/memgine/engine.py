@@ -15,10 +15,11 @@ from statebench.baselines.base import ContextResult, FactMetadata
 from statebench.confidence import confidence_annotation, infer_confidence
 from statebench.constraint_checker import (
     FactValue as ConstraintFactValue,
+)
+from statebench.constraint_checker import (
     check_constraints,
     format_constraint_checklist,
 )
-from statebench.query_classifier import QueryComplexity, classify_query
 from statebench.memgine.compaction import CompactionEngine
 from statebench.memgine.config import MemgineConfig
 from statebench.memgine.dag import SummaryDAG
@@ -30,6 +31,7 @@ from statebench.memgine.layers import (
 )
 from statebench.memgine.store import ImmutableStore
 from statebench.memgine.types import StoreEntry
+from statebench.query_classifier import QueryComplexity, classify_query
 from statebench.schema.state import (
     IdentityRole,
     Scope,

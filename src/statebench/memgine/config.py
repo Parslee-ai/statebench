@@ -85,7 +85,7 @@ class MemgineConfig:
         }
         return budgets[layer].tokens(self.token_budget)
 
-    def with_layer_weights(self, weights: dict[int, float]) -> "MemgineConfig":
+    def with_layer_weights(self, weights: dict[int, float]) -> MemgineConfig:
         """Return a new config with adjusted layer budget fractions.
 
         Used by query-complexity routing to adapt budgets per query type.

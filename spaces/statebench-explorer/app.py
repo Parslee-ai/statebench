@@ -8,6 +8,7 @@ This Gradio app allows you to:
 """
 
 import json
+
 import gradio as gr
 from datasets import load_dataset
 
@@ -91,14 +92,14 @@ def format_events(events: list[dict]) -> str:
 
         elif event_type == "state_write":
             writes = event.get("writes", [])
-            lines.append(f"**📝 State Write**:")
+            lines.append("**📝 State Write**:")
             for w in writes:
                 lines.append(f"  - `{w.get('key')}`: {w.get('value')}")
             lines.append("")
 
         elif event_type == "supersession":
             writes = event.get("writes", [])
-            lines.append(f"**🔄 Supersession**:")
+            lines.append("**🔄 Supersession**:")
             for w in writes:
                 supersedes = w.get("supersedes", "")
                 lines.append(f"  - `{w.get('key')}`: {w.get('value')}")
@@ -166,7 +167,7 @@ def build_context_with_baseline(events: list[dict], baseline_name: str) -> str:
     """Build context using specified baseline."""
     try:
         from statebench.baselines import get_baseline
-        from statebench.schema.timeline import ConversationTurn, StateWrite, Supersession, Query
+        from statebench.schema.timeline import ConversationTurn, StateWrite, Supersession
 
         baseline = get_baseline(baseline_name, token_budget=8000)
         baseline.reset()

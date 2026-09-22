@@ -105,6 +105,7 @@ surface-matching metrics generally, not of one implementation.
 | Token-level F1 with stemming | **No** — "not Friday" and "Friday" share the token | LoCoMo |
 | BLEU-*n* / ROUGE-*n* at low *n* | **No** at n=1; partially at higher n | LoCoMo |
 | LLM-as-judge, binary | In principle yes; verbosity and self-enhancement biases documented separately | LongMemEval, Mem0, most recent work |
+| Operation-level memory metrics (MI, FMR) | Partly — they score the *store*, not the response, so response negation never arises | HaluMem |
 
 LoCoMo (Maharana et al.) reports token-level F1 with Porter stemming, BLEU-1 and ROUGE-L
 over 1,986 QA pairs. Unigram-level overlap metrics cannot represent negation: a reference
@@ -119,6 +120,38 @@ error, since both require a system to signal that something is *not* the case. I
 judge-based scoring rather than surface matching is the right structural choice; whether
 the judges handle negation and abstention reliably is a separate question we do not
 measure here.
+
+**The field's own map of these metrics.** Huang et al. (2026), a 90-page synthesis of
+200+ papers on foundation-agent memory, organizes evaluation metrics into exactly three
+families — accuracy-based, similarity-based, and LLM-as-a-judge (their Table 3) — and
+reaches the same conclusion about the middle one from the opposite direction: overlap
+metrics "can underestimate valid paraphrases and overestimate fluent yet ungrounded
+responses", and "should be paired with grounding checks... to avoid rewarding ungrounded
+paraphrases". Our table above is a refinement of theirs along one axis they do not
+separate: whether the family can represent *negation*.
+
+Two observations in that survey bear directly on the exposure we measure. First, it
+defines ten user-centric memory abilities, of which two — **Update & Refresh** ("revising
+memory when new evidence contradicts old content") and **Abstain & Boundary Handling**
+("recognizing unknown or unanswerable cases, conflicts, or false premises and avoiding
+fabrication") — are precisely the abilities that require a system to signal that
+something is *not* the case. Second, it observes that abstention "is also inconsistently
+required" and that "only a few benchmarks explicitly reward abstention under missing
+evidence". A scoring family that cannot represent negation and an ability set that rarely
+tests it are a stable equilibrium: the defect we document is not penalized because the
+behavior that exposes it is rarely asked for.
+
+**The nearest published relatives of our metrics.** HaluMem (Chen et al., 2025) reports
+**Memory Integrity** (coverage of required memory points) and **False Memory Rate** (rate
+of introducing hallucinated or incorrect memories during storage, update, or use). These
+are the closest analogues to our Must-Mention Rate and SFRR, and the difference is
+instructive: MI and FMR score the *memory store*, while ours score the *response*. Store-
+level metrics are immune to the defect in this paper — a store either holds a superseded
+value or it does not, and there is no sentence in which the value might appear under
+negation. Response-level metrics are strictly more exposed, and in exchange measure
+something store-level metrics cannot: whether the system's *answer* acts on the right
+state. Both are needed. Reporting either alone leaves a system unfalsified in one of the
+two places it can fail.
 
 **Adjacent work on evaluation validity.** MemDelta (Wang, 2026) makes a complementary
 argument from a different direction: that "reported gains often mix changes in the memory
@@ -596,6 +629,13 @@ exposure without re-running generation.
 ---
 
 ## References
+
+Chen, Z., et al. (2025). *HaluMem: Evaluating Hallucinations in Memory Systems of
+Agents.*
+
+Huang, W.-C., Zhang, W., Liang, Y., et al. (2026). *A Survey of Agent Memory in the
+Second Half: Towards Self-Evolving and Long-Horizon Agents.* Transactions on Machine
+Learning Research (07/2026). arXiv:2602.06052.
 
 Maharana, A., et al. (2024). *Evaluating Very Long-Term Conversational Memory of LLM
 Agents* (LoCoMo).

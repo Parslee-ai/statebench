@@ -13,7 +13,7 @@ boundaries and tests:
 3. Session-scoped facts that should NOT persist
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 
 @dataclass
@@ -58,7 +58,12 @@ BUDGET_PERSISTS = MultiSessionTemplate(
     domain="finance",
     description="Budget fact from session 1 should persist to session 2",
     session_1_facts=[
-        {"key": "project_budget", "value": "$200,000 approved for Project Alpha", "source": "finance_system", "scope": "global"},
+        {
+            "key": "project_budget",
+            "value": "$200,000 approved for Project Alpha",
+            "source": "finance_system",
+            "scope": "global",
+        },
         {"key": "session_note", "value": "Discussed implementation timeline", "source": "user", "scope": "session"},
     ],
     boundary=SessionBoundary(session_id="session_2", description="New day, new conversation"),
@@ -74,7 +79,12 @@ VENDOR_APPROVAL_PERSISTS = MultiSessionTemplate(
     domain="procurement",
     description="Vendor approval from session 1 persists",
     session_1_facts=[
-        {"key": "vendor_approved", "value": "Acme Corp approved as vendor for Q4 supplies", "source": "procurement_system", "scope": "global"},
+        {
+            "key": "vendor_approved",
+            "value": "Acme Corp approved as vendor for Q4 supplies",
+            "source": "procurement_system",
+            "scope": "global",
+        },
     ],
     boundary=SessionBoundary(session_id="session_2", description="Follow-up meeting"),
     session_2_facts=[],
@@ -91,11 +101,21 @@ BUDGET_SUPERSEDED_CROSS_SESSION = MultiSessionTemplate(
     domain="finance",
     description="Session 2 supersedes a budget from session 1",
     session_1_facts=[
-        {"key": "project_budget", "value": "$200,000 approved for Project Alpha", "source": "finance_system", "scope": "global"},
+        {
+            "key": "project_budget",
+            "value": "$200,000 approved for Project Alpha",
+            "source": "finance_system",
+            "scope": "global",
+        },
     ],
     boundary=SessionBoundary(session_id="session_2", description="Budget review meeting"),
     session_2_facts=[
-        {"key": "project_budget", "value": "$150,000 (revised down after Q3 review)", "source": "finance_system", "scope": "global"},
+        {
+            "key": "project_budget",
+            "value": "$150,000 (revised down after Q3 review)",
+            "source": "finance_system",
+            "scope": "global",
+        },
     ],
     query="What's the current budget for Project Alpha?",
     expected_decision="$150,000 (revised)",
@@ -112,7 +132,12 @@ DEADLINE_CHANGED_CROSS_SESSION = MultiSessionTemplate(
     ],
     boundary=SessionBoundary(session_id="session_2", description="Client call"),
     session_2_facts=[
-        {"key": "delivery_deadline", "value": "April 15, 2025 (client agreed to extension)", "source": "project_system", "scope": "global"},
+        {
+            "key": "delivery_deadline",
+            "value": "April 15, 2025 (client agreed to extension)",
+            "source": "project_system",
+            "scope": "global",
+        },
     ],
     query="When is the delivery deadline?",
     expected_decision="April 15, 2025",
@@ -128,7 +153,12 @@ SESSION_SCOPED_NOT_PERSIST = MultiSessionTemplate(
     description="Session-scoped brainstorm notes should not persist",
     session_1_facts=[
         {"key": "team_size", "value": "Team has 8 engineers", "source": "hr_system", "scope": "global"},
-        {"key": "brainstorm_idea", "value": "What if we outsourced the frontend to save $50K?", "source": "user", "scope": "session"},
+        {
+            "key": "brainstorm_idea",
+            "value": "What if we outsourced the frontend to save $50K?",
+            "source": "user",
+            "scope": "session",
+        },
     ],
     boundary=SessionBoundary(session_id="session_2", description="Planning meeting"),
     session_2_facts=[],
@@ -144,7 +174,12 @@ HYPOTHETICAL_NOT_PERSIST = MultiSessionTemplate(
     description="Hypothetical discussed in session 1 should not persist as fact",
     session_1_facts=[
         {"key": "actual_headcount", "value": "Current team: 10 engineers", "source": "hr_system", "scope": "global"},
-        {"key": "what_if_headcount", "value": "What if we doubled the team to 20?", "source": "user", "scope": "session"},
+        {
+            "key": "what_if_headcount",
+            "value": "What if we doubled the team to 20?",
+            "source": "user",
+            "scope": "session",
+        },
     ],
     boundary=SessionBoundary(session_id="session_2", description="Status update"),
     session_2_facts=[],

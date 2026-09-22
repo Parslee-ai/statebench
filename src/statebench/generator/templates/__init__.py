@@ -34,15 +34,25 @@ from statebench.generator.templates.causality import (
     get_hard_causality_templates,
     get_paired_test,
 )
+from statebench.generator.templates.commitment import (
+    COMMITMENT_TEMPLATES,
+    CommitmentTemplate,
+    get_commitment_templates_by_domain,
+)
 from statebench.generator.templates.contradiction import (
     CONTRADICTION_TEMPLATES,
     ContradictionTemplate,
     get_contradiction_templates,
 )
-from statebench.generator.templates.commitment import (
-    COMMITMENT_TEMPLATES,
-    CommitmentTemplate,
-    get_commitment_templates_by_domain,
+
+# v2.1: Deletion Compliance (Forgetting & Retention)
+from statebench.generator.templates.deletion import (
+    DELETION_COMPLIANCE_TEMPLATES,
+    DELETION_MAINTAIN_TEMPLATES,
+    DELETION_PAIRS,
+    DeletionTemplate,
+    get_deletion_templates,
+    get_deletion_templates_by_domain,
 )
 
 # v1.0: Detection Track
@@ -93,6 +103,14 @@ from statebench.generator.templates.permission import (
     PERMISSION_TEMPLATES,
     PermissionTemplate,
     get_permission_templates_by_domain,
+)
+from statebench.generator.templates.premise import (
+    PREMISE_MAINTAIN_TEMPLATES,
+    PREMISE_PAIRS,
+    PREMISE_RESISTANCE_TEMPLATES,
+    PremiseTemplate,
+    get_premise_templates,
+    get_premise_templates_by_domain,
 )
 from statebench.generator.templates.reasoning_depth import (
     REASONING_DEPTH_TEMPLATES,
@@ -180,6 +198,20 @@ __all__ = [
     "REASONING_DEPTH_TEMPLATES",
     "get_reasoning_depth_templates",
     "get_reasoning_depth_templates_by_domain",
+    # v2.1: Deletion Compliance (Forgetting & Retention)
+    "DeletionTemplate",
+    "DELETION_COMPLIANCE_TEMPLATES",
+    "DELETION_MAINTAIN_TEMPLATES",
+    "DELETION_PAIRS",
+    "get_deletion_templates",
+    "get_deletion_templates_by_domain",
+    # v2.1: Premise Resistance
+    "PremiseTemplate",
+    "PREMISE_RESISTANCE_TEMPLATES",
+    "PREMISE_MAINTAIN_TEMPLATES",
+    "PREMISE_PAIRS",
+    "get_premise_templates",
+    "get_premise_templates_by_domain",
     # Track 9: Repair Propagation
     "RepairChain",
     "REPAIR_CHAIN_TEMPLATES",
