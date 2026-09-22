@@ -14,6 +14,11 @@ from statebench.baselines import BASELINE_REGISTRY
 from statebench.calibration import create_audit_template, run_calibration
 from statebench.evaluation import format_metrics_table
 from statebench.evaluation.metrics import BenchmarkMetrics
+from statebench.evaluation.premise_metrics import (
+    PremiseMetrics,
+    compute_premise_metrics,
+    format_premise_report,
+)
 from statebench.generator.distance import (
     DEFAULT_DISTANCE,
     DISTANCE_BY_NAME,
@@ -199,6 +204,24 @@ def generate(
     console.print(f"\n[green]Generated {total} timelines to {output_path}[/green]")
 
 
+def _premise_payload(m: PremiseMetrics) -> dict[str, float | int | bool]:
+    """Premise metrics as a JSON-serializable dict."""
+    return {
+        "false_premise_queries": m.false_premise_queries,
+        "premise_rejection_rate": m.premise_rejection_rate,
+        "correction_rate": m.correction_rate,
+        "resolved_rate": m.resolved_rate,
+        "resurrection_rate": m.resurrection_rate,
+        "true_premise_queries": m.true_premise_queries,
+        "false_rejection_rate": m.false_rejection_rate,
+        "discriminates": m.discriminates,
+        "v1_violation_rate": m.v1_violation_rate,
+        "v2_violation_rate": m.v2_violation_rate,
+        "v1_false_violation_rate": m.v1_false_violation_rate,
+        "correct_false_premise_responses": m.correct_false_premise_responses,
+    }
+
+
 @main.command()
 @click.option(
     "--dataset",
@@ -285,6 +308,14 @@ def evaluate(
                 f"avg ratio: {metrics.avg_compaction_ratio:.2f}"
             )
 
+        # Premise track carries metrics the aggregate table cannot express:
+        # on this track a correct answer must utter the stale value to reject
+        # it, so SFRR and MNM alone read a correct rejection as a failure.
+        premise = compute_premise_metrics(harness.last_results)
+        if premise.false_premise_queries or premise.true_premise_queries:
+            console.print("\n")
+            console.print(format_premise_report(premise))
+
         if output:
             output_path = Path(output)
             output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -307,6 +338,8 @@ def evaluate(
                     for track, tm in metrics.tracks.items()
                 },
             }
+            if premise.false_premise_queries or premise.true_premise_queries:
+                output_data["premise"] = _premise_payload(premise)
             if pad_facts > 0:
                 output_data["pad_facts"] = pad_facts
                 output_data["compaction_triggered_count"] = metrics.compaction_triggered_count
@@ -320,10 +353,12 @@ def evaluate(
             f"[bold]Evaluating {baseline} with {model} ({runs} runs)...[/bold]"
         )
         metrics_list: list[BenchmarkMetrics] = []
+        premise_runs: list[PremiseMetrics] = []
         for i in range(runs):
             console.print(f"\n[bold]Run {i + 1}/{runs}...[/bold]")
             m = harness.evaluate(Path(dataset), baseline, limit=limit)
             metrics_list.append(m)
+            premise_runs.append(compute_premise_metrics(harness.last_results))
 
         agg = _aggregate_runs(metrics_list)
 
@@ -368,13 +403,43 @@ def evaluate(
             console.print("\n")
             console.print(track_table)
 
+        # Premise mean/std across runs. Reported separately from the aggregate
+        # table because a premise run's headline number is a rejection rate,
+        # not an accuracy, and the two halves must be read as a pair.
+        scored_premise = [
+            pm for pm in premise_runs
+            if pm.false_premise_queries or pm.true_premise_queries
+        ]
+        if scored_premise:
+            premise_table = Table(title=f"Premise Resistance ({len(scored_premise)} runs)")
+            premise_table.add_column("Metric")
+            premise_table.add_column("Mean", justify="right")
+            premise_table.add_column("Std", justify="right")
+            for label, attr in [
+                ("Premise Rejection Rate", "premise_rejection_rate"),
+                ("Correction Rate", "correction_rate"),
+                ("Resolved Rate", "resolved_rate"),
+                ("Resurrection Rate", "resurrection_rate"),
+                ("False Rejection Rate", "false_rejection_rate"),
+                ("v1.0 false violation rate", "v1_false_violation_rate"),
+            ]:
+                values = [getattr(pm, attr) for pm in scored_premise]
+                std = statistics.stdev(values) if len(values) > 1 else 0.0
+                premise_table.add_row(
+                    label,
+                    f"{statistics.mean(values):.1%}",
+                    f"\u00b1{std:.1%}",
+                )
+            console.print("\n")
+            console.print(premise_table)
+
         # Save JSON if output specified
         if output:
             output_path = Path(output)
             output_path.parent.mkdir(parents=True, exist_ok=True)
 
             per_run = []
-            for m in metrics_list:
+            for run_idx, m in enumerate(metrics_list):
                 per_run.append({
                     "decision_accuracy": m.overall_decision_accuracy,
                     "sfrr": m.overall_sfrr,
@@ -395,6 +460,9 @@ def evaluate(
                         for track, tm in m.tracks.items()
                     },
                 })
+                pm = premise_runs[run_idx]
+                if pm.false_premise_queries or pm.true_premise_queries:
+                    per_run[-1]["premise"] = _premise_payload(pm)
 
             # Build aggregate tracks section
             agg_tracks: dict[str, dict[str, dict[str, float]]] = {}
