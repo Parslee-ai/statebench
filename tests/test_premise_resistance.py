@@ -390,3 +390,45 @@ def test_maintain_track_feeds_fsr_not_sfrr():
     # The false-premise half is scored on the should-supersede side, and a
     # correctly-negated mention is not a resurrection.
     assert benchmark.overall_sfrr == 0.0
+
+
+def test_harness_retains_raw_results_for_premise_reporting(tmp_path, monkeypatch):
+    """``evaluate`` must leave the per-query results reachable.
+
+    ``BenchmarkMetrics`` is track-aggregated and cannot express a rejection
+    rate paired against a false-rejection rate, so the premise report needs the
+    individual judgements. Before this was wired up ``compute_premise_metrics``
+    existed but had no caller and no path to its input -- the track generated
+    and scored, and then reported nothing it was built to report.
+    """
+    from statebench.runner.harness import EvaluationHarness
+
+    dataset = tmp_path / "premise.jsonl"
+    generator = TimelineGenerator(seed=7)
+    with open(dataset, "w") as f:
+        for track in ("premise_resistance", "premise_maintain"):
+            for timeline in generator.generate_track(track, count=2):
+                f.write(timeline.model_dump_json() + "\n")
+
+    harness = EvaluationHarness(model="scripted", provider="none", use_llm_judge=False)
+    monkeypatch.setattr(
+        harness, "_generate_response", lambda system, user: ("No.", 0, 0)
+    )
+    # Token accounting is irrelevant here and cl100k_base wants a network fetch.
+    monkeypatch.setattr(
+        "tiktoken.get_encoding",
+        lambda name: type("E", (), {"encode": lambda self, t, *a, **k: [0] * (len(t) // 4 + 1)})(),
+    )
+
+    assert harness.last_results == []
+    harness.evaluate(dataset, "no_memory")
+
+    assert len(harness.last_results) == 4
+    tracks = {r.track for r in harness.last_results}
+    assert tracks == {"premise_resistance", "premise_maintain"}
+
+    m = compute_premise_metrics(harness.last_results)
+    assert m.false_premise_queries == 2
+    assert m.true_premise_queries == 2
+    # A blanket "No." rejects both halves, so it cannot discriminate.
+    assert not m.discriminates

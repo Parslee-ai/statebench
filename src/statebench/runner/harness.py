@@ -84,6 +84,11 @@ class EvaluationHarness:
         self.token_budget = token_budget
         self.pad_facts = pad_facts
         self._client: Any = None
+        # Raw per-query results from the most recent ``evaluate`` call.
+        # ``BenchmarkMetrics`` is track-aggregated, so track-specific reports
+        # (premise, detection) that need the individual judgements have no way
+        # back to them otherwise.
+        self.last_results: list[QueryResult] = []
         # The judge is NEVER derived from the provider under test. Doing so
         # graded each model family with a judge from its own family, so any
         # cross-model comparison mixed two graders. Pin one judge for the whole
@@ -389,6 +394,7 @@ class EvaluationHarness:
                     aggregator.add_result(result)
                 progress.advance(task)
 
+        self.last_results = list(aggregator.results)
         return aggregator.compute_benchmark_metrics()
 
     def compare_baselines(
